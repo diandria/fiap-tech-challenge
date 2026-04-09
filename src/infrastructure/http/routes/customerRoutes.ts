@@ -5,6 +5,7 @@ import { GetCustomerUseCase } from '../../../application/use-cases/customers/Get
 import { ListCustomersUseCase } from '../../../application/use-cases/customers/ListCustomersUseCase';
 import { UpdateCustomerUseCase } from '../../../application/use-cases/customers/UpdateCustomerUseCase';
 import { DeleteCustomerUseCase } from '../../../application/use-cases/customers/DeleteCustomerUseCase';
+import { GetCustomerByTaxIdUseCase } from '../../../application/use-cases/customers/GetCustomerByTaxIdUseCase';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { requireRole } from '../middlewares/roleMiddleware';
 
@@ -16,6 +17,7 @@ export function customerRoutes(): Router {
   const listCustomers = new ListCustomersUseCase(repo);
   const updateCustomer = new UpdateCustomerUseCase(repo);
   const deleteCustomer = new DeleteCustomerUseCase(repo);
+  const getCustomerByTaxId = new GetCustomerByTaxIdUseCase(repo);
 
   router.use(authMiddleware);
   router.use(requireRole('attendant', 'admin'));
@@ -70,6 +72,32 @@ export function customerRoutes(): Router {
     try {
       const customer = await createCustomer.execute(req.body);
       res.status(201).json(customer);
+    } catch (err) { next(err); }
+  });
+
+  /**
+   * @openapi
+   * /customers/tax/{taxId}:
+   *   get:
+   *     summary: Get a customer by CPF or CNPJ
+   *     tags: [Customers]
+   *     security: [{ bearerAuth: [] }]
+   *     parameters:
+   *       - in: path
+   *         name: taxId
+   *         required: true
+   *         schema: { type: string }
+   *         description: CPF (11 digits) or CNPJ (14 digits), formatted or raw
+   *     responses:
+   *       200:
+   *         description: Customer object
+   *       404:
+   *         description: Not found
+   */
+  router.get('/tax/:taxId', async (req, res, next) => {
+    try {
+      const customer = await getCustomerByTaxId.execute(req.params.taxId);
+      res.json(customer);
     } catch (err) { next(err); }
   });
 
