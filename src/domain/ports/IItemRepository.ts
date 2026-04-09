@@ -6,10 +6,4 @@ export interface IItemRepository {
   create(data: Omit<Item, 'id'>): Promise<Item>;
   update(id: string, data: Partial<Omit<Item, 'id'>>): Promise<Item | null>;
   delete(id: string): Promise<boolean>;
-  /** Increment reservedQuantity by quantity */
-  reserve(id: string, quantity: number): Promise<Item>;
-  /** Decrement reservedQuantity by quantity */
-  release(id: string, quantity: number): Promise<Item>;
-  /** Decrement both stockQuantity and reservedQuantity by quantity */
-  consume(id: string, quantity: number): Promise<Item>;
 }

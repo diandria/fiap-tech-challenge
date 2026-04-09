@@ -11,9 +11,6 @@ const makeRepo = (found: Item | null, deleted = true): IItemRepository => ({
   create: jest.fn(),
   update: jest.fn(),
   delete: jest.fn().mockResolvedValue(deleted),
-  reserve: jest.fn(),
-  release: jest.fn(),
-  consume: jest.fn(),
 });
 
 describe('DeleteItemUseCase', () => {

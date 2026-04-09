@@ -1,7 +1,6 @@
 import { IItemRepository } from '../../../domain/ports/IItemRepository';
 import { Item } from '../../../domain/entities/Item';
 import { ItemModel } from '../models/ItemModel';
-import { NotFoundError } from '../../../domain/errors/AppError';
 
 export class MongoItemRepository implements IItemRepository {
   private toEntity(doc: any): Item {
@@ -37,35 +36,5 @@ export class MongoItemRepository implements IItemRepository {
   async delete(id: string): Promise<boolean> {
     const result = await ItemModel.findByIdAndDelete(id);
     return result !== null;
-  }
-
-  async reserve(id: string, quantity: number): Promise<Item> {
-    const doc = await ItemModel.findByIdAndUpdate(
-      id,
-      { $inc: { reservedQuantity: quantity } },
-      { new: true },
-    ).lean();
-    if (!doc) throw new NotFoundError('Item');
-    return this.toEntity(doc);
-  }
-
-  async release(id: string, quantity: number): Promise<Item> {
-    const doc = await ItemModel.findByIdAndUpdate(
-      id,
-      { $inc: { reservedQuantity: -quantity } },
-      { new: true },
-    ).lean();
-    if (!doc) throw new NotFoundError('Item');
-    return this.toEntity(doc);
-  }
-
-  async consume(id: string, quantity: number): Promise<Item> {
-    const doc = await ItemModel.findByIdAndUpdate(
-      id,
-      { $inc: { stockQuantity: -quantity, reservedQuantity: -quantity } },
-      { new: true },
-    ).lean();
-    if (!doc) throw new NotFoundError('Item');
-    return this.toEntity(doc);
   }
 }

@@ -7,9 +7,6 @@ const makeRepo = (override?: Partial<IItemRepository>): IItemRepository => ({
   create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'i-1', ...data })),
   update: jest.fn(),
   delete: jest.fn(),
-  reserve: jest.fn(),
-  release: jest.fn(),
-  consume: jest.fn(),
   ...override,
 });
 
