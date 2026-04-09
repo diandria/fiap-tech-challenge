@@ -1,0 +1,27 @@
+import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepository';
+import { IServiceRepository } from '../../../domain/ports/IServiceRepository';
+import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
+import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
+
+export class AddServiceToOSUseCase {
+  constructor(
+    private readonly osRepo: IServiceOrderRepository,
+    private readonly serviceRepo: IServiceRepository,
+  ) {}
+
+  async execute(osId: string, serviceId: string): Promise<ServiceOrder> {
+    const os = await this.osRepo.findById(osId);
+    if (!os) throw new NotFoundError('Service order');
+    if (os.status !== 'DIAGNOSIS') throw new ValidationError('Services can only be added during DIAGNOSIS');
+
+    const service = await this.serviceRepo.findById(serviceId);
+    if (!service) throw new NotFoundError('Service');
+
+    const alreadyAdded = os.services.some((s) => s.serviceId === serviceId);
+    if (alreadyAdded) throw new ValidationError('Service already added to this order');
+
+    const services = [...os.services, { serviceId }];
+    const updated = await this.osRepo.update(osId, { services });
+    return updated!;
+  }
+}
