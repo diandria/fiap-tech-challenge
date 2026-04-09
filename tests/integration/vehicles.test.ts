@@ -7,6 +7,8 @@ import { RegisterUseCase } from '../../src/application/use-cases/auth/RegisterUs
 
 let app: Application;
 let adminToken: string;
+let attendantToken: string;
+let mechanicToken: string;
 
 const validVehicle = {
   customerId: 'c-placeholder',
@@ -20,8 +22,17 @@ async function seedAdmin(): Promise<void> {
   const repo = new MongoUserRepository();
   const register = new RegisterUseCase(repo);
   await register.execute({ email: 'admin@test.com', password: 'adminpass', role: 'admin' });
-  const res = await request(app).post('/auth/login').send({ email: 'admin@test.com', password: 'adminpass' });
-  adminToken = res.body.token;
+  await register.execute({ email: 'attendant@test.com', password: 'attpass', role: 'attendant' });
+  await register.execute({ email: 'mechanic@test.com', password: 'mechpass', role: 'mechanic' });
+
+  const adminRes = await request(app).post('/auth/login').send({ email: 'admin@test.com', password: 'adminpass' });
+  adminToken = adminRes.body.token;
+
+  const attRes = await request(app).post('/auth/login').send({ email: 'attendant@test.com', password: 'attpass' });
+  attendantToken = attRes.body.token;
+
+  const mechRes = await request(app).post('/auth/login').send({ email: 'mechanic@test.com', password: 'mechpass' });
+  mechanicToken = mechRes.body.token;
 }
 
 beforeAll(async () => {
@@ -90,5 +101,37 @@ describe('DELETE /vehicles/:id', () => {
     const created = await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send(validVehicle);
     const del = await request(app).delete(`/vehicles/${created.body.id}`).set('Authorization', `Bearer ${adminToken}`);
     expect(del.status).toBe(204);
+  });
+});
+
+describe('Role Authorization — /vehicles', () => {
+  it('attendant can POST /vehicles', async () => {
+    const res = await request(app).post('/vehicles').set('Authorization', `Bearer ${attendantToken}`).send(validVehicle);
+    expect(res.status).toBe(201);
+  });
+
+  it('attendant can GET /vehicles', async () => {
+    const res = await request(app).get('/vehicles').set('Authorization', `Bearer ${attendantToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('mechanic gets 403 on GET /vehicles', async () => {
+    const res = await request(app).get('/vehicles').set('Authorization', `Bearer ${mechanicToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('mechanic gets 403 on POST /vehicles', async () => {
+    const res = await request(app).post('/vehicles').set('Authorization', `Bearer ${mechanicToken}`).send(validVehicle);
+    expect(res.status).toBe(403);
+  });
+
+  it('no auth gets 401 on GET /vehicles', async () => {
+    const res = await request(app).get('/vehicles');
+    expect(res.status).toBe(401);
+  });
+
+  it('no auth gets 401 on POST /vehicles', async () => {
+    const res = await request(app).post('/vehicles').send(validVehicle);
+    expect(res.status).toBe(401);
   });
 });

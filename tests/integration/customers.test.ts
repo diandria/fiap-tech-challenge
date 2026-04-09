@@ -8,6 +8,7 @@ import { RegisterUseCase } from '../../src/application/use-cases/auth/RegisterUs
 let app: Application;
 let adminToken: string;
 let attendantToken: string;
+let mechanicToken: string;
 
 const validCustomer = {
   name: 'João Silva',
@@ -22,12 +23,16 @@ async function seedTokens(): Promise<void> {
   const register = new RegisterUseCase(repo);
   await register.execute({ email: 'admin@test.com', password: 'adminpass', role: 'admin' });
   await register.execute({ email: 'attendant@test.com', password: 'attpass', role: 'attendant' });
+  await register.execute({ email: 'mechanic@test.com', password: 'mechpass', role: 'mechanic' });
 
   const adminRes = await request(app).post('/auth/login').send({ email: 'admin@test.com', password: 'adminpass' });
   adminToken = adminRes.body.token;
 
   const attRes = await request(app).post('/auth/login').send({ email: 'attendant@test.com', password: 'attpass' });
   attendantToken = attRes.body.token;
+
+  const mechRes = await request(app).post('/auth/login').send({ email: 'mechanic@test.com', password: 'mechpass' });
+  mechanicToken = mechRes.body.token;
 }
 
 beforeAll(async () => {
@@ -121,5 +126,37 @@ describe('DELETE /customers/:id', () => {
     expect(del.status).toBe(204);
     const get = await request(app).get(`/customers/${created.body.id}`).set('Authorization', `Bearer ${adminToken}`);
     expect(get.status).toBe(404);
+  });
+});
+
+describe('Role Authorization — /customers', () => {
+  it('mechanic gets 403 on GET /customers', async () => {
+    const res = await request(app).get('/customers').set('Authorization', `Bearer ${mechanicToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('mechanic gets 403 on POST /customers', async () => {
+    const res = await request(app).post('/customers').set('Authorization', `Bearer ${mechanicToken}`).send(validCustomer);
+    expect(res.status).toBe(403);
+  });
+
+  it('no auth gets 401 on GET /customers', async () => {
+    const res = await request(app).get('/customers');
+    expect(res.status).toBe(401);
+  });
+
+  it('no auth gets 401 on GET /customers/:id', async () => {
+    const res = await request(app).get('/customers/000000000000000000000000');
+    expect(res.status).toBe(401);
+  });
+
+  it('no auth gets 401 on PUT /customers/:id', async () => {
+    const res = await request(app).put('/customers/000000000000000000000000').send({ name: 'x' });
+    expect(res.status).toBe(401);
+  });
+
+  it('no auth gets 401 on DELETE /customers/:id', async () => {
+    const res = await request(app).delete('/customers/000000000000000000000000');
+    expect(res.status).toBe(401);
   });
 });

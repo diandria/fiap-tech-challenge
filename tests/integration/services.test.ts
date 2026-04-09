@@ -8,6 +8,7 @@ import { RegisterUseCase } from '../../src/application/use-cases/auth/RegisterUs
 let app: Application;
 let adminToken: string;
 let mechanicToken: string;
+let attendantToken: string;
 
 const validService = { name: 'Oil Change', price: 80, estimatedMinutes: 30 };
 
@@ -16,10 +17,13 @@ async function seedTokens(): Promise<void> {
   const register = new RegisterUseCase(repo);
   await register.execute({ email: 'admin@test.com', password: 'adminpass', role: 'admin' });
   await register.execute({ email: 'mechanic@test.com', password: 'mechpass', role: 'mechanic' });
+  await register.execute({ email: 'attendant@test.com', password: 'attpass', role: 'attendant' });
   const adminRes = await request(app).post('/auth/login').send({ email: 'admin@test.com', password: 'adminpass' });
   adminToken = adminRes.body.token;
   const mechRes = await request(app).post('/auth/login').send({ email: 'mechanic@test.com', password: 'mechpass' });
   mechanicToken = mechRes.body.token;
+  const attRes = await request(app).post('/auth/login').send({ email: 'attendant@test.com', password: 'attpass' });
+  attendantToken = attRes.body.token;
 }
 
 beforeAll(async () => {
@@ -77,5 +81,57 @@ describe('DELETE /services/:id', () => {
     const created = await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
     const del = await request(app).delete(`/services/${created.body.id}`).set('Authorization', `Bearer ${adminToken}`);
     expect(del.status).toBe(204);
+  });
+});
+
+describe('Role Authorization — /services', () => {
+  it('mechanic can GET /services/:id', async () => {
+    const created = await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
+    const res = await request(app).get(`/services/${created.body.id}`).set('Authorization', `Bearer ${mechanicToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('attendant can GET /services/:id', async () => {
+    const created = await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
+    const res = await request(app).get(`/services/${created.body.id}`).set('Authorization', `Bearer ${attendantToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('no auth gets 401 on GET /services/:id', async () => {
+    const created = await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
+    const res = await request(app).get(`/services/${created.body.id}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('attendant gets 403 on POST /services', async () => {
+    const res = await request(app).post('/services').set('Authorization', `Bearer ${attendantToken}`).send(validService);
+    expect(res.status).toBe(403);
+  });
+
+  it('attendant gets 403 on PUT /services/:id', async () => {
+    const created = await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
+    const res = await request(app).put(`/services/${created.body.id}`).set('Authorization', `Bearer ${attendantToken}`).send({ price: 99 });
+    expect(res.status).toBe(403);
+  });
+
+  it('attendant gets 403 on DELETE /services/:id', async () => {
+    const created = await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
+    const res = await request(app).delete(`/services/${created.body.id}`).set('Authorization', `Bearer ${attendantToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('no auth gets 401 on POST /services', async () => {
+    const res = await request(app).post('/services').send(validService);
+    expect(res.status).toBe(401);
+  });
+
+  it('no auth gets 401 on PUT /services/:id', async () => {
+    const res = await request(app).put('/services/000000000000000000000000').send({ price: 99 });
+    expect(res.status).toBe(401);
+  });
+
+  it('no auth gets 401 on DELETE /services/:id', async () => {
+    const res = await request(app).delete('/services/000000000000000000000000');
+    expect(res.status).toBe(401);
   });
 });

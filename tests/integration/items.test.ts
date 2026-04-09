@@ -8,6 +8,8 @@ import { MongoItemRepository } from '../../src/infrastructure/persistence/reposi
 
 let app: Application;
 let adminToken: string;
+let mechanicToken: string;
+let attendantToken: string;
 
 const validItem = { name: 'Oil Filter', price: 25, stockQuantity: 10 };
 
@@ -15,8 +17,17 @@ async function seedAdmin(): Promise<void> {
   const repo = new MongoUserRepository();
   const register = new RegisterUseCase(repo);
   await register.execute({ email: 'admin@test.com', password: 'adminpass', role: 'admin' });
-  const res = await request(app).post('/auth/login').send({ email: 'admin@test.com', password: 'adminpass' });
-  adminToken = res.body.token;
+  await register.execute({ email: 'mechanic@test.com', password: 'mechpass', role: 'mechanic' });
+  await register.execute({ email: 'attendant@test.com', password: 'attpass', role: 'attendant' });
+
+  const adminRes = await request(app).post('/auth/login').send({ email: 'admin@test.com', password: 'adminpass' });
+  adminToken = adminRes.body.token;
+
+  const mechRes = await request(app).post('/auth/login').send({ email: 'mechanic@test.com', password: 'mechpass' });
+  mechanicToken = mechRes.body.token;
+
+  const attRes = await request(app).post('/auth/login').send({ email: 'attendant@test.com', password: 'attpass' });
+  attendantToken = attRes.body.token;
 }
 
 beforeAll(async () => {
@@ -75,5 +86,43 @@ describe('DELETE /items/:id', () => {
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/reserved/i);
+  });
+});
+
+describe('Role Authorization — /items', () => {
+  it('mechanic can GET /items', async () => {
+    const res = await request(app).get('/items').set('Authorization', `Bearer ${mechanicToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('attendant can GET /items', async () => {
+    const res = await request(app).get('/items').set('Authorization', `Bearer ${attendantToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('mechanic gets 403 on POST /items', async () => {
+    const res = await request(app).post('/items').set('Authorization', `Bearer ${mechanicToken}`).send(validItem);
+    expect(res.status).toBe(403);
+  });
+
+  it('attendant gets 403 on POST /items', async () => {
+    const res = await request(app).post('/items').set('Authorization', `Bearer ${attendantToken}`).send(validItem);
+    expect(res.status).toBe(403);
+  });
+
+  it('mechanic gets 403 on DELETE /items/:id', async () => {
+    const created = await request(app).post('/items').set('Authorization', `Bearer ${adminToken}`).send(validItem);
+    const res = await request(app).delete(`/items/${created.body.id}`).set('Authorization', `Bearer ${mechanicToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('no auth gets 401 on GET /items', async () => {
+    const res = await request(app).get('/items');
+    expect(res.status).toBe(401);
+  });
+
+  it('no auth gets 401 on POST /items', async () => {
+    const res = await request(app).post('/items').send(validItem);
+    expect(res.status).toBe(401);
   });
 });
