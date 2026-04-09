@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { MongoVehicleRepository } from '../../persistence/repositories/MongoVehicleRepository';
+import { MongoCustomerRepository } from '../../persistence/repositories/MongoCustomerRepository';
 import { CreateVehicleUseCase } from '../../../application/use-cases/vehicles/CreateVehicleUseCase';
 import { GetVehicleUseCase } from '../../../application/use-cases/vehicles/GetVehicleUseCase';
 import { ListVehiclesUseCase } from '../../../application/use-cases/vehicles/ListVehiclesUseCase';
@@ -11,7 +12,8 @@ import { requireRole } from '../middlewares/roleMiddleware';
 export function vehicleRoutes(): Router {
   const router = Router();
   const repo = new MongoVehicleRepository();
-  const createVehicle = new CreateVehicleUseCase(repo);
+  const customerRepo = new MongoCustomerRepository();
+  const createVehicle = new CreateVehicleUseCase(repo, customerRepo);
   const getVehicle = new GetVehicleUseCase(repo);
   const listVehicles = new ListVehiclesUseCase(repo);
   const updateVehicle = new UpdateVehicleUseCase(repo);
