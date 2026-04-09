@@ -20,7 +20,7 @@ export class CreateCustomerUseCase {
     if (!VALID_TAX_TYPES.includes(input.taxType)) {
       throw new ValidationError('taxType must be CPF or CNPJ');
     }
-    if (!validateTaxId(input.taxId)) {
+    if (!validateTaxId(input.taxId, input.taxType)) {
       throw new ValidationError('Invalid CPF or CNPJ');
     }
     const existing = await this.repo.findByTaxId(input.taxId);

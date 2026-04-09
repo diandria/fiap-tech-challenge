@@ -11,7 +11,8 @@ export class UpdateCustomerUseCase {
       throw new ValidationError('taxType must be CPF or CNPJ');
     }
     if (data.taxId !== undefined) {
-      if (!validateTaxId(data.taxId)) throw new ValidationError('Invalid CPF or CNPJ');
+      const taxType = data.taxType ?? 'CPF';
+      if (!validateTaxId(data.taxId, taxType)) throw new ValidationError('Invalid CPF or CNPJ');
       const existing = await this.repo.findByTaxId(data.taxId);
       if (existing && existing.id !== id) throw new ConflictError('CPF/CNPJ already registered');
     }

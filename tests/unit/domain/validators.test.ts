@@ -61,13 +61,16 @@ describe('validatePlate', () => {
 });
 
 describe('validateTaxId', () => {
-  it('delegates to CPF for 11 digits', () => {
-    expect(validateTaxId('529.982.247-25')).toBe(true);
+  it('validates a valid CPF when type is CPF', () => {
+    expect(validateTaxId('529.982.247-25', 'CPF')).toBe(true);
   });
-  it('delegates to CNPJ for 14 digits', () => {
-    expect(validateTaxId('11.222.333/0001-81')).toBe(true);
+  it('rejects an invalid CPF when type is CPF', () => {
+    expect(validateTaxId('111.111.111-11', 'CPF')).toBe(false);
   });
-  it('rejects other lengths', () => {
-    expect(validateTaxId('12345')).toBe(false);
+  it('validates a valid CNPJ when type is CNPJ', () => {
+    expect(validateTaxId('11.222.333/0001-81', 'CNPJ')).toBe(true);
+  });
+  it('rejects an invalid CNPJ when type is CNPJ', () => {
+    expect(validateTaxId('11.111.111/1111-11', 'CNPJ')).toBe(false);
   });
 });
