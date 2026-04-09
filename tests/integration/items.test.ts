@@ -90,38 +90,38 @@ describe('DELETE /items/:id', () => {
 });
 
 describe('Role Authorization — /items', () => {
-  it('mechanic can GET /items', async () => {
+  it('GIVEN a mechanic token WHEN GET /items THEN returns 200', async () => {
     const res = await request(app).get('/items').set('Authorization', `Bearer ${mechanicToken}`);
     expect(res.status).toBe(200);
   });
 
-  it('attendant can GET /items', async () => {
+  it('GIVEN an attendant token WHEN GET /items THEN returns 200', async () => {
     const res = await request(app).get('/items').set('Authorization', `Bearer ${attendantToken}`);
     expect(res.status).toBe(200);
   });
 
-  it('mechanic gets 403 on POST /items', async () => {
+  it('GIVEN a mechanic token WHEN POST /items THEN returns 403', async () => {
     const res = await request(app).post('/items').set('Authorization', `Bearer ${mechanicToken}`).send(validItem);
     expect(res.status).toBe(403);
   });
 
-  it('attendant gets 403 on POST /items', async () => {
+  it('GIVEN an attendant token WHEN POST /items THEN returns 403', async () => {
     const res = await request(app).post('/items').set('Authorization', `Bearer ${attendantToken}`).send(validItem);
     expect(res.status).toBe(403);
   });
 
-  it('mechanic gets 403 on DELETE /items/:id', async () => {
+  it('GIVEN a mechanic token WHEN DELETE /items/:id THEN returns 403', async () => {
     const created = await request(app).post('/items').set('Authorization', `Bearer ${adminToken}`).send(validItem);
     const res = await request(app).delete(`/items/${created.body.id}`).set('Authorization', `Bearer ${mechanicToken}`);
     expect(res.status).toBe(403);
   });
 
-  it('no auth gets 401 on GET /items', async () => {
+  it('GIVEN no Authorization header WHEN GET /items THEN returns 401', async () => {
     const res = await request(app).get('/items');
     expect(res.status).toBe(401);
   });
 
-  it('no auth gets 401 on POST /items', async () => {
+  it('GIVEN no Authorization header WHEN POST /items THEN returns 401', async () => {
     const res = await request(app).post('/items').send(validItem);
     expect(res.status).toBe(401);
   });

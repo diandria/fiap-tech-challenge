@@ -130,32 +130,32 @@ describe('DELETE /customers/:id', () => {
 });
 
 describe('Role Authorization — /customers', () => {
-  it('mechanic gets 403 on GET /customers', async () => {
+  it('GIVEN a mechanic token WHEN GET /customers THEN returns 403', async () => {
     const res = await request(app).get('/customers').set('Authorization', `Bearer ${mechanicToken}`);
     expect(res.status).toBe(403);
   });
 
-  it('mechanic gets 403 on POST /customers', async () => {
+  it('GIVEN a mechanic token WHEN POST /customers THEN returns 403', async () => {
     const res = await request(app).post('/customers').set('Authorization', `Bearer ${mechanicToken}`).send(validCustomer);
     expect(res.status).toBe(403);
   });
 
-  it('no auth gets 401 on GET /customers', async () => {
+  it('GIVEN no Authorization header WHEN GET /customers THEN returns 401', async () => {
     const res = await request(app).get('/customers');
     expect(res.status).toBe(401);
   });
 
-  it('no auth gets 401 on GET /customers/:id', async () => {
+  it('GIVEN no Authorization header WHEN GET /customers/:id THEN returns 401', async () => {
     const res = await request(app).get('/customers/000000000000000000000000');
     expect(res.status).toBe(401);
   });
 
-  it('no auth gets 401 on PUT /customers/:id', async () => {
+  it('GIVEN no Authorization header WHEN PUT /customers/:id THEN returns 401', async () => {
     const res = await request(app).put('/customers/000000000000000000000000').send({ name: 'x' });
     expect(res.status).toBe(401);
   });
 
-  it('no auth gets 401 on DELETE /customers/:id', async () => {
+  it('GIVEN no Authorization header WHEN DELETE /customers/:id THEN returns 401', async () => {
     const res = await request(app).delete('/customers/000000000000000000000000');
     expect(res.status).toBe(401);
   });

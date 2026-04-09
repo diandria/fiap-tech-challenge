@@ -85,52 +85,52 @@ describe('DELETE /services/:id', () => {
 });
 
 describe('Role Authorization — /services', () => {
-  it('mechanic can GET /services/:id', async () => {
+  it('GIVEN a mechanic token WHEN GET /services/:id THEN returns 200', async () => {
     const created = await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
     const res = await request(app).get(`/services/${created.body.id}`).set('Authorization', `Bearer ${mechanicToken}`);
     expect(res.status).toBe(200);
   });
 
-  it('attendant can GET /services/:id', async () => {
+  it('GIVEN an attendant token WHEN GET /services/:id THEN returns 200', async () => {
     const created = await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
     const res = await request(app).get(`/services/${created.body.id}`).set('Authorization', `Bearer ${attendantToken}`);
     expect(res.status).toBe(200);
   });
 
-  it('no auth gets 401 on GET /services/:id', async () => {
+  it('GIVEN no Authorization header WHEN GET /services/:id THEN returns 401', async () => {
     const created = await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
     const res = await request(app).get(`/services/${created.body.id}`);
     expect(res.status).toBe(401);
   });
 
-  it('attendant gets 403 on POST /services', async () => {
+  it('GIVEN an attendant token WHEN POST /services THEN returns 403', async () => {
     const res = await request(app).post('/services').set('Authorization', `Bearer ${attendantToken}`).send(validService);
     expect(res.status).toBe(403);
   });
 
-  it('attendant gets 403 on PUT /services/:id', async () => {
+  it('GIVEN an attendant token WHEN PUT /services/:id THEN returns 403', async () => {
     const created = await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
     const res = await request(app).put(`/services/${created.body.id}`).set('Authorization', `Bearer ${attendantToken}`).send({ price: 99 });
     expect(res.status).toBe(403);
   });
 
-  it('attendant gets 403 on DELETE /services/:id', async () => {
+  it('GIVEN an attendant token WHEN DELETE /services/:id THEN returns 403', async () => {
     const created = await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
     const res = await request(app).delete(`/services/${created.body.id}`).set('Authorization', `Bearer ${attendantToken}`);
     expect(res.status).toBe(403);
   });
 
-  it('no auth gets 401 on POST /services', async () => {
+  it('GIVEN no Authorization header WHEN POST /services THEN returns 401', async () => {
     const res = await request(app).post('/services').send(validService);
     expect(res.status).toBe(401);
   });
 
-  it('no auth gets 401 on PUT /services/:id', async () => {
+  it('GIVEN no Authorization header WHEN PUT /services/:id THEN returns 401', async () => {
     const res = await request(app).put('/services/000000000000000000000000').send({ price: 99 });
     expect(res.status).toBe(401);
   });
 
-  it('no auth gets 401 on DELETE /services/:id', async () => {
+  it('GIVEN no Authorization header WHEN DELETE /services/:id THEN returns 401', async () => {
     const res = await request(app).delete('/services/000000000000000000000000');
     expect(res.status).toBe(401);
   });

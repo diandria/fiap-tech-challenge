@@ -105,32 +105,32 @@ describe('DELETE /vehicles/:id', () => {
 });
 
 describe('Role Authorization — /vehicles', () => {
-  it('attendant can POST /vehicles', async () => {
+  it('GIVEN an attendant token WHEN POST /vehicles THEN returns 201', async () => {
     const res = await request(app).post('/vehicles').set('Authorization', `Bearer ${attendantToken}`).send(validVehicle);
     expect(res.status).toBe(201);
   });
 
-  it('attendant can GET /vehicles', async () => {
+  it('GIVEN an attendant token WHEN GET /vehicles THEN returns 200', async () => {
     const res = await request(app).get('/vehicles').set('Authorization', `Bearer ${attendantToken}`);
     expect(res.status).toBe(200);
   });
 
-  it('mechanic gets 403 on GET /vehicles', async () => {
+  it('GIVEN a mechanic token WHEN GET /vehicles THEN returns 403', async () => {
     const res = await request(app).get('/vehicles').set('Authorization', `Bearer ${mechanicToken}`);
     expect(res.status).toBe(403);
   });
 
-  it('mechanic gets 403 on POST /vehicles', async () => {
+  it('GIVEN a mechanic token WHEN POST /vehicles THEN returns 403', async () => {
     const res = await request(app).post('/vehicles').set('Authorization', `Bearer ${mechanicToken}`).send(validVehicle);
     expect(res.status).toBe(403);
   });
 
-  it('no auth gets 401 on GET /vehicles', async () => {
+  it('GIVEN no Authorization header WHEN GET /vehicles THEN returns 401', async () => {
     const res = await request(app).get('/vehicles');
     expect(res.status).toBe(401);
   });
 
-  it('no auth gets 401 on POST /vehicles', async () => {
+  it('GIVEN no Authorization header WHEN POST /vehicles THEN returns 401', async () => {
     const res = await request(app).post('/vehicles').send(validVehicle);
     expect(res.status).toBe(401);
   });
