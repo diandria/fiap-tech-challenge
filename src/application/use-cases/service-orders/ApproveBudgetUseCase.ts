@@ -13,7 +13,7 @@ export class ApproveBudgetUseCase {
   async execute(osId: string, code: string): Promise<ServiceOrder> {
     const os = await this.osRepo.findById(osId);
     if (!os) throw new NotFoundError('Service order');
-    assertTransition(os.status, 'EXECUTION');
+    assertTransition(os.status, 'APPROVED');
 
     const customer = await this.customerRepo.findById(os.customerId);
     if (!customer) throw new NotFoundError('Customer');
@@ -21,7 +21,7 @@ export class ApproveBudgetUseCase {
     const expectedCode = customer.taxId.slice(0, 4);
     if (code !== expectedCode) throw new ValidationError('Invalid confirmation code');
 
-    const updated = await this.osRepo.update(osId, { status: 'EXECUTION' });
+    const updated = await this.osRepo.update(osId, { status: 'APPROVED' });
     return updated!;
   }
 }

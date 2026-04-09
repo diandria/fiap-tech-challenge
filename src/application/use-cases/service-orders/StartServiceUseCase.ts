@@ -12,7 +12,7 @@ export class StartServiceUseCase {
   async execute(osId: string): Promise<ServiceOrder> {
     const os = await this.osRepo.findById(osId);
     if (!os) throw new NotFoundError('Service order');
-    if (os.status !== 'EXECUTION') throw new ValidationError('Service can only be started when OS is in EXECUTION status');
+    if (os.status !== 'APPROVED') throw new ValidationError('Service can only be started when OS is in APPROVED status');
 
     for (const i of os.items) {
       const item = await this.itemRepo.findById(i.itemId);
@@ -23,7 +23,7 @@ export class StartServiceUseCase {
       });
     }
 
-    const updated = await this.osRepo.update(osId, { startedAt: new Date() });
+    const updated = await this.osRepo.update(osId, { status: 'EXECUTION', startedAt: new Date() });
     return updated!;
   }
 }

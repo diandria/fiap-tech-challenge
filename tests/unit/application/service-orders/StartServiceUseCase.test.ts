@@ -5,7 +5,7 @@ import { ServiceOrder } from '../../../../src/domain/entities/ServiceOrder';
 
 const baseOS: ServiceOrder = {
   id: 'os-1', customerId: 'c-1', vehicleId: 'v-1',
-  status: 'EXECUTION', budgetTotal: 200,
+  status: 'APPROVED', budgetTotal: 200,
   services: [], items: [{ itemId: 'i-1', quantity: 2 }, { itemId: 'i-2', quantity: 1 }],
   createdAt: new Date(),
 };
@@ -41,7 +41,7 @@ describe('StartServiceUseCase', () => {
     expect(result.status).toBe('EXECUTION');
   });
 
-  it('throws ValidationError when OS is not in EXECUTION status', async () => {
+  it('throws ValidationError when OS is not in APPROVED status', async () => {
     const wrongOS = { ...baseOS, status: 'WAITING_APPROVAL' as const };
     const useCase = new StartServiceUseCase(makeOSRepo(wrongOS), makeItemRepo());
     await expect(useCase.execute('os-1')).rejects.toMatchObject({ statusCode: 400 });

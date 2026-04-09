@@ -33,7 +33,7 @@ describe('ApproveBudgetUseCase', () => {
     const osRepo = makeOSRepo();
     const useCase = new ApproveBudgetUseCase(osRepo, makeCustomerRepo());
     const result = await useCase.execute('os-1', '5299');
-    expect(result.status).toBe('EXECUTION');
+    expect(result.status).toBe('APPROVED');
   });
 
   it('throws ValidationError for wrong code', async () => {

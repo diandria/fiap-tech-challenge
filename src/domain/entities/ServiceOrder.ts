@@ -2,6 +2,7 @@ export type OSStatus =
   | 'RECEIVED'
   | 'DIAGNOSIS'
   | 'WAITING_APPROVAL'
+  | 'APPROVED'
   | 'EXECUTION'
   | 'FINISHED'
   | 'DELIVERED'
