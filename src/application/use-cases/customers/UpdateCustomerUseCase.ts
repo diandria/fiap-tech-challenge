@@ -7,7 +7,7 @@ import { NotFoundError, ValidationError, ConflictError } from '../../../domain/e
 export class UpdateCustomerUseCase {
   constructor(private readonly repo: ICustomerRepository) {}
 
-  async execute(id: string, data: Partial<Omit<Customer, 'id'>>): Promise<Customer> {
+  async execute(id: string, data: Partial<Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Customer> {
     if (data.taxType !== undefined && !['CPF', 'CNPJ'].includes(data.taxType)) {
       throw new ValidationError('taxType must be CPF or CNPJ');
     }
@@ -15,10 +15,12 @@ export class UpdateCustomerUseCase {
       throw new ValidationError('Invalid phone number');
     }
     if (data.taxId !== undefined) {
+      const normalizedTaxId = data.taxId.replace(/\D/g, '');
       const taxType: TaxType = data.taxType ?? 'CPF';
-      if (!validateTaxId(data.taxId, taxType)) throw new ValidationError('Invalid CPF or CNPJ');
-      const existing = await this.repo.findByTaxId(data.taxId);
+      if (!validateTaxId(normalizedTaxId, taxType)) throw new ValidationError('Invalid CPF or CNPJ');
+      const existing = await this.repo.findByTaxId(normalizedTaxId);
       if (existing && existing.id !== id) throw new ConflictError('CPF/CNPJ already registered');
+      data = { ...data, taxId: normalizedTaxId };
     }
     const updated = await this.repo.update(id, data);
     if (!updated) throw new NotFoundError('Customer');

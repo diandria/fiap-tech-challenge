@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { MongoCustomerRepository } from '../../persistence/repositories/MongoCustomerRepository';
 import { CreateCustomerUseCase } from '../../../application/use-cases/customers/CreateCustomerUseCase';
-import { GetCustomerUseCase } from '../../../application/use-cases/customers/GetCustomerUseCase';
+import { GetCustomerByIdUseCase } from '../../../application/use-cases/customers/GetCustomerByIdUseCase';
 import { ListCustomersUseCase } from '../../../application/use-cases/customers/ListCustomersUseCase';
 import { UpdateCustomerUseCase } from '../../../application/use-cases/customers/UpdateCustomerUseCase';
 import { DeleteCustomerUseCase } from '../../../application/use-cases/customers/DeleteCustomerUseCase';
@@ -13,7 +13,7 @@ export function customerRoutes(): Router {
   const router = Router();
   const repo = new MongoCustomerRepository();
   const createCustomer = new CreateCustomerUseCase(repo);
-  const getCustomer = new GetCustomerUseCase(repo);
+  const getCustomerById = new GetCustomerByIdUseCase(repo);
   const listCustomers = new ListCustomersUseCase(repo);
   const updateCustomer = new UpdateCustomerUseCase(repo);
   const deleteCustomer = new DeleteCustomerUseCase(repo);
@@ -121,7 +121,7 @@ export function customerRoutes(): Router {
    */
   router.get('/:id', async (req, res, next) => {
     try {
-      const customer = await getCustomer.execute(req.params.id);
+      const customer = await getCustomerById.execute(req.params.id);
       res.json(customer);
     } catch (err) { next(err); }
   });

@@ -21,11 +21,12 @@ export class CreateCustomerUseCase {
     if (!validatePhone(input.phone)) {
       throw new ValidationError('Invalid phone number');
     }
-    if (!validateTaxId(input.taxId, input.taxType)) {
+    const normalizedTaxId = input.taxId.replace(/\D/g, '');
+    if (!validateTaxId(normalizedTaxId, input.taxType)) {
       throw new ValidationError('Invalid CPF or CNPJ');
     }
-    const existing = await this.repo.findByTaxId(input.taxId);
+    const existing = await this.repo.findByTaxId(normalizedTaxId);
     if (existing) throw new ConflictError('CPF/CNPJ already registered');
-    return this.repo.create(input);
+    return this.repo.create({ ...input, taxId: normalizedTaxId });
   }
 }

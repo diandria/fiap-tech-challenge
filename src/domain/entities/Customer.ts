@@ -5,7 +5,9 @@ export interface Customer {
   name: string;
   taxId: string;
   taxType: TaxType;
-  deletedAt?: Date;
   email: string;
   phone: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date;
 }

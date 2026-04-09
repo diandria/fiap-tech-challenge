@@ -25,7 +25,7 @@ describe('CreateCustomerUseCase', () => {
     const useCase = new CreateCustomerUseCase(makeRepo());
     const result = await useCase.execute(validInput);
     expect(result.id).toBe('c-1');
-    expect(result.taxId).toBe('529.982.247-25');
+    expect(result.taxId).toBe('52998224725');
     expect(result.taxType).toBe('CPF');
   });
 
@@ -55,7 +55,7 @@ describe('CreateCustomerUseCase', () => {
   });
 
   it('throws ConflictError if CPF/CNPJ is already registered', async () => {
-    const existing: Customer = { id: 'c-2', ...validInput };
+    const existing: Customer = { id: 'c-2', ...validInput, createdAt: new Date(), updatedAt: new Date() };
     const useCase = new CreateCustomerUseCase(
       makeRepo({ findByTaxId: jest.fn().mockResolvedValue(existing) }),
     );

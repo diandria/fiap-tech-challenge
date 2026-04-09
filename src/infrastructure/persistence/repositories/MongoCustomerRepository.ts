@@ -13,6 +13,8 @@ export class MongoCustomerRepository implements ICustomerRepository {
       taxType: doc.taxType,
       email: doc.email,
       phone: doc.phone,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
       ...(doc.deletedAt ? { deletedAt: doc.deletedAt } : {}),
     };
   }
