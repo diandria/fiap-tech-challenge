@@ -1,0 +1,13 @@
+import { IVehicleRepository } from '../../../domain/ports/IVehicleRepository';
+import { Vehicle } from '../../../domain/entities/Vehicle';
+import { NotFoundError } from '../../../domain/errors/AppError';
+
+export class GetVehicleUseCase {
+  constructor(private readonly repo: IVehicleRepository) {}
+
+  async execute(id: string): Promise<Vehicle> {
+    const vehicle = await this.repo.findById(id);
+    if (!vehicle) throw new NotFoundError('Vehicle');
+    return vehicle;
+  }
+}

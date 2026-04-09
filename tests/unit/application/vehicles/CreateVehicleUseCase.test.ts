@@ -1,0 +1,51 @@
+import { CreateVehicleUseCase } from '../../../../src/application/use-cases/vehicles/CreateVehicleUseCase';
+import { IVehicleRepository } from '../../../../src/domain/ports/IVehicleRepository';
+import { Vehicle } from '../../../../src/domain/entities/Vehicle';
+
+const validInput = {
+  customerId: 'c-1',
+  plate: 'ABC-1234',
+  brand: 'Toyota',
+  model: 'Corolla',
+  year: 2020,
+};
+
+const makeRepo = (override?: Partial<IVehicleRepository>): IVehicleRepository => ({
+  findAll: jest.fn(),
+  findById: jest.fn(),
+  findByPlate: jest.fn().mockResolvedValue(null),
+  create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'v-1', ...data })),
+  update: jest.fn(),
+  delete: jest.fn(),
+  ...override,
+});
+
+describe('CreateVehicleUseCase', () => {
+  it('creates a vehicle with a valid old-format plate', async () => {
+    const useCase = new CreateVehicleUseCase(makeRepo());
+    const result = await useCase.execute(validInput);
+    expect(result.id).toBe('v-1');
+    expect(result.plate).toBe('ABC-1234');
+  });
+
+  it('creates a vehicle with a valid Mercosul plate', async () => {
+    const useCase = new CreateVehicleUseCase(makeRepo());
+    const result = await useCase.execute({ ...validInput, plate: 'ABC1D23' });
+    expect(result.id).toBe('v-1');
+  });
+
+  it('throws ValidationError for invalid plate format', async () => {
+    const useCase = new CreateVehicleUseCase(makeRepo());
+    await expect(useCase.execute({ ...validInput, plate: 'INVALID' }))
+      .rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('throws ConflictError if plate is already registered', async () => {
+    const existing: Vehicle = { id: 'v-2', ...validInput };
+    const useCase = new CreateVehicleUseCase(
+      makeRepo({ findByPlate: jest.fn().mockResolvedValue(existing) }),
+    );
+    await expect(useCase.execute(validInput))
+      .rejects.toMatchObject({ statusCode: 409 });
+  });
+});
