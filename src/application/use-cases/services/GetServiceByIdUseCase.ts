@@ -2,7 +2,7 @@ import { IServiceRepository } from '../../../domain/ports/IServiceRepository';
 import { Service } from '../../../domain/entities/Service';
 import { NotFoundError } from '../../../domain/errors/AppError';
 
-export class GetServiceUseCase {
+export class GetServiceByIdUseCase {
   constructor(private readonly repo: IServiceRepository) {}
 
   async execute(id: string): Promise<Service> {

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { MongoServiceRepository } from '../../persistence/repositories/MongoServiceRepository';
 import { CreateServiceUseCase } from '../../../application/use-cases/services/CreateServiceUseCase';
-import { GetServiceUseCase } from '../../../application/use-cases/services/GetServiceUseCase';
+import { GetServiceByIdUseCase } from '../../../application/use-cases/services/GetServiceByIdUseCase';
 import { ListServicesUseCase } from '../../../application/use-cases/services/ListServicesUseCase';
 import { UpdateServiceUseCase } from '../../../application/use-cases/services/UpdateServiceUseCase';
 import { DeleteServiceUseCase } from '../../../application/use-cases/services/DeleteServiceUseCase';
@@ -12,7 +12,7 @@ export function serviceRoutes(): Router {
   const router = Router();
   const repo = new MongoServiceRepository();
   const createService = new CreateServiceUseCase(repo);
-  const getService = new GetServiceUseCase(repo);
+  const getService = new GetServiceByIdUseCase(repo);
   const listServices = new ListServicesUseCase(repo);
   const updateService = new UpdateServiceUseCase(repo);
   const deleteService = new DeleteServiceUseCase(repo);
