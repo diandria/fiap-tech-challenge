@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { MongoVehicleRepository } from '../../persistence/repositories/MongoVehicleRepository';
 import { CreateVehicleUseCase } from '../../../application/use-cases/vehicles/CreateVehicleUseCase';
 import { GetVehicleByIdUseCase } from '../../../application/use-cases/vehicles/GetVehicleByIdUseCase';
-import { ListVehiclesUseCase } from '../../../application/use-cases/vehicles/ListVehiclesUseCase';
+import { ListCustomerVehiclesUseCase } from '../../../application/use-cases/vehicles/ListCustomerVehiclesUseCase';
 import { UpdateVehicleUseCase } from '../../../application/use-cases/vehicles/UpdateVehicleUseCase';
 import { DeleteVehicleUseCase } from '../../../application/use-cases/vehicles/DeleteVehicleUseCase';
 import { authMiddleware } from '../middlewares/authMiddleware';
@@ -13,7 +13,7 @@ export function vehicleRoutes(): Router {
   const repo = new MongoVehicleRepository();
   const createVehicle = new CreateVehicleUseCase(repo);
   const getVehicle = new GetVehicleByIdUseCase(repo);
-  const listVehicles = new ListVehiclesUseCase(repo);
+  const listVehicles = new ListCustomerVehiclesUseCase(repo);
   const updateVehicle = new UpdateVehicleUseCase(repo);
   const deleteVehicle = new DeleteVehicleUseCase(repo);
 
