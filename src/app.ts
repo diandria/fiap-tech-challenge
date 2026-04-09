@@ -3,6 +3,7 @@ import { errorMiddleware } from './infrastructure/http/middlewares/errorMiddlewa
 import { authRoutes } from './infrastructure/http/routes/authRoutes';
 import { customerRoutes } from './infrastructure/http/routes/customerRoutes';
 import { vehicleRoutes } from './infrastructure/http/routes/vehicleRoutes';
+import { serviceRoutes } from './infrastructure/http/routes/serviceRoutes';
 
 export function createApp(): Application {
   const app = express();
@@ -28,6 +29,7 @@ export function createApp(): Application {
   app.use('/auth', authRoutes());
   app.use('/customers', customerRoutes());
   app.use('/vehicles', vehicleRoutes());
+  app.use('/services', serviceRoutes());
 
   app.use(errorMiddleware);
 
