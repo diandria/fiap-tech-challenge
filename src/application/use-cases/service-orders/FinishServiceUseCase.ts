@@ -2,7 +2,7 @@ import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepo
 import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
 import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
 
-export class StartServiceUseCase {
+export class FinishServiceUseCase {
   constructor(private readonly osRepo: IServiceOrderRepository) {}
 
   async execute(osId: string, serviceId: string): Promise<ServiceOrder> {
@@ -12,10 +12,11 @@ export class StartServiceUseCase {
 
     const svc = os.services.find((s) => s.serviceId === serviceId);
     if (!svc) throw new NotFoundError('Service in order');
-    if (svc.startedAt) throw new ValidationError('Service already started');
+    if (!svc.startedAt) throw new ValidationError('Service has not been started');
+    if (svc.finishedAt) throw new ValidationError('Service already finished');
 
     const services = os.services.map((s) =>
-      s.serviceId === serviceId ? { ...s, startedAt: new Date() } : s,
+      s.serviceId === serviceId ? { ...s, finishedAt: new Date() } : s,
     );
     const updated = await this.osRepo.update(osId, { services });
     return updated!;

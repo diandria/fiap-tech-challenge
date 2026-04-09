@@ -1,0 +1,50 @@
+import { IServiceOrderRepository, ListServiceOrdersFilter } from '../../../domain/ports/IServiceOrderRepository';
+import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
+import { ServiceOrderModel } from '../models/ServiceOrderModel';
+
+export class MongoServiceOrderRepository implements IServiceOrderRepository {
+  private toEntity(doc: any): ServiceOrder {
+    return {
+      id: doc._id.toString(),
+      customerId: doc.customerId,
+      vehicleId: doc.vehicleId,
+      status: doc.status,
+      budgetTotal: doc.budgetTotal,
+      services: doc.services ?? [],
+      items: doc.items ?? [],
+      createdAt: doc.createdAt,
+      startedAt: doc.startedAt,
+      finishedAt: doc.finishedAt,
+      deliveredAt: doc.deliveredAt,
+    };
+  }
+
+  async findAll(filter?: ListServiceOrdersFilter): Promise<ServiceOrder[]> {
+    const query: Record<string, unknown> = {};
+    if (filter?.status) query.status = filter.status;
+    if (filter?.customerId) query.customerId = filter.customerId;
+    if (filter?.from || filter?.to) {
+      query.createdAt = {
+        ...(filter.from && { $gte: filter.from }),
+        ...(filter.to && { $lte: filter.to }),
+      };
+    }
+    const docs = await ServiceOrderModel.find(query).lean();
+    return docs.map((d) => this.toEntity(d));
+  }
+
+  async findById(id: string): Promise<ServiceOrder | null> {
+    const doc = await ServiceOrderModel.findById(id).lean();
+    return doc ? this.toEntity(doc) : null;
+  }
+
+  async create(data: Omit<ServiceOrder, 'id' | 'createdAt'>): Promise<ServiceOrder> {
+    const doc = await ServiceOrderModel.create(data);
+    return this.toEntity(doc.toObject());
+  }
+
+  async update(id: string, data: Partial<Omit<ServiceOrder, 'id'>>): Promise<ServiceOrder | null> {
+    const doc = await ServiceOrderModel.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
+    return doc ? this.toEntity(doc) : null;
+  }
+}
