@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { MongoItemRepository } from '../../persistence/repositories/MongoItemRepository';
 import { CreateItemUseCase } from '../../../application/use-cases/items/CreateItemUseCase';
-import { GetItemUseCase } from '../../../application/use-cases/items/GetItemUseCase';
+import { GetItemByIdUseCase } from '../../../application/use-cases/items/GetItemByIdUseCase';
 import { ListItemsUseCase } from '../../../application/use-cases/items/ListItemsUseCase';
 import { UpdateItemUseCase } from '../../../application/use-cases/items/UpdateItemUseCase';
 import { DeleteItemUseCase } from '../../../application/use-cases/items/DeleteItemUseCase';
@@ -12,7 +12,7 @@ export function itemRoutes(): Router {
   const router = Router();
   const repo = new MongoItemRepository();
   const createItem = new CreateItemUseCase(repo);
-  const getItem = new GetItemUseCase(repo);
+  const getItem = new GetItemByIdUseCase(repo);
   const listItems = new ListItemsUseCase(repo);
   const updateItem = new UpdateItemUseCase(repo);
   const deleteItem = new DeleteItemUseCase(repo);

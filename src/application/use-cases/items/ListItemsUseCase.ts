@@ -1,6 +1,6 @@
 import { IItemRepository } from '../../../domain/ports/IItemRepository';
 import { getAvailableQuantity } from '../../../domain/entities/Item';
-import { ItemWithAvailable } from './GetItemUseCase';
+import { ItemWithAvailable } from './GetItemByIdUseCase';
 
 export class ListItemsUseCase {
   constructor(private readonly repo: IItemRepository) {}

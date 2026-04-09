@@ -1,7 +1,7 @@
 import { IItemRepository } from '../../../domain/ports/IItemRepository';
 import { Item, getAvailableQuantity } from '../../../domain/entities/Item';
 import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
-import { ItemWithAvailable } from './GetItemUseCase';
+import { ItemWithAvailable } from './GetItemByIdUseCase';
 
 export class UpdateItemUseCase {
   constructor(private readonly repo: IItemRepository) {}

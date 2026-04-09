@@ -6,7 +6,7 @@ export interface ItemWithAvailable extends Item {
   availableQuantity: number;
 }
 
-export class GetItemUseCase {
+export class GetItemByIdUseCase {
   constructor(private readonly repo: IItemRepository) {}
 
   async execute(id: string): Promise<ItemWithAvailable> {
