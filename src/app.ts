@@ -1,5 +1,6 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import { errorMiddleware } from './infrastructure/http/middlewares/errorMiddleware';
+import { authRoutes } from './infrastructure/http/routes/authRoutes';
 
 export function createApp(): Application {
   const app = express();
@@ -22,7 +23,7 @@ export function createApp(): Application {
     next();
   });
 
-  // Routes registered here in subsequent tasks
+  app.use('/auth', authRoutes());
 
   app.use(errorMiddleware);
 
