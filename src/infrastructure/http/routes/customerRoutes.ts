@@ -51,10 +51,10 @@ export function customerRoutes(): Router {
    *         application/json:
    *           schema:
    *             type: object
-   *             required: [name, cpfCnpj, email, phone]
+   *             required: [name, taxId, email, phone]
    *             properties:
    *               name: { type: string }
-   *               cpfCnpj: { type: string }
+   *               taxId: { type: string }
    *               email: { type: string }
    *               phone: { type: string }
    *     responses:

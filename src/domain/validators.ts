@@ -49,7 +49,7 @@ export function validatePlate(plate: string): boolean {
   );
 }
 
-export function validateCpfCnpj(value: string): boolean {
+export function validateTaxId(value: string): boolean {
   const digits = value.replace(/\D/g, '');
   if (digits.length === 11) return validateCPF(value);
   if (digits.length === 14) return validateCNPJ(value);

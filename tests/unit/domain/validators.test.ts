@@ -1,4 +1,4 @@
-import { validateCPF, validateCNPJ, validatePlate, validateCpfCnpj } from '../../../src/domain/validators';
+import { validateCPF, validateCNPJ, validatePlate, validateTaxId } from '../../../src/domain/validators';
 
 describe('validateCPF', () => {
   it('accepts a valid CPF with formatting', () => {
@@ -60,14 +60,14 @@ describe('validatePlate', () => {
   });
 });
 
-describe('validateCpfCnpj', () => {
+describe('validateTaxId', () => {
   it('delegates to CPF for 11 digits', () => {
-    expect(validateCpfCnpj('529.982.247-25')).toBe(true);
+    expect(validateTaxId('529.982.247-25')).toBe(true);
   });
   it('delegates to CNPJ for 14 digits', () => {
-    expect(validateCpfCnpj('11.222.333/0001-81')).toBe(true);
+    expect(validateTaxId('11.222.333/0001-81')).toBe(true);
   });
   it('rejects other lengths', () => {
-    expect(validateCpfCnpj('12345')).toBe(false);
+    expect(validateTaxId('12345')).toBe(false);
   });
 });

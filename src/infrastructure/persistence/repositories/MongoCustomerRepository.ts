@@ -7,7 +7,7 @@ export class MongoCustomerRepository implements ICustomerRepository {
     return {
       id: doc._id.toString(),
       name: doc.name,
-      cpfCnpj: doc.cpfCnpj,
+      taxId: doc.taxId,
       email: doc.email,
       phone: doc.phone,
     };
@@ -23,8 +23,8 @@ export class MongoCustomerRepository implements ICustomerRepository {
     return doc ? this.toEntity(doc) : null;
   }
 
-  async findByCpfCnpj(cpfCnpj: string): Promise<Customer | null> {
-    const doc = await CustomerModel.findOne({ cpfCnpj }).lean();
+  async findByTaxId(taxId: string): Promise<Customer | null> {
+    const doc = await CustomerModel.findOne({ taxId }).lean();
     return doc ? this.toEntity(doc) : null;
   }
 
