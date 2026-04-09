@@ -5,8 +5,9 @@ describe('canTransition', () => {
   const allowed: [OSStatus, OSStatus][] = [
     ['RECEIVED', 'DIAGNOSIS'],
     ['DIAGNOSIS', 'WAITING_APPROVAL'],
-    ['WAITING_APPROVAL', 'EXECUTION'],
+    ['WAITING_APPROVAL', 'APPROVED'],
     ['WAITING_APPROVAL', 'REJECTED'],
+    ['APPROVED', 'EXECUTION'],
     ['EXECUTION', 'FINISHED'],
     ['FINISHED', 'DELIVERED'],
   ];
@@ -15,7 +16,9 @@ describe('canTransition', () => {
     ['RECEIVED', 'EXECUTION'],
     ['RECEIVED', 'WAITING_APPROVAL'],
     ['DIAGNOSIS', 'EXECUTION'],
+    ['WAITING_APPROVAL', 'EXECUTION'],
     ['WAITING_APPROVAL', 'DIAGNOSIS'],
+    ['APPROVED', 'WAITING_APPROVAL'],
     ['EXECUTION', 'RECEIVED'],
     ['FINISHED', 'EXECUTION'],
     ['DELIVERED', 'RECEIVED'],
