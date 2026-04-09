@@ -57,6 +57,7 @@ export function customerRoutes(): Router {
    *               taxId: { type: string }
    *               email: { type: string }
    *               phone: { type: string }
+   *               taxType: { type: string, enum: [CPF, CNPJ] }
    *     responses:
    *       201:
    *         description: Created customer

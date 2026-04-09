@@ -8,6 +8,7 @@ export class MongoCustomerRepository implements ICustomerRepository {
       id: doc._id.toString(),
       name: doc.name,
       taxId: doc.taxId,
+      taxType: doc.taxType,
       email: doc.email,
       phone: doc.phone,
     };
@@ -26,6 +27,11 @@ export class MongoCustomerRepository implements ICustomerRepository {
   async findByTaxId(taxId: string): Promise<Customer | null> {
     const doc = await CustomerModel.findOne({ taxId }).lean();
     return doc ? this.toEntity(doc) : null;
+  }
+
+  async findByTaxType(taxType: 'CPF' | 'CNPJ'): Promise<Customer[]> {
+    const docs = await CustomerModel.find({ taxType }).lean();
+    return docs.map((d) => this.toEntity(d));
   }
 
   async create(data: Omit<Customer, 'id'>): Promise<Customer> {

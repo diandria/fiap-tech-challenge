@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 interface CustomerDocument extends Document {
   name: string;
   taxId: string;
+  taxType: 'CPF' | 'CNPJ';
   email: string;
   phone: string;
 }
@@ -10,6 +11,7 @@ interface CustomerDocument extends Document {
 const customerSchema = new Schema<CustomerDocument>({
   name: { type: String, required: true, trim: true },
   taxId: { type: String, required: true, unique: true },
+  taxType: { type: String, enum: ['CPF', 'CNPJ'], required: true },
   email: { type: String, required: true, lowercase: true, trim: true },
   phone: { type: String, required: true },
 });

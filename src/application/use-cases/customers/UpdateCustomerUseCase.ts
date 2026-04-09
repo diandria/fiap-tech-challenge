@@ -7,6 +7,9 @@ export class UpdateCustomerUseCase {
   constructor(private readonly repo: ICustomerRepository) {}
 
   async execute(id: string, data: Partial<Omit<Customer, 'id'>>): Promise<Customer> {
+    if (data.taxType !== undefined && !['CPF', 'CNPJ'].includes(data.taxType)) {
+      throw new ValidationError('taxType must be CPF or CNPJ');
+    }
     if (data.taxId !== undefined) {
       if (!validateTaxId(data.taxId)) throw new ValidationError('Invalid CPF or CNPJ');
       const existing = await this.repo.findByTaxId(data.taxId);
