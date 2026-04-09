@@ -5,7 +5,7 @@ export class DeleteCustomerUseCase {
   constructor(private readonly repo: ICustomerRepository) {}
 
   async execute(id: string): Promise<void> {
-    const deleted = await this.repo.delete(id);
+    const deleted = await this.repo.softDelete(id);
     if (!deleted) throw new NotFoundError('Customer');
   }
 }

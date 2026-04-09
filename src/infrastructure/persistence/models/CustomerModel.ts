@@ -6,12 +6,14 @@ interface CustomerDocument extends Document {
   taxType: 'CPF' | 'CNPJ';
   email: string;
   phone: string;
+  deletedAt: Date | null;
 }
 
 const customerSchema = new Schema<CustomerDocument>({
   name: { type: String, required: true, trim: true },
   taxId: { type: String, required: true, unique: true },
   taxType: { type: String, enum: ['CPF', 'CNPJ'], required: true },
+  deletedAt: { type: Date, default: null },
   email: { type: String, required: true, lowercase: true, trim: true },
   phone: { type: String, required: true },
 });

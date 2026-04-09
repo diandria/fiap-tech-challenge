@@ -7,5 +7,5 @@ export interface ICustomerRepository {
   findByTaxType(taxType: 'CPF' | 'CNPJ'): Promise<Customer[]>;
   create(data: Omit<Customer, 'id'>): Promise<Customer>;
   update(id: string, data: Partial<Omit<Customer, 'id'>>): Promise<Customer | null>;
-  delete(id: string): Promise<boolean>;
+  softDelete(id: string): Promise<boolean>;
 }

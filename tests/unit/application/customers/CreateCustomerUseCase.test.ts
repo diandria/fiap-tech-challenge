@@ -17,7 +17,7 @@ const makeRepo = (override?: Partial<ICustomerRepository>): ICustomerRepository 
   findByTaxType: jest.fn().mockResolvedValue([]),
   create: jest.fn().mockImplementation((data) => Promise.resolve({ id: 'c-1', ...data })),
   update: jest.fn(),
-  delete: jest.fn(),
+  softDelete: jest.fn(),
   ...override,
 });
 
