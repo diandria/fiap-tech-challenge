@@ -2,6 +2,7 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import { errorMiddleware } from './infrastructure/http/middlewares/errorMiddleware';
 import { authRoutes } from './infrastructure/http/routes/authRoutes';
 import { customerRoutes } from './infrastructure/http/routes/customerRoutes';
+import { vehicleRoutes } from './infrastructure/http/routes/vehicleRoutes';
 
 export function createApp(): Application {
   const app = express();
@@ -26,6 +27,7 @@ export function createApp(): Application {
 
   app.use('/auth', authRoutes());
   app.use('/customers', customerRoutes());
+  app.use('/vehicles', vehicleRoutes());
 
   app.use(errorMiddleware);
 
