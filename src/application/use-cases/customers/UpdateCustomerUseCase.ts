@@ -1,6 +1,6 @@
 import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
 import { Customer } from '../../../domain/entities/Customer';
-import { validateTaxId } from '../../../domain/validators';
+import { validateTaxId, validatePhone } from '../../../domain/validators';
 import { NotFoundError, ValidationError, ConflictError } from '../../../domain/errors/AppError';
 
 export class UpdateCustomerUseCase {
@@ -9,6 +9,9 @@ export class UpdateCustomerUseCase {
   async execute(id: string, data: Partial<Omit<Customer, 'id'>>): Promise<Customer> {
     if (data.taxType !== undefined && !['CPF', 'CNPJ'].includes(data.taxType)) {
       throw new ValidationError('taxType must be CPF or CNPJ');
+    }
+    if (data.phone !== undefined && !validatePhone(data.phone)) {
+      throw new ValidationError('Invalid phone number');
     }
     if (data.taxId !== undefined) {
       const taxType = data.taxType ?? 'CPF';

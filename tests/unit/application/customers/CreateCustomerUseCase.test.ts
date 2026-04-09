@@ -37,6 +37,12 @@ describe('CreateCustomerUseCase', () => {
     expect(result.taxType).toBe('CNPJ');
   });
 
+  it('throws ValidationError for an invalid phone number', async () => {
+    const useCase = new CreateCustomerUseCase(makeRepo());
+    await expect(useCase.execute({ ...validInput, phone: '123' }))
+      .rejects.toMatchObject({ statusCode: 400 });
+  });
+
   it('throws ValidationError for an invalid taxType', async () => {
     const useCase = new CreateCustomerUseCase(makeRepo());
     await expect(useCase.execute({ ...validInput, taxType: 'RG' as any }))

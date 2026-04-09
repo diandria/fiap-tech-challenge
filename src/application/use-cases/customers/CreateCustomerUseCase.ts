@@ -1,6 +1,6 @@
 import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
 import { Customer } from '../../../domain/entities/Customer';
-import { validateTaxId } from '../../../domain/validators';
+import { validateTaxId, validatePhone } from '../../../domain/validators';
 import { ValidationError, ConflictError } from '../../../domain/errors/AppError';
 
 interface CreateCustomerInput {
@@ -19,6 +19,9 @@ export class CreateCustomerUseCase {
   async execute(input: CreateCustomerInput): Promise<Customer> {
     if (!VALID_TAX_TYPES.includes(input.taxType)) {
       throw new ValidationError('taxType must be CPF or CNPJ');
+    }
+    if (!validatePhone(input.phone)) {
+      throw new ValidationError('Invalid phone number');
     }
     if (!validateTaxId(input.taxId, input.taxType)) {
       throw new ValidationError('Invalid CPF or CNPJ');

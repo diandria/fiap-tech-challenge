@@ -1,4 +1,4 @@
-import { validateCPF, validateCNPJ, validatePlate, validateTaxId } from '../../../src/domain/validators';
+import { validateCPF, validateCNPJ, validatePlate, validateTaxId, validatePhone } from '../../../src/domain/validators';
 
 describe('validateCPF', () => {
   it('accepts a valid CPF with formatting', () => {
@@ -57,6 +57,24 @@ describe('validatePlate', () => {
   });
   it('rejects all digits', () => {
     expect(validatePlate('12341234')).toBe(false);
+  });
+});
+
+describe('validatePhone', () => {
+  it('accepts 10-digit landline (digits only)', () => {
+    expect(validatePhone('1133334444')).toBe(true);
+  });
+  it('accepts 11-digit mobile (digits only)', () => {
+    expect(validatePhone('11999998888')).toBe(true);
+  });
+  it('accepts formatted phone with mask', () => {
+    expect(validatePhone('(11) 99999-8888')).toBe(true);
+  });
+  it('rejects fewer than 10 digits', () => {
+    expect(validatePhone('12345')).toBe(false);
+  });
+  it('rejects more than 11 digits', () => {
+    expect(validatePhone('119999988881')).toBe(false);
   });
 });
 

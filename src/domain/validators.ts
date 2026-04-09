@@ -49,6 +49,11 @@ export function validatePlate(plate: string): boolean {
   );
 }
 
+export function validatePhone(phone: string): boolean {
+  const digits = phone.replace(/\D/g, '');
+  return digits.length >= 10 && digits.length <= 11;
+}
+
 export function validateTaxId(value: string, type: 'CPF' | 'CNPJ'): boolean {
   if (type === 'CPF') return validateCPF(value);
   if (type === 'CNPJ') return validateCNPJ(value);
