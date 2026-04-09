@@ -1,0 +1,29 @@
+import bcrypt from 'bcryptjs';
+import { IUserRepository } from '../../../domain/ports/IUserRepository';
+import { UserRole } from '../../../domain/entities/User';
+import { ConflictError } from '../../../domain/errors/AppError';
+
+interface RegisterInput {
+  email: string;
+  password: string;
+  role: UserRole;
+}
+
+interface RegisterOutput {
+  id: string;
+  email: string;
+  role: UserRole;
+}
+
+export class RegisterUseCase {
+  constructor(private readonly userRepo: IUserRepository) {}
+
+  async execute({ email, password, role }: RegisterInput): Promise<RegisterOutput> {
+    const existing = await this.userRepo.findByEmail(email);
+    if (existing) throw new ConflictError('Email already in use');
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await this.userRepo.create({ email, passwordHash, role });
+    return { id: user.id, email: user.email, role: user.role };
+  }
+}
