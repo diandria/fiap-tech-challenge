@@ -1,7 +1,6 @@
 import { ApproveBudgetUseCase } from '../../../../src/application/use-cases/service-orders/ApproveBudgetUseCase';
 import { IServiceOrderRepository } from '../../../../src/domain/ports/IServiceOrderRepository';
 import { ICustomerRepository } from '../../../../src/domain/ports/ICustomerRepository';
-import { IItemRepository } from '../../../../src/domain/ports/IItemRepository';
 import { ServiceOrder } from '../../../../src/domain/entities/ServiceOrder';
 import { Customer } from '../../../../src/domain/entities/Customer';
 
@@ -29,34 +28,23 @@ const makeCustomerRepo = (): ICustomerRepository => ({
   findByTaxId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
 });
 
-const makeItemRepo = (): IItemRepository => ({
-  findAll: jest.fn(),
-  findById: jest.fn().mockResolvedValue({ id: 'i-1', name: 'Filter', price: 25, stockQuantity: 10, reservedQuantity: 2 }),
-  create: jest.fn(),
-  update: jest.fn().mockResolvedValue({}),
-  delete: jest.fn(),
-});
-
 describe('ApproveBudgetUseCase', () => {
   it('approves budget with correct 4-digit code and transitions to EXECUTION', async () => {
     const osRepo = makeOSRepo();
-    const itemRepo = makeItemRepo();
-    const useCase = new ApproveBudgetUseCase(osRepo, makeCustomerRepo(), itemRepo);
+    const useCase = new ApproveBudgetUseCase(osRepo, makeCustomerRepo());
     const result = await useCase.execute('os-1', '5299');
     expect(result.status).toBe('EXECUTION');
-    // consume: stockQuantity (10-2=8), reservedQuantity (2-2=0)
-    expect(itemRepo.update).toHaveBeenCalledWith('i-1', { stockQuantity: 8, reservedQuantity: 0 });
   });
 
   it('throws ValidationError for wrong code', async () => {
-    const useCase = new ApproveBudgetUseCase(makeOSRepo(), makeCustomerRepo(), makeItemRepo());
+    const useCase = new ApproveBudgetUseCase(makeOSRepo(), makeCustomerRepo());
     await expect(useCase.execute('os-1', '0000'))
       .rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('code') });
   });
 
   it('throws ValidationError when OS is not WAITING_APPROVAL', async () => {
     const wrongOS = { ...pendingOS, status: 'EXECUTION' as const };
-    const useCase = new ApproveBudgetUseCase(makeOSRepo(wrongOS), makeCustomerRepo(), makeItemRepo());
+    const useCase = new ApproveBudgetUseCase(makeOSRepo(wrongOS), makeCustomerRepo());
     await expect(useCase.execute('os-1', '5299')).rejects.toMatchObject({ statusCode: 400 });
   });
 });
