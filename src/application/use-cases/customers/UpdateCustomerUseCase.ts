@@ -1,26 +1,17 @@
 import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
-import { TaxType } from '../../../domain/entities/Customer';
 import { Customer } from '../../../domain/entities/Customer';
-import { validateTaxId, validatePhone } from '../../../domain/validators';
-import { NotFoundError, ValidationError, ConflictError } from '../../../domain/errors/AppError';
+import { validatePhone } from '../../../domain/validators';
+import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
 
 export class UpdateCustomerUseCase {
   constructor(private readonly repo: ICustomerRepository) {}
 
   async execute(id: string, data: Partial<Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Customer> {
-    if (data.taxType !== undefined && !['CPF', 'CNPJ'].includes(data.taxType)) {
-      throw new ValidationError('taxType must be CPF or CNPJ');
+    if (data.taxId !== undefined || data.taxType !== undefined) {
+      throw new ValidationError('taxId and taxType cannot be updated');
     }
     if (data.phone !== undefined && !validatePhone(data.phone)) {
       throw new ValidationError('Invalid phone number');
-    }
-    if (data.taxId !== undefined) {
-      const normalizedTaxId = data.taxId.replace(/\D/g, '');
-      const taxType: TaxType = data.taxType ?? 'CPF';
-      if (!validateTaxId(normalizedTaxId, taxType)) throw new ValidationError('Invalid CPF or CNPJ');
-      const existing = await this.repo.findByTaxId(normalizedTaxId);
-      if (existing && existing.id !== id) throw new ConflictError('CPF/CNPJ already registered');
-      data = { ...data, taxId: normalizedTaxId };
     }
     const updated = await this.repo.update(id, data);
     if (!updated) throw new NotFoundError('Customer');
