@@ -1,5 +1,5 @@
 import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
-import { Customer } from '../../../domain/entities/Customer';
+import { Customer, TaxType } from '../../../domain/entities/Customer';
 import { CustomerModel } from '../models/CustomerModel';
 
 const notDeleted = { deletedAt: null };
@@ -32,7 +32,7 @@ export class MongoCustomerRepository implements ICustomerRepository {
     return doc ? this.toEntity(doc) : null;
   }
 
-  async findByTaxType(taxType: 'CPF' | 'CNPJ'): Promise<Customer[]> {
+  async findByTaxType(taxType: TaxType): Promise<Customer[]> {
     const docs = await CustomerModel.find({ taxType, ...notDeleted }).lean();
     return docs.map((d) => this.toEntity(d));
   }

@@ -1,8 +1,10 @@
+export type TaxType = 'CPF' | 'CNPJ';
+
 export interface Customer {
   id: string;
   name: string;
   taxId: string;
-  taxType: 'CPF' | 'CNPJ';
+  taxType: TaxType;
   deletedAt?: Date;
   email: string;
   phone: string;

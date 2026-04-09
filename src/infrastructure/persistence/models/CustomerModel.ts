@@ -1,9 +1,10 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { TaxType } from '../../../domain/entities/Customer';
 
 interface CustomerDocument extends Document {
   name: string;
   taxId: string;
-  taxType: 'CPF' | 'CNPJ';
+  taxType: TaxType;
   email: string;
   phone: string;
   deletedAt: Date | null;

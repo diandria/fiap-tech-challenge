@@ -1,4 +1,5 @@
 import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
+import { TaxType } from '../../../domain/entities/Customer';
 import { Customer } from '../../../domain/entities/Customer';
 import { validateTaxId, validatePhone } from '../../../domain/validators';
 import { NotFoundError, ValidationError, ConflictError } from '../../../domain/errors/AppError';
@@ -14,7 +15,7 @@ export class UpdateCustomerUseCase {
       throw new ValidationError('Invalid phone number');
     }
     if (data.taxId !== undefined) {
-      const taxType = data.taxType ?? 'CPF';
+      const taxType: TaxType = data.taxType ?? 'CPF';
       if (!validateTaxId(data.taxId, taxType)) throw new ValidationError('Invalid CPF or CNPJ');
       const existing = await this.repo.findByTaxId(data.taxId);
       if (existing && existing.id !== id) throw new ConflictError('CPF/CNPJ already registered');

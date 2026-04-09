@@ -54,7 +54,9 @@ export function validatePhone(phone: string): boolean {
   return digits.length >= 10 && digits.length <= 11;
 }
 
-export function validateTaxId(value: string, type: 'CPF' | 'CNPJ'): boolean {
+import { TaxType } from './entities/Customer';
+
+export function validateTaxId(value: string, type: TaxType): boolean {
   if (type === 'CPF') return validateCPF(value);
   if (type === 'CNPJ') return validateCNPJ(value);
   return false;

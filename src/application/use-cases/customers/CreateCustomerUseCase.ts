@@ -1,23 +1,21 @@
 import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
-import { Customer } from '../../../domain/entities/Customer';
+import { Customer, TaxType } from '../../../domain/entities/Customer';
 import { validateTaxId, validatePhone } from '../../../domain/validators';
 import { ValidationError, ConflictError } from '../../../domain/errors/AppError';
 
 interface CreateCustomerInput {
   name: string;
   taxId: string;
-  taxType: 'CPF' | 'CNPJ';
+  taxType: TaxType;
   email: string;
   phone: string;
 }
-
-const VALID_TAX_TYPES = ['CPF', 'CNPJ'] as const;
 
 export class CreateCustomerUseCase {
   constructor(private readonly repo: ICustomerRepository) {}
 
   async execute(input: CreateCustomerInput): Promise<Customer> {
-    if (!VALID_TAX_TYPES.includes(input.taxType)) {
+    if (input.taxType !== 'CPF' && input.taxType !== 'CNPJ') {
       throw new ValidationError('taxType must be CPF or CNPJ');
     }
     if (!validatePhone(input.phone)) {
