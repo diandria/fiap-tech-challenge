@@ -52,4 +52,13 @@ describe('FinishDiagnosisUseCase', () => {
     const useCase = new FinishDiagnosisUseCase(osRepo, makeServiceRepo(), makeItemRepo());
     await expect(useCase.execute('os-1')).rejects.toMatchObject({ statusCode: 400 });
   });
+
+  it('throws NotFoundError when OS does not exist', async () => {
+    const osRepo: IServiceOrderRepository = {
+      findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
+      create: jest.fn(), update: jest.fn(),
+    };
+    const useCase = new FinishDiagnosisUseCase(osRepo, makeServiceRepo(), makeItemRepo());
+    await expect(useCase.execute('missing')).rejects.toMatchObject({ statusCode: 404 });
+  });
 });

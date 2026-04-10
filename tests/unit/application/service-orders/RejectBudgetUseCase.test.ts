@@ -57,4 +57,31 @@ describe('RejectBudgetUseCase', () => {
     await expect(useCase.execute('os-1', '9999'))
       .rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('code') });
   });
+
+  it('throws NotFoundError when OS does not exist', async () => {
+    const osRepo: IServiceOrderRepository = {
+      findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
+      create: jest.fn(), update: jest.fn(),
+    };
+    const useCase = new RejectBudgetUseCase(osRepo, makeCustomerRepo(), makeItemRepo());
+    await expect(useCase.execute('missing', '1122')).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('throws NotFoundError when customer does not exist', async () => {
+    const customerRepo: ICustomerRepository = {
+      findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
+      findByTaxId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
+    };
+    const useCase = new RejectBudgetUseCase(makeOSRepo(), customerRepo, makeItemRepo());
+    await expect(useCase.execute('os-1', '1122')).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('throws NotFoundError when an item in the order does not exist', async () => {
+    const itemRepo: IItemRepository = {
+      findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
+      create: jest.fn(), update: jest.fn(), delete: jest.fn(),
+    };
+    const useCase = new RejectBudgetUseCase(makeOSRepo(), makeCustomerRepo(), itemRepo);
+    await expect(useCase.execute('os-1', '1122')).rejects.toMatchObject({ statusCode: 404 });
+  });
 });

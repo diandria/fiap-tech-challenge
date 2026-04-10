@@ -55,4 +55,13 @@ describe('StartExecutionUseCase', () => {
     const useCase = new StartExecutionUseCase(osRepo, makeItemRepo());
     await expect(useCase.execute('missing')).rejects.toMatchObject({ statusCode: 404 });
   });
+
+  it('throws NotFoundError when an item in the order does not exist in catalog', async () => {
+    const itemRepo: IItemRepository = {
+      findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
+      create: jest.fn(), update: jest.fn(), delete: jest.fn(),
+    };
+    const useCase = new StartExecutionUseCase(makeOSRepo(), itemRepo);
+    await expect(useCase.execute('os-1')).rejects.toMatchObject({ statusCode: 404 });
+  });
 });
