@@ -101,24 +101,19 @@ npm run dev
 
 ---
 
-## Seeding the First Admin User
+## Default Admin User
 
-There is no open registration endpoint. The first admin must be seeded directly:
+A default admin is created automatically on first startup if no user with that email exists:
 
-```typescript
-// Run once via ts-node or add to a seed script
-import 'dotenv/config';
-import { connectDB } from './src/infrastructure/persistence/connection';
-import { MongoUserRepository } from './src/infrastructure/persistence/repositories/MongoUserRepository';
-import { RegisterUseCase } from './src/application/use-cases/auth/RegisterUseCase';
+| Field    | Value          |
+|----------|----------------|
+| email    | `master-admin` |
+| password | `admin`        |
+| role     | `admin`        |
 
-await connectDB(process.env.MONGODB_URI!);
-const repo = new MongoUserRepository();
-const register = new RegisterUseCase(repo);
-await register.execute({ email: 'admin@example.com', password: 'your-password', role: 'admin' });
-```
+Use these credentials to log in via `POST /auth/login` or directly in Swagger UI (see [Authenticating in Swagger UI](#authenticating-in-swagger-ui)).
 
-Once an admin exists, use `POST /auth/register` (admin token required) to create further users.
+Once logged in, use `POST /auth/register` (admin token required) to create additional users with `attendant` or `mechanic` roles.
 
 ---
 
