@@ -107,7 +107,7 @@ A default admin is created automatically on first startup if no user with that e
 
 | Field    | Value          |
 |----------|----------------|
-| email    | `master-admin` |
+| email    | `admin@master.com` |
 | password | `admin`        |
 | role     | `admin`        |
 

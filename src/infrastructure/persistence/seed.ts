@@ -1,7 +1,7 @@
 import { MongoUserRepository } from './repositories/MongoUserRepository';
 import { RegisterUseCase } from '../../application/use-cases/auth/RegisterUseCase';
 
-const DEFAULT_ADMIN_EMAIL = 'master-admin';
+const DEFAULT_ADMIN_EMAIL = 'admin@master.com';
 const DEFAULT_ADMIN_PASSWORD = 'admin';
 
 export async function seedDefaultAdmin(): Promise<void> {
