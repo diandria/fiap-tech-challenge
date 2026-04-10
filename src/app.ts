@@ -5,6 +5,7 @@ import { customerRoutes } from './infrastructure/http/routes/customerRoutes';
 import { vehicleRoutes } from './infrastructure/http/routes/vehicleRoutes';
 import { serviceRoutes } from './infrastructure/http/routes/serviceRoutes';
 import { itemRoutes } from './infrastructure/http/routes/itemRoutes';
+import { serviceOrderRoutes } from './infrastructure/http/routes/serviceOrderRoutes';
 
 export function createApp(): Application {
   const app = express();
@@ -32,6 +33,7 @@ export function createApp(): Application {
   app.use('/vehicles', vehicleRoutes());
   app.use('/services', serviceRoutes());
   app.use('/items', itemRoutes());
+  app.use('/service-orders', serviceOrderRoutes());
 
   app.use(errorMiddleware);
 

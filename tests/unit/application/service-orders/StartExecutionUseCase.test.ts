@@ -1,4 +1,4 @@
-import { StartServiceUseCase } from '../../../../src/application/use-cases/service-orders/StartServiceUseCase';
+import { StartExecutionUseCase } from '../../../../src/application/use-cases/service-orders/StartExecutionUseCase';
 import { IServiceOrderRepository } from '../../../../src/domain/ports/IServiceOrderRepository';
 import { IItemRepository } from '../../../../src/domain/ports/IItemRepository';
 import { ServiceOrder } from '../../../../src/domain/entities/ServiceOrder';
@@ -26,11 +26,11 @@ const makeItemRepo = (): IItemRepository => ({
   delete: jest.fn(),
 });
 
-describe('StartServiceUseCase', () => {
+describe('StartExecutionUseCase', () => {
   it('consumes stock and sets startedAt when mechanic starts execution', async () => {
     const osRepo = makeOSRepo();
     const itemRepo = makeItemRepo();
-    const useCase = new StartServiceUseCase(osRepo, itemRepo);
+    const useCase = new StartExecutionUseCase(osRepo, itemRepo);
     const result = await useCase.execute('os-1');
 
     // i-1: stockQuantity (10-2=8), reservedQuantity (4-2=2)
@@ -43,7 +43,7 @@ describe('StartServiceUseCase', () => {
 
   it('throws ValidationError when OS is not in APPROVED status', async () => {
     const wrongOS = { ...baseOS, status: 'WAITING_APPROVAL' as const };
-    const useCase = new StartServiceUseCase(makeOSRepo(wrongOS), makeItemRepo());
+    const useCase = new StartExecutionUseCase(makeOSRepo(wrongOS), makeItemRepo());
     await expect(useCase.execute('os-1')).rejects.toMatchObject({ statusCode: 400 });
   });
 
@@ -52,7 +52,7 @@ describe('StartServiceUseCase', () => {
       findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
       create: jest.fn(), update: jest.fn(),
     };
-    const useCase = new StartServiceUseCase(osRepo, makeItemRepo());
+    const useCase = new StartExecutionUseCase(osRepo, makeItemRepo());
     await expect(useCase.execute('missing')).rejects.toMatchObject({ statusCode: 404 });
   });
 });
