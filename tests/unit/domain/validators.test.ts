@@ -1,5 +1,6 @@
 import { validateCPF, validateCNPJ, validatePlate, validateTaxId, validatePhone } from '../../../src/domain/validators';
 
+
 describe('validateCPF', () => {
   it('accepts a valid CPF with formatting', () => {
     expect(validateCPF('529.982.247-25')).toBe(true);
@@ -90,5 +91,22 @@ describe('validateTaxId', () => {
   });
   it('rejects an invalid CNPJ when type is CNPJ', () => {
     expect(validateTaxId('11.111.111/1111-11', 'CNPJ')).toBe(false);
+  });
+  it('returns false for unknown tax type (runtime safety)', () => {
+    expect(validateTaxId('12345', 'OTHER' as any)).toBe(false);
+  });
+});
+
+describe('validateCPF check-digit edge case', () => {
+  // CPF 052.795.490-02: first check digit computation yields rem=10 (>=10), mapping to 0
+  it('accepts a valid CPF whose first check digit is 0 (rem >= 10 branch)', () => {
+    expect(validateCPF('052.795.490-02')).toBe(true);
+  });
+});
+
+describe('validateCNPJ check-digit edge case', () => {
+  // CNPJ 00.360.305/0001-04: first check digit computation yields rem=0 (<2), mapping to 0
+  it('accepts a valid CNPJ whose first check digit is 0 (rem < 2 branch)', () => {
+    expect(validateCNPJ('00.360.305/0001-04')).toBe(true);
   });
 });

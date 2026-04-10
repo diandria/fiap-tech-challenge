@@ -47,4 +47,22 @@ describe('ApproveBudgetUseCase', () => {
     const useCase = new ApproveBudgetUseCase(makeOSRepo(wrongOS), makeCustomerRepo());
     await expect(useCase.execute('os-1', '5299')).rejects.toMatchObject({ statusCode: 400 });
   });
+
+  it('throws NotFoundError when OS does not exist', async () => {
+    const osRepo: IServiceOrderRepository = {
+      findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
+      create: jest.fn(), update: jest.fn(),
+    };
+    const useCase = new ApproveBudgetUseCase(osRepo, makeCustomerRepo());
+    await expect(useCase.execute('missing', '5299')).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('throws NotFoundError when customer does not exist', async () => {
+    const customerRepo: ICustomerRepository = {
+      findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
+      findByTaxId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
+    };
+    const useCase = new ApproveBudgetUseCase(makeOSRepo(), customerRepo);
+    await expect(useCase.execute('os-1', '5299')).rejects.toMatchObject({ statusCode: 404 });
+  });
 });

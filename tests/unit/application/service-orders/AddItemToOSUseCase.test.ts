@@ -50,8 +50,27 @@ describe('AddItemToOSUseCase', () => {
   });
 
   it('throws NotFoundError when item does not exist', async () => {
+    const useCase = new AddItemToOSUseCase(makeOSRepo(null), makeItemRepo(stockedItem));
+    await expect(useCase.execute('missing', 'i-1', 1))
+      .rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('throws NotFoundError when item catalog entry does not exist', async () => {
     const useCase = new AddItemToOSUseCase(makeOSRepo(baseOS), makeItemRepo(null));
     await expect(useCase.execute('os-1', 'missing', 1))
       .rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('updates quantity when item already exists in order alongside other items', async () => {
+    const osWithItems = {
+      ...baseOS,
+      items: [{ itemId: 'i-1', quantity: 1 }, { itemId: 'i-other', quantity: 5 }],
+    };
+    const osRepo = makeOSRepo(osWithItems);
+    const useCase = new AddItemToOSUseCase(osRepo, makeItemRepo(stockedItem));
+    await useCase.execute('os-1', 'i-1', 2);
+    expect(osRepo.update).toHaveBeenCalledWith('os-1', {
+      items: [{ itemId: 'i-1', quantity: 3 }, { itemId: 'i-other', quantity: 5 }],
+    });
   });
 });

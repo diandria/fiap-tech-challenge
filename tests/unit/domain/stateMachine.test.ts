@@ -48,3 +48,9 @@ describe('assertTransition', () => {
       .toThrow(expect.objectContaining({ statusCode: 400 }));
   });
 });
+
+describe('canTransition edge cases', () => {
+  it('returns false for an unknown status (runtime safety)', () => {
+    expect(canTransition('UNKNOWN' as any, 'DIAGNOSIS')).toBe(false);
+  });
+});
