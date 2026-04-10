@@ -101,24 +101,19 @@ npm run dev
 
 ---
 
-## Seeding the First Admin User
+## Default Admin User
 
-There is no open registration endpoint. The first admin must be seeded directly:
+A default admin is created automatically on first startup if no user with that email exists:
 
-```typescript
-// Run once via ts-node or add to a seed script
-import 'dotenv/config';
-import { connectDB } from './src/infrastructure/persistence/connection';
-import { MongoUserRepository } from './src/infrastructure/persistence/repositories/MongoUserRepository';
-import { RegisterUseCase } from './src/application/use-cases/auth/RegisterUseCase';
+| Field    | Value          |
+|----------|----------------|
+| email    | `admin@master.com` |
+| password | `admin`        |
+| role     | `admin`        |
 
-await connectDB(process.env.MONGODB_URI!);
-const repo = new MongoUserRepository();
-const register = new RegisterUseCase(repo);
-await register.execute({ email: 'admin@example.com', password: 'your-password', role: 'admin' });
-```
+Use these credentials to log in via `POST /auth/login` or directly in Swagger UI (see [Authenticating in Swagger UI](#authenticating-in-swagger-ui)).
 
-Once an admin exists, use `POST /auth/register` (admin token required) to create further users.
+Once logged in, use `POST /auth/register` (admin token required) to create additional users with `attendant` or `mechanic` roles.
 
 ---
 
@@ -163,7 +158,55 @@ Stock items are **reserved** when added to the OS during diagnosis and **consume
 
 Swagger UI is served at `/docs` when the server is running.
 
-Key endpoint groups:
+### Authenticating in Swagger UI
+
+Most endpoints require a JWT. The flow inside Swagger UI is:
+
+**1. Obtain a token**
+
+Open `POST /auth/login`, click **Try it out**, and send:
+
+```json
+{
+  "email": "admin@example.com",
+  "password": "your-password"
+}
+```
+
+Copy the `token` value from the response body.
+
+**2. Authorize the session**
+
+Click the **Authorize** button (lock icon, top-right of the page).  
+In the **bearerAuth** field enter the token value — **without** the `Bearer ` prefix:
+
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Click **Authorize**, then **Close**. All subsequent requests will include the `Authorization: Bearer <token>` header automatically.
+
+**3. Make requests**
+
+Expand any endpoint, click **Try it out**, fill in the parameters, and click **Execute**.
+
+> The token expires according to the `JWT_SECRET` configuration. If you get a `401 Unauthorized`, repeat steps 1–2 to refresh it.
+
+---
+
+### Public endpoints (no token required)
+
+These three endpoints work without authorization:
+
+| Endpoint | Description |
+|---|---|
+| `GET /service-orders/:id/status` | Check OS status and budget total |
+| `POST /service-orders/:id/approve-budget` | Approve budget with 4-digit customer code |
+| `POST /service-orders/:id/reject-budget` | Reject budget with 4-digit customer code |
+
+---
+
+### Key endpoint groups
 
 - `POST /auth/login` — authenticate, receive JWT
 - `POST /auth/register` *(admin)* — create a new user

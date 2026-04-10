@@ -58,6 +58,23 @@ export function serviceOrderRoutes(): Router {
 
   // --- Public ---
 
+  /**
+   * @openapi
+   * /service-orders/{id}/status:
+   *   get:
+   *     summary: Get OS status and budget total (public)
+   *     tags: [Service Orders]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: OS status and budget
+   *       404:
+   *         description: Not found
+   */
   router.get('/:id/status', async (req, res, next) => {
     try {
       const os = await getOS.execute(req.params.id);
@@ -65,6 +82,37 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /service-orders/{id}/approve-budget:
+   *   post:
+   *     summary: Approve budget (public — requires customer 4-digit code)
+   *     tags: [Service Orders]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [code]
+   *             properties:
+   *               code:
+   *                 type: string
+   *                 description: First 4 digits of customer CPF or CNPJ
+   *                 example: "5299"
+   *     responses:
+   *       200:
+   *         description: OS approved
+   *       400:
+   *         description: Invalid code or wrong status
+   *       429:
+   *         description: Too many attempts
+   */
   router.post('/:id/approve-budget', budgetLimiter, async (req, res, next) => {
     try {
       const os = await approveBudget.execute(req.params.id, req.body.code);
@@ -72,6 +120,37 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /service-orders/{id}/reject-budget:
+   *   post:
+   *     summary: Reject budget (public — requires customer 4-digit code)
+   *     tags: [Service Orders]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [code]
+   *             properties:
+   *               code:
+   *                 type: string
+   *                 description: First 4 digits of customer CPF or CNPJ
+   *                 example: "5299"
+   *     responses:
+   *       200:
+   *         description: OS rejected, reservations released
+   *       400:
+   *         description: Invalid code or wrong status
+   *       429:
+   *         description: Too many attempts
+   */
   router.post('/:id/reject-budget', budgetLimiter, async (req, res, next) => {
     try {
       const os = await rejectBudget.execute(req.params.id, req.body.code);
@@ -82,6 +161,33 @@ export function serviceOrderRoutes(): Router {
   // --- Authenticated ---
   router.use(authMiddleware);
 
+  /**
+   * @openapi
+   * /service-orders:
+   *   get:
+   *     summary: List service orders
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: status
+   *         schema:
+   *           type: string
+   *           enum: [RECEIVED, DIAGNOSIS, WAITING_APPROVAL, APPROVED, EXECUTION, FINISHED, DELIVERED, REJECTED]
+   *       - in: query
+   *         name: customerId
+   *         schema: { type: string }
+   *       - in: query
+   *         name: from
+   *         schema: { type: string, format: date-time }
+   *       - in: query
+   *         name: to
+   *         schema: { type: string, format: date-time }
+   *     responses:
+   *       200:
+   *         description: Array of service orders
+   */
   router.get('/', async (req, res, next) => {
     try {
       const { status, customerId, from, to } = req.query as Record<string, string>;
@@ -95,6 +201,30 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /service-orders:
+   *   post:
+   *     summary: Create a service order
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [customerId, vehicleId]
+   *             properties:
+   *               customerId: { type: string }
+   *               vehicleId: { type: string }
+   *     responses:
+   *       201:
+   *         description: Service order created with RECEIVED status
+   *       403:
+   *         description: Forbidden
+   */
   router.post('/', requireRole('attendant', 'admin'), async (req, res, next) => {
     try {
       const os = await createOS.execute(req.body);
@@ -102,6 +232,25 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /service-orders/{id}:
+   *   get:
+   *     summary: Get service order by ID
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Service order
+   *       404:
+   *         description: Not found
+   */
   router.get('/:id', async (req, res, next) => {
     try {
       const os = await getOS.execute(req.params.id);
@@ -110,6 +259,25 @@ export function serviceOrderRoutes(): Router {
   });
 
   // Diagnosis
+  /**
+   * @openapi
+   * /service-orders/{id}/start-diagnosis:
+   *   patch:
+   *     summary: Start diagnosis (RECEIVED → DIAGNOSIS)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Updated service order
+   *       400:
+   *         description: Invalid status transition
+   */
   router.patch('/:id/start-diagnosis', requireRole('attendant', 'admin'), async (req, res, next) => {
     try {
       const os = await startDiagnosis.execute(req.params.id);
@@ -117,6 +285,25 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /service-orders/{id}/finish-diagnosis:
+   *   patch:
+   *     summary: Finish diagnosis and calculate budget (DIAGNOSIS → WAITING_APPROVAL)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Updated service order with budgetTotal
+   *       400:
+   *         description: Invalid status transition
+   */
   router.patch('/:id/finish-diagnosis', requireRole('attendant', 'admin'), async (req, res, next) => {
     try {
       const os = await finishDiagnosis.execute(req.params.id);
@@ -125,6 +312,34 @@ export function serviceOrderRoutes(): Router {
   });
 
   // Line items
+  /**
+   * @openapi
+   * /service-orders/{id}/services:
+   *   post:
+   *     summary: Add a service to the OS (during DIAGNOSIS)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [serviceId]
+   *             properties:
+   *               serviceId: { type: string }
+   *     responses:
+   *       200:
+   *         description: Updated service order
+   *       400:
+   *         description: Wrong status or already added
+   */
   router.post('/:id/services', requireRole('attendant', 'admin'), async (req, res, next) => {
     try {
       const os = await addService.execute(req.params.id, req.body.serviceId);
@@ -132,6 +347,31 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /service-orders/{id}/services/{serviceId}:
+   *   delete:
+   *     summary: Remove a service from the OS (during DIAGNOSIS)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *       - in: path
+   *         name: serviceId
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Updated service order
+   *       400:
+   *         description: Wrong status
+   *       404:
+   *         description: Service not in order
+   */
   router.delete('/:id/services/:serviceId', requireRole('attendant', 'admin'), async (req, res, next) => {
     try {
       const os = await removeService.execute(req.params.id, req.params.serviceId);
@@ -139,6 +379,35 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /service-orders/{id}/items:
+   *   post:
+   *     summary: Add an item to the OS and reserve stock (during DIAGNOSIS)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [itemId, quantity]
+   *             properties:
+   *               itemId: { type: string }
+   *               quantity: { type: integer, minimum: 1 }
+   *     responses:
+   *       200:
+   *         description: Updated service order
+   *       400:
+   *         description: Insufficient stock or wrong status
+   */
   router.post('/:id/items', requireRole('attendant', 'admin'), async (req, res, next) => {
     try {
       const os = await addItem.execute(req.params.id, req.body.itemId, req.body.quantity);
@@ -146,6 +415,31 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /service-orders/{id}/items/{itemId}:
+   *   delete:
+   *     summary: Remove an item from the OS and release reservation (during DIAGNOSIS)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *       - in: path
+   *         name: itemId
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Updated service order
+   *       400:
+   *         description: Wrong status
+   *       404:
+   *         description: Item not in order
+   */
   router.delete('/:id/items/:itemId', requireRole('attendant', 'admin'), async (req, res, next) => {
     try {
       const os = await removeItem.execute(req.params.id, req.params.itemId);
@@ -154,6 +448,25 @@ export function serviceOrderRoutes(): Router {
   });
 
   // Execution (mechanic)
+  /**
+   * @openapi
+   * /service-orders/{id}/start-execution:
+   *   patch:
+   *     summary: Start execution — consumes reserved stock (APPROVED → EXECUTION)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Updated service order
+   *       400:
+   *         description: Invalid status transition
+   */
   router.patch('/:id/start-execution', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await startExecution.execute(req.params.id);
@@ -161,6 +474,29 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /service-orders/{id}/services/{serviceId}/start:
+   *   patch:
+   *     summary: Start a specific service (records startedAt)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *       - in: path
+   *         name: serviceId
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Updated service order
+   *       400:
+   *         description: Wrong OS status or service already started
+   */
   router.patch('/:id/services/:serviceId/start', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await startService.execute(req.params.id, req.params.serviceId);
@@ -168,6 +504,29 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /service-orders/{id}/services/{serviceId}/finish:
+   *   patch:
+   *     summary: Finish a specific service (records finishedAt)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *       - in: path
+   *         name: serviceId
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Updated service order
+   *       400:
+   *         description: Wrong OS status, not started, or already finished
+   */
   router.patch('/:id/services/:serviceId/finish', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await finishService.execute(req.params.id, req.params.serviceId);
@@ -175,6 +534,25 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /service-orders/{id}/finish:
+   *   patch:
+   *     summary: Finish the OS (EXECUTION → FINISHED)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Updated service order
+   *       400:
+   *         description: Invalid status transition
+   */
   router.patch('/:id/finish', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await finishOS.execute(req.params.id);
@@ -182,6 +560,25 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /service-orders/{id}/deliver:
+   *   patch:
+   *     summary: Deliver the OS to the customer (FINISHED → DELIVERED)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Updated service order
+   *       400:
+   *         description: Invalid status transition
+   */
   router.patch('/:id/deliver', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await deliverOS.execute(req.params.id);
