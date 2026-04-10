@@ -4,6 +4,7 @@ const config: Config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/tests'],
+  maxWorkers: 4,
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/main.ts',
