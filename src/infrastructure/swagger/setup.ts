@@ -1,6 +1,11 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { Application } from 'express';
+import path from 'path';
+
+// __dirname resolves to src/infrastructure/swagger (dev) or dist/infrastructure/swagger (prod).
+// Both contain the same relative path to the route files.
+const routesGlob = path.join(__dirname, '../http/routes/*.{ts,js}');
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -22,7 +27,7 @@ const options: swaggerJsdoc.Options = {
     },
     security: [{ bearerAuth: [] }],
   },
-  apis: ['./src/infrastructure/http/routes/*.ts'],
+  apis: [routesGlob],
 };
 
 export function setupSwagger(app: Application): void {
