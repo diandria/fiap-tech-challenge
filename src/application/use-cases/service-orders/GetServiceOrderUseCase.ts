@@ -1,13 +1,11 @@
 import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepository';
 import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
-import { NotFoundError } from '../../../domain/errors/AppError';
+import { findOSOrThrow } from '../../utils/serviceOrderUtils';
 
 export class GetServiceOrderUseCase {
   constructor(private readonly repo: IServiceOrderRepository) {}
 
   async execute(id: string): Promise<ServiceOrder> {
-    const os = await this.repo.findById(id);
-    if (!os) throw new NotFoundError('Service order');
-    return os;
+    return findOSOrThrow(this.repo, id);
   }
 }

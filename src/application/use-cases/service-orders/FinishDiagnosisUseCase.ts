@@ -2,8 +2,8 @@ import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepo
 import { IServiceRepository } from '../../../domain/ports/IServiceRepository';
 import { IItemRepository } from '../../../domain/ports/IItemRepository';
 import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
-import { NotFoundError } from '../../../domain/errors/AppError';
 import { assertTransition } from '../../../domain/serviceOrderStateMachine';
+import { findOSOrThrow } from '../../utils/serviceOrderUtils';
 
 export class FinishDiagnosisUseCase {
   constructor(
@@ -13,8 +13,7 @@ export class FinishDiagnosisUseCase {
   ) {}
 
   async execute(osId: string): Promise<ServiceOrder> {
-    const os = await this.osRepo.findById(osId);
-    if (!os) throw new NotFoundError('Service order');
+    const os = await findOSOrThrow(this.osRepo, osId);
     assertTransition(os.status, 'WAITING_APPROVAL');
 
     let total = 0;

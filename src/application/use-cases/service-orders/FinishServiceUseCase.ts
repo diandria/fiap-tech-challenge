@@ -1,13 +1,13 @@
 import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepository';
 import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
 import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
+import { findOSOrThrow } from '../../utils/serviceOrderUtils';
 
 export class FinishServiceUseCase {
   constructor(private readonly osRepo: IServiceOrderRepository) {}
 
   async execute(osId: string, serviceId: string): Promise<ServiceOrder> {
-    const os = await this.osRepo.findById(osId);
-    if (!os) throw new NotFoundError('Service order');
+    const os = await findOSOrThrow(this.osRepo, osId);
     if (os.status !== 'EXECUTION') throw new ValidationError('OS must be in EXECUTION status');
 
     const svc = os.services.find((s) => s.serviceId === serviceId);
