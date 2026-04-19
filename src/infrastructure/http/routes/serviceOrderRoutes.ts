@@ -340,7 +340,7 @@ export function serviceOrderRoutes(): Router {
    *       400:
    *         description: Wrong status or already added
    */
-  router.post('/:id/services', requireRole('attendant', 'admin'), async (req, res, next) => {
+  router.post('/:id/services', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await addService.execute(req.params.id, req.body.serviceId);
       res.json(os);
@@ -372,7 +372,7 @@ export function serviceOrderRoutes(): Router {
    *       404:
    *         description: Service not in order
    */
-  router.delete('/:id/services/:serviceId', requireRole('attendant', 'admin'), async (req, res, next) => {
+  router.delete('/:id/services/:serviceId', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await removeService.execute(req.params.id, req.params.serviceId);
       res.json(os);
@@ -408,7 +408,7 @@ export function serviceOrderRoutes(): Router {
    *       400:
    *         description: Insufficient stock or wrong status
    */
-  router.post('/:id/items', requireRole('attendant', 'admin'), async (req, res, next) => {
+  router.post('/:id/items', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await addItem.execute(req.params.id, req.body.itemId, req.body.quantity);
       res.json(os);
@@ -440,7 +440,7 @@ export function serviceOrderRoutes(): Router {
    *       404:
    *         description: Item not in order
    */
-  router.delete('/:id/items/:itemId', requireRole('attendant', 'admin'), async (req, res, next) => {
+  router.delete('/:id/items/:itemId', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await removeItem.execute(req.params.id, req.params.itemId);
       res.json(os);
