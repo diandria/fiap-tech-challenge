@@ -22,6 +22,7 @@ import { StartServiceUseCase } from '../../../application/use-cases/service-orde
 import { FinishServiceUseCase } from '../../../application/use-cases/service-orders/FinishServiceUseCase';
 import { FinishOSUseCase } from '../../../application/use-cases/service-orders/FinishOSUseCase';
 import { DeliverOSUseCase } from '../../../application/use-cases/service-orders/DeliverOSUseCase';
+import { GetAvgExecutionTimeUseCase } from '../../../application/use-cases/service-orders/GetAvgExecutionTimeUseCase';
 import { OSStatus } from '../../../domain/entities/ServiceOrder';
 
 const budgetLimiter = rateLimit({
@@ -55,8 +56,38 @@ export function serviceOrderRoutes(): Router {
   const finishService = new FinishServiceUseCase(osRepo);
   const finishOS = new FinishOSUseCase(osRepo);
   const deliverOS = new DeliverOSUseCase(osRepo);
+  const getAvgExecution = new GetAvgExecutionTimeUseCase(osRepo);
 
   // --- Public ---
+
+  /**
+   * @openapi
+   * /service-orders/stats/avg-execution:
+   *   get:
+   *     summary: Average execution time per service (authenticated)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Array of avg execution results
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: object
+   *                 properties:
+   *                   serviceId: { type: string }
+   *                   avgMinutes: { type: number }
+   *                   count: { type: integer }
+   */
+  router.get('/stats/avg-execution', authMiddleware, async (req, res, next) => {
+    try {
+      const result = await getAvgExecution.execute();
+      res.json(result);
+    } catch (err) { next(err); }
+  });
 
   /**
    * @openapi

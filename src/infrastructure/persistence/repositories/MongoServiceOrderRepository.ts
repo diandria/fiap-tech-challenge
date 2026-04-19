@@ -1,4 +1,4 @@
-import { IServiceOrderRepository, ListServiceOrdersFilter } from '../../../domain/ports/IServiceOrderRepository';
+import { IServiceOrderRepository, ListServiceOrdersFilter, AvgExecutionResult } from '../../../domain/ports/IServiceOrderRepository';
 import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
 import { ServiceOrderModel } from '../models/ServiceOrderModel';
 
@@ -46,5 +46,33 @@ export class MongoServiceOrderRepository implements IServiceOrderRepository {
   async update(id: string, data: Partial<Omit<ServiceOrder, 'id'>>): Promise<ServiceOrder | null> {
     const doc = await ServiceOrderModel.findByIdAndUpdate(id, { $set: data }, { new: true }).lean();
     return doc ? this.toEntity(doc) : null;
+  }
+
+  async getAvgExecutionByService(): Promise<AvgExecutionResult[]> {
+    const results = await ServiceOrderModel.aggregate([
+      { $unwind: '$services' },
+      {
+        $match: {
+          'services.startedAt': { $exists: true, $ne: null },
+          'services.finishedAt': { $exists: true, $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: '$services.serviceId',
+          avgMinutes: {
+            $avg: {
+              $divide: [
+                { $subtract: ['$services.finishedAt', '$services.startedAt'] },
+                60000,
+              ],
+            },
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $project: { _id: 0, serviceId: '$_id', avgMinutes: 1, count: 1 } },
+    ]);
+    return results as AvgExecutionResult[];
   }
 }

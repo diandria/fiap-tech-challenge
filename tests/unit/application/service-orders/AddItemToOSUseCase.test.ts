@@ -18,6 +18,7 @@ const makeOSRepo = (os: ServiceOrder | null): IServiceOrderRepository => ({
   findById: jest.fn().mockResolvedValue(os),
   create: jest.fn(),
   update: jest.fn().mockImplementation((_id, data) => Promise.resolve({ ...baseOS, ...data })),
+  getAvgExecutionByService: jest.fn().mockResolvedValue([]),
 });
 
 const makeItemRepo = (item: Item | null): IItemRepository => ({

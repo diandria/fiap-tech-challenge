@@ -13,6 +13,7 @@ const makeRepo = (): IServiceOrderRepository => ({
   findById: jest.fn(),
   create: jest.fn().mockResolvedValue(created),
   update: jest.fn(),
+  getAvgExecutionByService: jest.fn().mockResolvedValue([]),
 });
 
 describe('CreateServiceOrderUseCase', () => {

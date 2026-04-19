@@ -9,6 +9,7 @@ const orders: ServiceOrder[] = [
 const makeRepo = (): IServiceOrderRepository => ({
   findAll: jest.fn().mockResolvedValue(orders),
   findById: jest.fn(), create: jest.fn(), update: jest.fn(),
+  getAvgExecutionByService: jest.fn().mockResolvedValue([]),
 });
 
 describe('ListServiceOrdersUseCase', () => {

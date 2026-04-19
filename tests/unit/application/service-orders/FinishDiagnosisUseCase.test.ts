@@ -17,6 +17,7 @@ const makeOSRepo = (): IServiceOrderRepository => ({
   findById: jest.fn().mockResolvedValue(baseOS),
   create: jest.fn(),
   update: jest.fn().mockImplementation((_id, data) => Promise.resolve({ ...baseOS, ...data })),
+  getAvgExecutionByService: jest.fn().mockResolvedValue([]),
 });
 
 const makeServiceRepo = (): IServiceRepository => ({
@@ -48,6 +49,7 @@ describe('FinishDiagnosisUseCase', () => {
       findAll: jest.fn(),
       findById: jest.fn().mockResolvedValue({ ...baseOS, status: 'RECEIVED' }),
       create: jest.fn(), update: jest.fn(),
+      getAvgExecutionByService: jest.fn().mockResolvedValue([]),
     };
     const useCase = new FinishDiagnosisUseCase(osRepo, makeServiceRepo(), makeItemRepo());
     await expect(useCase.execute('os-1')).rejects.toMatchObject({ statusCode: 400 });
@@ -57,6 +59,7 @@ describe('FinishDiagnosisUseCase', () => {
     const osRepo: IServiceOrderRepository = {
       findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
       create: jest.fn(), update: jest.fn(),
+      getAvgExecutionByService: jest.fn().mockResolvedValue([]),
     };
     const useCase = new FinishDiagnosisUseCase(osRepo, makeServiceRepo(), makeItemRepo());
     await expect(useCase.execute('missing')).rejects.toMatchObject({ statusCode: 404 });

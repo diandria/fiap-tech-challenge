@@ -14,6 +14,7 @@ const makeOSRepo = (os = baseOS): IServiceOrderRepository => ({
   findAll: jest.fn(), findById: jest.fn().mockResolvedValue(os),
   create: jest.fn(),
   update: jest.fn().mockImplementation((_id, data) => Promise.resolve({ ...os, ...data })),
+  getAvgExecutionByService: jest.fn().mockResolvedValue([]),
 });
 
 const makeItemRepo = (): IItemRepository => ({
@@ -51,6 +52,7 @@ describe('StartExecutionUseCase', () => {
     const osRepo: IServiceOrderRepository = {
       findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
       create: jest.fn(), update: jest.fn(),
+      getAvgExecutionByService: jest.fn().mockResolvedValue([]),
     };
     const useCase = new StartExecutionUseCase(osRepo, makeItemRepo());
     await expect(useCase.execute('missing')).rejects.toMatchObject({ statusCode: 404 });

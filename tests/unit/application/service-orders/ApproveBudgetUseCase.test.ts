@@ -21,6 +21,7 @@ const makeOSRepo = (os = pendingOS): IServiceOrderRepository => ({
   findAll: jest.fn(), findById: jest.fn().mockResolvedValue(os),
   create: jest.fn(),
   update: jest.fn().mockImplementation((_id, data) => Promise.resolve({ ...os, ...data })),
+  getAvgExecutionByService: jest.fn().mockResolvedValue([]),
 });
 
 const makeCustomerRepo = (): ICustomerRepository => ({
@@ -52,6 +53,7 @@ describe('ApproveBudgetUseCase', () => {
     const osRepo: IServiceOrderRepository = {
       findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
       create: jest.fn(), update: jest.fn(),
+      getAvgExecutionByService: jest.fn().mockResolvedValue([]),
     };
     const useCase = new ApproveBudgetUseCase(osRepo, makeCustomerRepo());
     await expect(useCase.execute('missing', '5299')).rejects.toMatchObject({ statusCode: 404 });

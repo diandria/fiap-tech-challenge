@@ -10,6 +10,7 @@ const os: ServiceOrder = {
 const makeRepo = (result: ServiceOrder | null): IServiceOrderRepository => ({
   findAll: jest.fn(), findById: jest.fn().mockResolvedValue(result),
   create: jest.fn(), update: jest.fn(),
+  getAvgExecutionByService: jest.fn().mockResolvedValue([]),
 });
 
 describe('GetServiceOrderUseCase', () => {
