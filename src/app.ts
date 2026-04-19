@@ -12,7 +12,7 @@ import { setupSwagger } from './infrastructure/swagger/setup';
 export function createApp(): Application {
   const app = express();
 
-  app.use(helmet());
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(express.json());
 
   // CORS
