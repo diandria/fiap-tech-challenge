@@ -73,6 +73,10 @@ export class MongoServiceOrderRepository implements IServiceOrderRepository {
       },
       { $project: { _id: 0, serviceId: '$_id', avgMinutes: 1, count: 1 } },
     ]);
-    return results as AvgExecutionResult[];
+    return results.map((r: any) => ({
+      serviceId: r.serviceId as string,
+      avgMinutes: r.avgMinutes as number,
+      count: r.count as number,
+    }));
   }
 }

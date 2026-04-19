@@ -82,7 +82,7 @@ export function serviceOrderRoutes(): Router {
    *                   avgMinutes: { type: number }
    *                   count: { type: integer }
    */
-  router.get('/stats/avg-execution', authMiddleware, async (req, res, next) => {
+  router.get('/stats/avg-execution', authMiddleware, requireRole('attendant', 'admin'), async (req, res, next) => {
     try {
       const result = await getAvgExecution.execute();
       res.json(result);
