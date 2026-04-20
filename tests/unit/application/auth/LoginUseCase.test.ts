@@ -20,18 +20,19 @@ describe('LoginUseCase', () => {
     const useCase = new LoginUseCase(repo);
     const result = await useCase.execute({ email: 'a@b.com', password: 'secret123' });
     expect(typeof result.token).toBe('string');
+    expect(result.token.split('.').length).toBe(3); // valid JWT structure
   });
 
   it('GIVEN unknown email WHEN login called THEN throws UnauthorizedError', async () => {
     const useCase = new LoginUseCase(makeRepo(null));
     await expect(useCase.execute({ email: 'x@y.com', password: 'p' }))
-      .rejects.toMatchObject({ statusCode: 401 });
+      .rejects.toMatchObject({ message: 'Invalid credentials', statusCode: 401 });
   });
 
   it('GIVEN wrong password WHEN login called THEN throws UnauthorizedError', async () => {
     const repo = makeRepo({ id: 'u-1', email: 'a@b.com', passwordHash: hash, role: 'admin' });
     const useCase = new LoginUseCase(repo);
     await expect(useCase.execute({ email: 'a@b.com', password: 'wrong' }))
-      .rejects.toMatchObject({ statusCode: 401 });
+      .rejects.toMatchObject({ message: 'Invalid credentials', statusCode: 401 });
   });
 });
