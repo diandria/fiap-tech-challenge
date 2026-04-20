@@ -10,7 +10,7 @@ const validInput = {
   year: 2020,
 };
 
-const makeRepo = (override?: Partial<IVehicleRepository>): IVehicleRepository => ({
+const makeVehicleRepo = (override?: Partial<IVehicleRepository>): IVehicleRepository => ({
   findAll: jest.fn(),
   findById: jest.fn(),
   findByPlate: jest.fn().mockResolvedValue(null),
@@ -21,29 +21,29 @@ const makeRepo = (override?: Partial<IVehicleRepository>): IVehicleRepository =>
 });
 
 describe('CreateVehicleUseCase', () => {
-  it('creates a vehicle with a valid old-format plate', async () => {
-    const useCase = new CreateVehicleUseCase(makeRepo());
+  it('GIVEN valid vehicle data WHEN execute called THEN returns created vehicle', async () => {
+    const useCase = new CreateVehicleUseCase(makeVehicleRepo());
     const result = await useCase.execute(validInput);
     expect(result.id).toBe('v-1');
     expect(result.plate).toBe('ABC-1234');
   });
 
-  it('creates a vehicle with a valid Mercosul plate', async () => {
-    const useCase = new CreateVehicleUseCase(makeRepo());
+  it('GIVEN valid Mercosul plate WHEN execute called THEN returns created vehicle', async () => {
+    const useCase = new CreateVehicleUseCase(makeVehicleRepo());
     const result = await useCase.execute({ ...validInput, plate: 'ABC1D23' });
     expect(result.id).toBe('v-1');
   });
 
-  it('throws ValidationError for invalid plate format', async () => {
-    const useCase = new CreateVehicleUseCase(makeRepo());
+  it('GIVEN invalid plate format WHEN execute called THEN throws ValidationError', async () => {
+    const useCase = new CreateVehicleUseCase(makeVehicleRepo());
     await expect(useCase.execute({ ...validInput, plate: 'INVALID' }))
       .rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('throws ConflictError if plate is already registered', async () => {
+  it('GIVEN duplicate plate WHEN execute called THEN throws ConflictError', async () => {
     const existing: Vehicle = { id: 'v-2', ...validInput };
     const useCase = new CreateVehicleUseCase(
-      makeRepo({ findByPlate: jest.fn().mockResolvedValue(existing) }),
+      makeVehicleRepo({ findByPlate: jest.fn().mockResolvedValue(existing) }),
     );
     await expect(useCase.execute(validInput))
       .rejects.toMatchObject({ statusCode: 409 });

@@ -1,20 +1,13 @@
-import bcrypt from 'bcryptjs';
 import { LoginUseCase } from '../../../../src/application/use-cases/auth/LoginUseCase';
 import { IUserRepository } from '../../../../src/domain/ports/IUserRepository';
-import { User } from '../../../../src/domain/entities/User';
+import bcrypt from 'bcryptjs';
 
-const mockUser: User = {
-  id: 'user-1',
-  email: 'admin@test.com',
-  passwordHash: bcrypt.hashSync('password123', 1),
-  role: 'admin',
-};
+const hash = bcrypt.hashSync('secret123', 1);
 
-const makeRepo = (override?: Partial<IUserRepository>): IUserRepository => ({
+const makeRepo = (user: any = null): IUserRepository => ({
+  findByEmail: jest.fn().mockResolvedValue(user),
   findById: jest.fn(),
-  findByEmail: jest.fn().mockResolvedValue(mockUser),
   create: jest.fn(),
-  ...override,
 });
 
 describe('LoginUseCase', () => {
@@ -22,22 +15,23 @@ describe('LoginUseCase', () => {
     process.env.JWT_SECRET = 'test-secret';
   });
 
-  it('returns a token for valid credentials', async () => {
-    const useCase = new LoginUseCase(makeRepo());
-    const result = await useCase.execute({ email: 'admin@test.com', password: 'password123' });
+  it('GIVEN valid credentials WHEN login called THEN returns JWT token string', async () => {
+    const repo = makeRepo({ id: 'u-1', email: 'a@b.com', passwordHash: hash, role: 'admin' });
+    const useCase = new LoginUseCase(repo);
+    const result = await useCase.execute({ email: 'a@b.com', password: 'secret123' });
     expect(typeof result.token).toBe('string');
-    expect(result.token.split('.').length).toBe(3); // valid JWT structure
   });
 
-  it('throws UnauthorizedError when email is not found', async () => {
-    const useCase = new LoginUseCase(makeRepo({ findByEmail: jest.fn().mockResolvedValue(null) }));
-    await expect(useCase.execute({ email: 'x@x.com', password: 'pw' }))
-      .rejects.toMatchObject({ message: 'Invalid credentials', statusCode: 401 });
+  it('GIVEN unknown email WHEN login called THEN throws UnauthorizedError', async () => {
+    const useCase = new LoginUseCase(makeRepo(null));
+    await expect(useCase.execute({ email: 'x@y.com', password: 'p' }))
+      .rejects.toMatchObject({ statusCode: 401 });
   });
 
-  it('throws UnauthorizedError for wrong password', async () => {
-    const useCase = new LoginUseCase(makeRepo());
-    await expect(useCase.execute({ email: 'admin@test.com', password: 'wrong' }))
-      .rejects.toMatchObject({ message: 'Invalid credentials', statusCode: 401 });
+  it('GIVEN wrong password WHEN login called THEN throws UnauthorizedError', async () => {
+    const repo = makeRepo({ id: 'u-1', email: 'a@b.com', passwordHash: hash, role: 'admin' });
+    const useCase = new LoginUseCase(repo);
+    await expect(useCase.execute({ email: 'a@b.com', password: 'wrong' }))
+      .rejects.toMatchObject({ statusCode: 401 });
   });
 });

@@ -1,22 +1,18 @@
 import { DeleteCustomerUseCase } from '../../../../src/application/use-cases/customers/DeleteCustomerUseCase';
-import { ICustomerRepository } from '../../../../src/domain/ports/ICustomerRepository';
-
-const makeRepo = (deleted: boolean): ICustomerRepository => ({
-  findAll: jest.fn(), findById: jest.fn(), findByTaxId: jest.fn(),
-  create: jest.fn(), update: jest.fn(),
-  softDelete: jest.fn().mockResolvedValue(deleted),
-});
+import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 
 describe('DeleteCustomerUseCase', () => {
-  it('soft-deletes the customer successfully', async () => {
-    const repo = makeRepo(true);
+  it('GIVEN existing customer WHEN delete called THEN soft-deletes and resolves without value', async () => {
+    const repo = makeCustomerRepo(cpfCustomer);
     const useCase = new DeleteCustomerUseCase(repo);
     await expect(useCase.execute('c-1')).resolves.toBeUndefined();
     expect(repo.softDelete).toHaveBeenCalledWith('c-1');
   });
 
-  it('throws NotFoundError when customer does not exist', async () => {
-    const useCase = new DeleteCustomerUseCase(makeRepo(false));
+  it('GIVEN non-existing customer WHEN delete called THEN throws NotFoundError', async () => {
+    const repo = makeCustomerRepo(null);
+    (repo.softDelete as jest.Mock).mockResolvedValue(false);
+    const useCase = new DeleteCustomerUseCase(repo);
     await expect(useCase.execute('missing')).rejects.toMatchObject({ statusCode: 404 });
   });
 });
