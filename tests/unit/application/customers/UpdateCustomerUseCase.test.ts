@@ -1,55 +1,34 @@
 import { UpdateCustomerUseCase } from '../../../../src/application/use-cases/customers/UpdateCustomerUseCase';
-import { ICustomerRepository } from '../../../../src/domain/ports/ICustomerRepository';
-import { Customer } from '../../../../src/domain/entities/Customer';
-
-const existing: Customer = {
-  id: 'c-1',
-  name: 'João Silva',
-  taxId: '52998224725',
-  taxType: 'CPF',
-  email: 'joao@test.com',
-  phone: '11999999999',
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
-
-const makeRepo = (override?: Partial<ICustomerRepository>): ICustomerRepository => ({
-  findAll: jest.fn(),
-  findById: jest.fn(),
-  findByTaxId: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn().mockResolvedValue({ ...existing, name: 'Updated' }),
-  softDelete: jest.fn(),
-  ...override,
-});
+import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 
 describe('UpdateCustomerUseCase', () => {
-  it('updates allowed fields successfully', async () => {
-    const useCase = new UpdateCustomerUseCase(makeRepo());
+  it('GIVEN existing customer and allowed fields WHEN update called THEN returns updated customer', async () => {
+    const repo = makeCustomerRepo(cpfCustomer);
+    const useCase = new UpdateCustomerUseCase(repo);
     const result = await useCase.execute('c-1', { name: 'Updated' });
     expect(result.name).toBe('Updated');
   });
 
-  it('throws ValidationError when taxId is provided', async () => {
-    const useCase = new UpdateCustomerUseCase(makeRepo());
-    await expect(useCase.execute('c-1', { taxId: '52998224725' }))
+  it('GIVEN update with taxId WHEN update called THEN throws ValidationError', async () => {
+    const useCase = new UpdateCustomerUseCase(makeCustomerRepo(cpfCustomer));
+    await expect(useCase.execute('c-1', { taxId: '52998224725' } as any))
       .rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('throws ValidationError when taxType is provided', async () => {
-    const useCase = new UpdateCustomerUseCase(makeRepo());
-    await expect(useCase.execute('c-1', { taxType: 'CNPJ' }))
+  it('GIVEN update with taxType WHEN update called THEN throws ValidationError', async () => {
+    const useCase = new UpdateCustomerUseCase(makeCustomerRepo(cpfCustomer));
+    await expect(useCase.execute('c-1', { taxType: 'CNPJ' } as any))
       .rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('throws ValidationError for an invalid phone number', async () => {
-    const useCase = new UpdateCustomerUseCase(makeRepo());
+  it('GIVEN invalid phone number WHEN update called THEN throws ValidationError', async () => {
+    const useCase = new UpdateCustomerUseCase(makeCustomerRepo(cpfCustomer));
     await expect(useCase.execute('c-1', { phone: '123' }))
       .rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('throws NotFoundError when customer does not exist', async () => {
-    const useCase = new UpdateCustomerUseCase(makeRepo({ update: jest.fn().mockResolvedValue(null) }));
+  it('GIVEN non-existing customer WHEN update called THEN throws NotFoundError', async () => {
+    const useCase = new UpdateCustomerUseCase(makeCustomerRepo(null));
     await expect(useCase.execute('nonexistent', { name: 'X' }))
       .rejects.toMatchObject({ statusCode: 404 });
   });

@@ -2,6 +2,7 @@ import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepo
 import { IServiceRepository } from '../../../domain/ports/IServiceRepository';
 import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
 import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
+import { findOSOrThrow } from '../../utils/serviceOrderUtils';
 
 export class AddServiceToOSUseCase {
   constructor(
@@ -10,8 +11,7 @@ export class AddServiceToOSUseCase {
   ) {}
 
   async execute(osId: string, serviceId: string): Promise<ServiceOrder> {
-    const os = await this.osRepo.findById(osId);
-    if (!os) throw new NotFoundError('Service order');
+    const os = await findOSOrThrow(this.osRepo, osId);
     if (os.status !== 'DIAGNOSIS') throw new ValidationError('Services can only be added during DIAGNOSIS');
 
     const service = await this.serviceRepo.findById(serviceId);

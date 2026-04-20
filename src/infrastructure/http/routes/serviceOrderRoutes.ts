@@ -22,6 +22,7 @@ import { StartServiceUseCase } from '../../../application/use-cases/service-orde
 import { FinishServiceUseCase } from '../../../application/use-cases/service-orders/FinishServiceUseCase';
 import { FinishOSUseCase } from '../../../application/use-cases/service-orders/FinishOSUseCase';
 import { DeliverOSUseCase } from '../../../application/use-cases/service-orders/DeliverOSUseCase';
+import { GetAvgExecutionTimeUseCase } from '../../../application/use-cases/service-orders/GetAvgExecutionTimeUseCase';
 import { OSStatus } from '../../../domain/entities/ServiceOrder';
 
 const budgetLimiter = rateLimit({
@@ -55,8 +56,38 @@ export function serviceOrderRoutes(): Router {
   const finishService = new FinishServiceUseCase(osRepo);
   const finishOS = new FinishOSUseCase(osRepo);
   const deliverOS = new DeliverOSUseCase(osRepo);
+  const getAvgExecution = new GetAvgExecutionTimeUseCase(osRepo);
 
   // --- Public ---
+
+  /**
+   * @openapi
+   * /service-orders/stats/avg-execution:
+   *   get:
+   *     summary: Average execution time per service (authenticated)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Array of avg execution results
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: object
+   *                 properties:
+   *                   serviceId: { type: string }
+   *                   avgMinutes: { type: number }
+   *                   count: { type: integer }
+   */
+  router.get('/stats/avg-execution', authMiddleware, requireRole('attendant', 'admin'), async (req, res, next) => {
+    try {
+      const result = await getAvgExecution.execute();
+      res.json(result);
+    } catch (err) { next(err); }
+  });
 
   /**
    * @openapi
@@ -340,7 +371,7 @@ export function serviceOrderRoutes(): Router {
    *       400:
    *         description: Wrong status or already added
    */
-  router.post('/:id/services', requireRole('attendant', 'admin'), async (req, res, next) => {
+  router.post('/:id/services', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await addService.execute(req.params.id, req.body.serviceId);
       res.json(os);
@@ -372,7 +403,7 @@ export function serviceOrderRoutes(): Router {
    *       404:
    *         description: Service not in order
    */
-  router.delete('/:id/services/:serviceId', requireRole('attendant', 'admin'), async (req, res, next) => {
+  router.delete('/:id/services/:serviceId', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await removeService.execute(req.params.id, req.params.serviceId);
       res.json(os);
@@ -408,7 +439,7 @@ export function serviceOrderRoutes(): Router {
    *       400:
    *         description: Insufficient stock or wrong status
    */
-  router.post('/:id/items', requireRole('attendant', 'admin'), async (req, res, next) => {
+  router.post('/:id/items', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await addItem.execute(req.params.id, req.body.itemId, req.body.quantity);
       res.json(os);
@@ -440,7 +471,7 @@ export function serviceOrderRoutes(): Router {
    *       404:
    *         description: Item not in order
    */
-  router.delete('/:id/items/:itemId', requireRole('attendant', 'admin'), async (req, res, next) => {
+  router.delete('/:id/items/:itemId', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await removeItem.execute(req.params.id, req.params.itemId);
       res.json(os);

@@ -2,6 +2,7 @@ import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepo
 import { IItemRepository } from '../../../domain/ports/IItemRepository';
 import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
 import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
+import { findOSOrThrow } from '../../utils/serviceOrderUtils';
 
 export class RemoveItemFromOSUseCase {
   constructor(
@@ -10,8 +11,7 @@ export class RemoveItemFromOSUseCase {
   ) {}
 
   async execute(osId: string, itemId: string): Promise<ServiceOrder> {
-    const os = await this.osRepo.findById(osId);
-    if (!os) throw new NotFoundError('Service order');
+    const os = await findOSOrThrow(this.osRepo, osId);
     if (os.status !== 'DIAGNOSIS') throw new ValidationError('Items can only be removed during DIAGNOSIS');
 
     const existing = os.items.find((i) => i.itemId === itemId);

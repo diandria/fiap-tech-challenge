@@ -1,48 +1,41 @@
 import { StartServiceUseCase } from '../../../../src/application/use-cases/service-orders/StartServiceUseCase';
-import { IServiceOrderRepository } from '../../../../src/domain/ports/IServiceOrderRepository';
-import { ServiceOrder } from '../../../../src/domain/entities/ServiceOrder';
+import { makeOSRepo, executionOS } from '../../fixtures/serviceOrder';
 
-const baseOS: ServiceOrder = {
-  id: 'os-1', customerId: 'c-1', vehicleId: 'v-1',
-  status: 'EXECUTION', services: [{ serviceId: 's-1' }, { serviceId: 's-other' }], items: [], createdAt: new Date(),
+const executionWithTwoServices = {
+  ...executionOS,
+  services: [{ serviceId: 's-1' }, { serviceId: 's-other' }],
 };
 
-const makeRepo = (os: ServiceOrder | null): IServiceOrderRepository => ({
-  findAll: jest.fn(), findById: jest.fn().mockResolvedValue(os),
-  create: jest.fn(),
-  update: jest.fn().mockImplementation((_id, data) => Promise.resolve({ ...baseOS, ...data })),
-});
-
 describe('StartServiceUseCase', () => {
-  it('sets startedAt on the service', async () => {
-    const repo = makeRepo(baseOS);
+  it('GIVEN OS in EXECUTION and unstarted service WHEN execute called THEN records startedAt on the service', async () => {
+    const repo = makeOSRepo(executionWithTwoServices);
     const useCase = new StartServiceUseCase(repo);
     const result = await useCase.execute('os-1', 's-1');
     expect(result.services[0].startedAt).toBeDefined();
   });
 
-  it('throws NotFoundError when OS does not exist', async () => {
-    const useCase = new StartServiceUseCase(makeRepo(null));
+  it('GIVEN service already started WHEN execute called THEN throws ValidationError', async () => {
+    const alreadyStarted = {
+      ...executionWithTwoServices,
+      services: [{ serviceId: 's-1', startedAt: new Date() }, { serviceId: 's-other' }],
+    };
+    const useCase = new StartServiceUseCase(makeOSRepo(alreadyStarted));
+    await expect(useCase.execute('os-1', 's-1')).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('GIVEN OS not in EXECUTION WHEN execute called THEN throws ValidationError', async () => {
+    const wrongOS = { ...executionWithTwoServices, status: 'DIAGNOSIS' as const };
+    const useCase = new StartServiceUseCase(makeOSRepo(wrongOS));
+    await expect(useCase.execute('os-1', 's-1')).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('GIVEN non-existing OS id WHEN execute called THEN throws NotFoundError', async () => {
+    const useCase = new StartServiceUseCase(makeOSRepo(null));
     await expect(useCase.execute('missing', 's-1')).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it('throws ValidationError when OS is not in EXECUTION status', async () => {
-    const wrongOS = { ...baseOS, status: 'DIAGNOSIS' as const };
-    const useCase = new StartServiceUseCase(makeRepo(wrongOS));
-    await expect(useCase.execute('os-1', 's-1')).rejects.toMatchObject({ statusCode: 400 });
-  });
-
-  it('throws NotFoundError when service is not in order', async () => {
-    const useCase = new StartServiceUseCase(makeRepo(baseOS));
+  it('GIVEN service not in OS WHEN execute called THEN throws NotFoundError', async () => {
+    const useCase = new StartServiceUseCase(makeOSRepo(executionWithTwoServices));
     await expect(useCase.execute('os-1', 'not-in-order')).rejects.toMatchObject({ statusCode: 404 });
-  });
-
-  it('throws ValidationError when service is already started', async () => {
-    const alreadyStarted = {
-      ...baseOS,
-      services: [{ serviceId: 's-1', startedAt: new Date() }, { serviceId: 's-other' }],
-    };
-    const useCase = new StartServiceUseCase(makeRepo(alreadyStarted));
-    await expect(useCase.execute('os-1', 's-1')).rejects.toMatchObject({ statusCode: 400 });
   });
 });

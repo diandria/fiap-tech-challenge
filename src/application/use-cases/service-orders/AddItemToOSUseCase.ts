@@ -3,6 +3,7 @@ import { IItemRepository } from '../../../domain/ports/IItemRepository';
 import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
 import { getAvailableQuantity } from '../../../domain/entities/Item';
 import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
+import { findOSOrThrow } from '../../utils/serviceOrderUtils';
 
 export class AddItemToOSUseCase {
   constructor(
@@ -11,8 +12,7 @@ export class AddItemToOSUseCase {
   ) {}
 
   async execute(osId: string, itemId: string, quantity: number): Promise<ServiceOrder> {
-    const os = await this.osRepo.findById(osId);
-    if (!os) throw new NotFoundError('Service order');
+    const os = await findOSOrThrow(this.osRepo, osId);
     if (os.status !== 'DIAGNOSIS') throw new ValidationError('Items can only be added during DIAGNOSIS');
 
     const item = await this.itemRepo.findById(itemId);

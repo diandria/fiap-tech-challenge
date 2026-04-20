@@ -1,4 +1,5 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
+import helmet from 'helmet';
 import { errorMiddleware } from './infrastructure/http/middlewares/errorMiddleware';
 import { authRoutes } from './infrastructure/http/routes/authRoutes';
 import { customerRoutes } from './infrastructure/http/routes/customerRoutes';
@@ -11,6 +12,7 @@ import { setupSwagger } from './infrastructure/swagger/setup';
 export function createApp(): Application {
   const app = express();
 
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(express.json());
 
   // CORS

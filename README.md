@@ -37,11 +37,11 @@ src/
 
 ## User Roles
 
-| Role        | Permissions                                                                    |
-|-------------|--------------------------------------------------------------------------------|
-| `attendant` | Register customers and vehicles; create OS; add services/items; run diagnosis  |
-| `mechanic`  | Start/finish individual services; finish and deliver OS                        |
-| `admin`     | Full access to all operations including catalog and inventory management       |
+| Role        | Permissions                                                                                                          |
+|-------------|----------------------------------------------------------------------------------------------------------------------|
+| `attendant` | Register customers and vehicles; open OS; run diagnosis (start/finish); generate budget                              |
+| `mechanic`  | Add/remove services and items during diagnosis; start/finish individual services; finish and deliver OS              |
+| `admin`     | Full access to all operations including catalog and inventory management                                             |
 
 Budget approval and rejection endpoints are **public** (no JWT required) — confirmed with the first 4 digits of the customer's CPF or CNPJ.
 
@@ -92,24 +92,26 @@ npm run dev
 
 ## Environment Variables
 
-| Variable       | Description                                                          | Required |
-|----------------|----------------------------------------------------------------------|----------|
-| `PORT`         | HTTP port (default: `3000`)                                          | No       |
-| `MONGODB_URI`  | MongoDB connection string                                            | Yes      |
-| `JWT_SECRET`   | Secret used to sign JWTs (use a long random string in production)    | Yes      |
-| `CORS_ORIGIN`  | Comma-separated list of allowed origins                              | No       |
+| Variable         | Description                                                                                    | Required |
+|------------------|------------------------------------------------------------------------------------------------|----------|
+| `PORT`           | HTTP port (default: `3000`)                                                                    | No       |
+| `MONGODB_URI`    | MongoDB connection string                                                                      | Yes      |
+| `JWT_SECRET`     | Secret used to sign JWTs (use a long random string in production)                              | Yes      |
+| `CORS_ORIGIN`    | Comma-separated list of allowed origins                                                        | No       |
+| `ADMIN_EMAIL`    | Email for the default admin user (default: `admin@master.com`)                                 | No       |
+| `ADMIN_PASSWORD` | Password for the default admin user; if unset the seed is skipped and a warning is logged      | No       |
 
 ---
 
 ## Default Admin User
 
-A default admin is created automatically on first startup if no user with that email exists:
+A default admin is created on first startup only when the `ADMIN_PASSWORD` environment variable is set. If `ADMIN_PASSWORD` is unset, the seed is skipped and a warning is logged — no admin user is created automatically.
 
-| Field    | Value          |
-|----------|----------------|
-| email    | `admin@master.com` |
-| password | `admin`        |
-| role     | `admin`        |
+| Field    | Value                                              |
+|----------|----------------------------------------------------|
+| email    | value of `ADMIN_EMAIL` (default: `admin@master.com`) |
+| password | value of `ADMIN_PASSWORD`                          |
+| role     | `admin`                                            |
 
 Use these credentials to log in via `POST /auth/login` or directly in Swagger UI (see [Authenticating in Swagger UI](#authenticating-in-swagger-ui)).
 
@@ -128,6 +130,8 @@ npm run test:coverage
 ```
 
 Tests use `mongodb-memory-server` — no external MongoDB required.
+
+To run static analysis with SonarQube, `sonar-scanner` must be installed globally (not an npm dependency) — see the [SonarQube Scanner docs](https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner/).
 
 ---
 

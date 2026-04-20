@@ -1,15 +1,20 @@
 import { MongoUserRepository } from './repositories/MongoUserRepository';
 import { RegisterUseCase } from '../../application/use-cases/auth/RegisterUseCase';
 
-const DEFAULT_ADMIN_EMAIL = 'admin@master.com';
-const DEFAULT_ADMIN_PASSWORD = 'admin';
-
 export async function seedDefaultAdmin(): Promise<void> {
+  const email = process.env.ADMIN_EMAIL ?? 'admin@master.com';
+  const password = process.env.ADMIN_PASSWORD;
+
+  if (!password) {
+    console.warn('ADMIN_PASSWORD not set — skipping admin seed');
+    return;
+  }
+
   const repo = new MongoUserRepository();
-  const existing = await repo.findByEmail(DEFAULT_ADMIN_EMAIL);
+  const existing = await repo.findByEmail(email);
   if (existing) return;
 
   const register = new RegisterUseCase(repo);
-  await register.execute({ email: DEFAULT_ADMIN_EMAIL, password: DEFAULT_ADMIN_PASSWORD, role: 'admin' });
-  console.log(`Default admin created — email: "${DEFAULT_ADMIN_EMAIL}", password: "${DEFAULT_ADMIN_PASSWORD}"`);
+  await register.execute({ email, password, role: 'admin' });
+  console.log(`Default admin created — email: "${email}"`);
 }

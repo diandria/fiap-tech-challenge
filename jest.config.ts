@@ -11,6 +11,7 @@ const config: Config = {
     '!src/app.ts',
     '!src/infrastructure/**/*.ts',
   ],
+  coverageReporters: ['text', 'lcov', 'clover'],
   coverageThreshold: {
     global: { lines: 95, branches: 95, functions: 95, statements: 95 },
   },
