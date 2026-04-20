@@ -182,16 +182,17 @@ RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINIS
 ### Service Orders
 | Metodo | Rota | Acesso | Descricao |
 |---|---|---|---|
-| GET | /service-orders/:id/status | publico | Status e budgetTotal da OS |
-| POST | /service-orders/:id/approve-budget | publico, rate-limited | Aprova orcamento |
-| POST | /service-orders/:id/reject-budget | publico, rate-limited | Rejeita orcamento |
 | GET | /service-orders | autenticado | Lista OS (filtros: status, customerId, from, to) |
 | POST | /service-orders | attendant, admin | Cria OS |
 | GET | /service-orders/:id | autenticado | Detalha OS |
-| POST | /service-orders/:id/services | mechanic, admin | Adiciona servico a OS ¹ |
-| DELETE | /service-orders/:id/services/:serviceId | mechanic, admin | Remove servico da OS ¹ |
-| POST | /service-orders/:id/items | mechanic, admin | Adiciona item a OS ¹ |
-| DELETE | /service-orders/:id/items/:itemId | mechanic, admin | Remove item da OS ¹ |
+| GET | /service-orders/stats/avg-execution | autenticado (attendant, admin) | Tempo medio de execucao agrupado por servico |
+| GET | /service-orders/:id/status | publico | Status e budgetTotal da OS |
+| POST | /service-orders/:id/approve-budget | publico, rate-limited | Aprova orcamento |
+| POST | /service-orders/:id/reject-budget | publico, rate-limited | Rejeita orcamento |
+| POST | /service-orders/:id/services | mechanic, admin | Adiciona servico a OS |
+| DELETE | /service-orders/:id/services/:serviceId | mechanic, admin | Remove servico da OS |
+| POST | /service-orders/:id/items | mechanic, admin | Adiciona item a OS |
+| DELETE | /service-orders/:id/items/:itemId | mechanic, admin | Remove item da OS |
 | PATCH | /service-orders/:id/start-diagnosis | attendant, admin | Inicia diagnostico |
 | PATCH | /service-orders/:id/finish-diagnosis | attendant, admin | Finaliza diagnostico e gera orcamento |
 | PATCH | /service-orders/:id/start-execution | mechanic, admin | Inicia execucao |
@@ -199,8 +200,6 @@ RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINIS
 | PATCH | /service-orders/:id/services/:serviceId/finish | mechanic, admin | Finaliza servico individual |
 | PATCH | /service-orders/:id/finish | mechanic, admin | Finaliza OS |
 | PATCH | /service-orders/:id/deliver | mechanic, admin | Entrega OS |
-
-¹ _Role correta conforme Event Storming. Codigo atual usa `attendant` — bug pendente de correcao (ver Gaps #1)._
 
 ---
 
@@ -290,16 +289,16 @@ Disponivel em `/docs` quando a aplicacao estiver rodando.
 
 ## 10. Gaps e Proximos Passos
 
-Itens identificados no diagnostico da Fase 1 para implementar nas proximas fases:
+Itens identificados no diagnostico da Fase 1. Todos foram endereçados no branch `feat/phase-1-adjustments`.
 
-| # | Item | Prioridade |
+| # | Item | Status |
 |---|---|---|
-| 1 | **Role correta para add-service/add-item** — codigo atual permite `attendant`; deve ser `mechanic` conforme Event Storming | Alta |
-| 2 | **Endpoint de tempo medio de execucao** — dados existem (`startedAt`/`finishedAt` em `OSService`); falta endpoint `GET /service-orders/stats/avg-execution` | Alta |
-| 3 | **SonarQube** — adicionar `sonar-project.properties` e script de analise | Alta |
-| 4 | **Relatorio de vulnerabilidades** — executar `npm audit` e documentar resultado | Alta |
-| 5 | **Testes: GIVEN/WHEN/THEN** — reescrever descricoes dos testes unitarios | Media |
-| 6 | **Refactoring DRY** — extrair `findOSOrThrow` e `verifyCustomerCode` para `application/utils/` | Media |
-| 7 | **Fixtures de teste** — criar `tests/unit/fixtures/` com factories compartilhadas | Media |
-| 8 | **Senha do admin via env var** — `ADMIN_PASSWORD` obrigatorio; remover fallback hardcoded | Alta |
-| 9 | **helmet** — adicionar headers de seguranca HTTP | Media |
+| 1 | **Role correta para add-service/add-item** — `mechanic` conforme Event Storming | Done |
+| 2 | **Endpoint de tempo medio de execucao** — `GET /service-orders/stats/avg-execution` | Done |
+| 3 | **SonarQube** — `sonar-project.properties` e script de analise adicionados | Done |
+| 4 | **Relatorio de vulnerabilidades** — `npm audit` executado e documentado | Done |
+| 5 | **Testes: GIVEN/WHEN/THEN** — descricoes dos testes unitarios reescritas | Done |
+| 6 | **Refactoring DRY** — `findOSOrThrow` e `verifyCustomerCode` extraidos para `application/utils/` | Done |
+| 7 | **Fixtures de teste** — `tests/unit/fixtures/` criado com factories compartilhadas | Done |
+| 8 | **Senha do admin via env var** — `ADMIN_PASSWORD` obrigatorio; seed ignorado se ausente | Done |
+| 9 | **helmet** — headers de seguranca HTTP adicionados | Done |
