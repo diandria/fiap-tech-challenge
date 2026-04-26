@@ -22,5 +22,37 @@ services:
       - mongo_data:/data/db
     restart: unless-stopped
 
+  sonar-db:
+    image: postgres:15
+    profiles: [sonar]
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar
+    volumes:
+      - sonar_db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  sonarqube:
+    image: sonarqube:10-community
+    profiles: [sonar]
+    depends_on:
+      - sonar-db
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonar-db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+      - sonar_extensions:/opt/sonarqube/extensions
+      - sonar_logs:/opt/sonarqube/logs
+    restart: unless-stopped
+
 volumes:
   mongo_data:
+  sonar_db_data:
+  sonar_data:
+  sonar_extensions:
+  sonar_logs:
