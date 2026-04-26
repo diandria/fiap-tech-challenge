@@ -23,6 +23,7 @@ import { FinishServiceUseCase } from '../../../application/use-cases/service-ord
 import { FinishOSUseCase } from '../../../application/use-cases/service-orders/FinishOSUseCase';
 import { DeliverOSUseCase } from '../../../application/use-cases/service-orders/DeliverOSUseCase';
 import { GetAvgExecutionTimeUseCase } from '../../../application/use-cases/service-orders/GetAvgExecutionTimeUseCase';
+import { ConsoleNotificationService } from '../../notifications/ConsoleNotificationService';
 import { OSStatus } from '../../../domain/entities/ServiceOrder';
 import { ValidationError } from '../../../domain/errors/AppError';
 
@@ -40,6 +41,7 @@ export function serviceOrderRoutes(): Router {
   const customerRepo = new MongoCustomerRepository();
   const serviceRepo = new MongoServiceRepository();
   const itemRepo = new MongoItemRepository();
+  const notifier = new ConsoleNotificationService();
 
   const createOS = new CreateServiceOrderUseCase(osRepo);
   const getOS = new GetServiceOrderUseCase(osRepo);
@@ -49,7 +51,7 @@ export function serviceOrderRoutes(): Router {
   const addItem = new AddItemToOSUseCase(osRepo, itemRepo);
   const removeItem = new RemoveItemFromOSUseCase(osRepo, itemRepo);
   const startDiagnosis = new StartDiagnosisUseCase(osRepo);
-  const finishDiagnosis = new FinishDiagnosisUseCase(osRepo, serviceRepo, itemRepo);
+  const finishDiagnosis = new FinishDiagnosisUseCase(osRepo, serviceRepo, itemRepo, customerRepo, notifier);
   const approveBudget = new ApproveBudgetUseCase(osRepo, customerRepo);
   const rejectBudget = new RejectBudgetUseCase(osRepo, customerRepo, itemRepo);
   const startExecution = new StartExecutionUseCase(osRepo, itemRepo);
