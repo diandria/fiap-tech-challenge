@@ -60,82 +60,149 @@ Budget approval and rejection use a separate **public** endpoint (`PATCH /servic
 docker-compose up --build
 ```
 
-The API is available at `http://localhost:3000`.  
-Swagger UI: `http://localhost:3000/docs`
-
-To stop:
+**Opção B — Local (Node rodando direto, MongoDB via Docker)**
 
 ```bash
-docker-compose down
-```
-
----
-
-## Running Locally
-
-```bash
-# 1. Install dependencies
+# instala dependências
 npm install
 
-# 2. Configure environment
-cp .env.example .env
-# Edit .env — set MONGODB_URI and JWT_SECRET
-
-# 3. Start MongoDB (or use your own instance)
+# sobe só o MongoDB em background
 docker-compose up mongo -d
 
-# 4. Start the server
+# inicia a API em modo dev (hot-reload via ts-node)
 npm run dev
 ```
 
----
+#### 4. Verificar que está no ar
 
-## Environment Variables
+- API: http://localhost:3000
+- Swagger UI: http://localhost:3000/docs
 
-| Variable         | Description                                                                                    | Required |
-|------------------|------------------------------------------------------------------------------------------------|----------|
-| `PORT`           | HTTP port (default: `3000`)                                                                    | No       |
-| `MONGODB_URI`    | MongoDB connection string                                                                      | Yes      |
-| `JWT_SECRET`     | Secret used to sign JWTs (use a long random string in production)                              | Yes      |
-| `CORS_ORIGIN`    | Comma-separated list of allowed origins                                                        | No       |
-| `ADMIN_EMAIL`    | Email for the default admin user (default: `admin@master.com`)                                 | No       |
-| `ADMIN_PASSWORD` | Password for the default admin user; if unset the seed is skipped and a warning is logged      | No       |
+#### 5. Autenticar e usar
 
----
-
-## Default Admin User
-
-A default admin is created on first startup only when the `ADMIN_PASSWORD` environment variable is set. If `ADMIN_PASSWORD` is unset, the seed is skipped and a warning is logged — no admin user is created automatically.
-
-| Field    | Value                                              |
-|----------|----------------------------------------------------|
-| email    | value of `ADMIN_EMAIL` (default: `admin@master.com`) |
-| password | value of `ADMIN_PASSWORD`                          |
-| role     | `admin`                                            |
-
-Use these credentials to log in via `POST /auth/login` or directly in Swagger UI (see [Authenticating in Swagger UI](#authenticating-in-swagger-ui)).
-
-Once logged in, use `POST /auth/register` (admin token required) to create additional users with `attendant` or `mechanic` roles.
-
----
-
-## Running Tests
+Faça login com o admin seed:
 
 ```bash
-# All tests
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@master.com","password":"change-me-in-production"}'
+```
+
+A resposta traz um `token` JWT — use-o no header `Authorization: Bearer <token>` para os endpoints protegidos.
+
+---
+
+## Testando com Postman
+
+A pasta `postman/` traz uma coleção pronta com **todo o fluxo ponta a ponta** (autenticação, cadastros, OS happy path, rejeição, estatísticas e cenários de erro).
+
+```bash
+# 1. Importe no Postman:
+postman/car-repair-shop.postman_collection.json
+postman/car-repair-shop.postman_environment.json
+
+# 2. Selecione o environment "Car Repair Shop — Local"
+
+# 3. Ajuste adminPassword no environment para bater com seu .env
+
+# 4. Rode na ordem das pastas (00 → 06) — IDs e tokens são propagados automaticamente
+```
+
+Ou via CLI com Newman:
+
+```bash
+npx newman run postman/car-repair-shop.postman_collection.json \
+  -e postman/car-repair-shop.postman_environment.json
+```
+
+Ver `postman/README.md` para detalhes do fluxo.
+
+---
+
+## Rodar Testes
+
+```bash
+# todos os testes (usa mongodb-memory-server, sem MongoDB externo)
 npm test
 
-# With coverage report (threshold: ≥95%)
+# com cobertura (threshold ≥ 95%)
 npm run test:coverage
 ```
 
-Tests use `mongodb-memory-server` — no external MongoDB required.
+Análise estática SonarQube (requer `sonar-scanner` instalado globalmente):
 
-To run static analysis with SonarQube, `sonar-scanner` must be installed globally (not an npm dependency) — see the [SonarQube Scanner docs](https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner/).
+```bash
+npm run sonar
+```
 
 ---
 
-## OS State Machine
+## Variáveis de Ambiente
+
+| Variável         | Descrição                                                                              | Obrigatória |
+|------------------|----------------------------------------------------------------------------------------|-------------|
+| `PORT`           | Porta HTTP (default: `3000`)                                                           | Não         |
+| `MONGODB_URI`    | Connection string do MongoDB                                                           | Sim         |
+| `JWT_SECRET`     | Segredo para assinar JWTs (use string longa e aleatória em produção)                   | Sim         |
+| `CORS_ORIGIN`    | Origens permitidas, separadas por vírgula                                              | Não         |
+| `ADMIN_EMAIL`    | Email do admin padrão (default: `admin@master.com`)                                    | Não         |
+| `ADMIN_PASSWORD` | Senha do admin padrão; se vazio o seed é pulado e um warning é logado                  | Não         |
+
+---
+
+## Parar a Aplicação
+
+```bash
+# se subiu via Opção A
+docker-compose down
+
+# se subiu via Opção B
+# Ctrl+C no terminal do npm run dev
+docker-compose down  # para o mongo
+```
+
+---
+
+## Arquitetura
+
+Monolito hexagonal (ports & adapters) simples. Domínio e aplicação não importam infraestrutura. Use cases dependem de interfaces de repositório (ports); implementações Mongoose são injetadas na camada de rotas.
+
+```
+src/
+  domain/         # Entidades, ports, validators, máquina de estados
+  application/    # Use cases (um arquivo por operação)
+  infrastructure/
+    http/         # Rotas Express e middlewares
+    persistence/  # Models Mongoose e implementações de repositório
+    swagger/      # Setup OpenAPI
+```
+
+| Concern    | Stack                              |
+|------------|------------------------------------|
+| Runtime    | Node.js 20 + TypeScript            |
+| HTTP       | Express                            |
+| Database   | MongoDB + Mongoose                 |
+| Auth       | JWT (jsonwebtoken) + bcryptjs      |
+| API Docs   | swagger-ui-express + swagger-jsdoc |
+| Tests      | Jest + ts-jest + Supertest         |
+| Test DB    | mongodb-memory-server              |
+| Container  | Docker + docker-compose            |
+
+---
+
+## Perfis de Usuário
+
+| Role        | Permissões                                                                                                |
+|-------------|-----------------------------------------------------------------------------------------------------------|
+| `attendant` | Cadastrar clientes/veículos; abrir OS; iniciar/finalizar diagnóstico; gerar orçamento                     |
+| `mechanic`  | Adicionar/remover serviços e itens no diagnóstico; iniciar/finalizar serviços; finalizar e entregar OS    |
+| `admin`     | Acesso completo, incluindo catálogo (services, items) e gestão de usuários                                |
+
+Aprovação e rejeição de orçamento são **públicas** (sem JWT) — confirmadas com os 4 primeiros dígitos do CPF/CNPJ do cliente.
+
+---
+
+## Máquina de Estados da OS
 
 ```
 RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINISHED → DELIVERED

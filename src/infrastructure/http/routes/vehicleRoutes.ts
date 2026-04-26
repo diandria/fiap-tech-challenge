@@ -78,6 +78,24 @@ export function vehicleRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /vehicles/{id}:
+   *   get:
+   *     summary: Get a vehicle by ID
+   *     tags: [Vehicles]
+   *     security: [{ bearerAuth: [] }]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Vehicle object
+   *       404:
+   *         description: Not found
+   */
   router.get('/:id', async (req, res, next) => {
     try {
       const vehicle = await getVehicle.execute(req.params.id);
@@ -85,6 +103,38 @@ export function vehicleRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /vehicles/{id}:
+   *   put:
+   *     summary: Update a vehicle
+   *     tags: [Vehicles]
+   *     security: [{ bearerAuth: [] }]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     requestBody:
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               plate: { type: string }
+   *               brand: { type: string }
+   *               model: { type: string }
+   *               year: { type: integer }
+   *     responses:
+   *       200:
+   *         description: Updated vehicle
+   *       400:
+   *         description: Invalid plate format
+   *       404:
+   *         description: Not found
+   *       409:
+   *         description: Plate already registered
+   */
   router.put('/:id', async (req, res, next) => {
     try {
       const vehicle = await updateVehicle.execute(req.params.id, req.body);
@@ -92,6 +142,24 @@ export function vehicleRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /vehicles/{id}:
+   *   delete:
+   *     summary: Delete a vehicle
+   *     tags: [Vehicles]
+   *     security: [{ bearerAuth: [] }]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       204:
+   *         description: Deleted
+   *       404:
+   *         description: Not found
+   */
   router.delete('/:id', async (req, res, next) => {
     try {
       await deleteVehicle.execute(req.params.id);
