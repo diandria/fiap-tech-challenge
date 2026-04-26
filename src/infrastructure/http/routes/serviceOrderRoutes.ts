@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import { MongoServiceOrderRepository } from '../../persistence/repositories/MongoServiceOrderRepository';
 import { MongoCustomerRepository } from '../../persistence/repositories/MongoCustomerRepository';
@@ -26,33 +26,12 @@ import { GetAvgExecutionTimeUseCase } from '../../../application/use-cases/servi
 import { OSStatus } from '../../../domain/entities/ServiceOrder';
 import { ValidationError } from '../../../domain/errors/AppError';
 
-const PUBLIC_TRANSITIONS: ReadonlySet<OSStatus> = new Set(['APPROVED', 'REJECTED']);
-
 const budgetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
   keyGenerator: (req) => `${req.ip}-${req.params.id}`,
   message: { error: 'Too many attempts, please try again later' },
 });
-
-function isPublicTransition(req: Request): boolean {
-  return PUBLIC_TRANSITIONS.has(req.body?.status as OSStatus);
-}
-
-const conditionalBudgetLimiter: RequestHandler = (req, res, next) => {
-  if (isPublicTransition(req)) {
-    return budgetLimiter(req, res, next);
-  }
-  next();
-};
-
-const conditionalAuth: RequestHandler = (req, res, next) => {
-  if (isPublicTransition(req)) return next();
-  authMiddleware(req, res, (err?: unknown) => {
-    if (err) return next(err);
-    requireRole('mechanic', 'admin')(req, res, next);
-  });
-};
 
 export function serviceOrderRoutes(): Router {
   const router = Router();
@@ -108,14 +87,78 @@ export function serviceOrderRoutes(): Router {
 
   /**
    * @openapi
+   * /service-orders/{id}/budget:
+   *   patch:
+   *     summary: Customer budget decision — approve or reject (public)
+   *     description: |
+   *       Public endpoint authenticated by the 4-digit customer `code` (first 4 digits of CPF/CNPJ).
+   *       Rate-limited to 5 req/h per IP+OS combination.
+   *     tags: [Service Orders]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [status, code]
+   *             properties:
+   *               status:
+   *                 type: string
+   *                 enum: [APPROVED, REJECTED]
+   *               code:
+   *                 type: string
+   *                 description: First 4 digits of customer CPF or CNPJ.
+   *                 example: "5299"
+   *     responses:
+   *       200:
+   *         description: Updated service order
+   *       400:
+   *         description: Invalid status, transition, or code
+   *       429:
+   *         description: Too many attempts
+   */
+  router.patch('/:id/budget', budgetLimiter, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const status = req.body?.status as OSStatus | undefined;
+      if (!status) throw new ValidationError('status is required');
+
+      const id = req.params.id;
+      let updated;
+
+      switch (status) {
+        case 'APPROVED':
+          updated = await approveBudget.execute(id, req.body?.code);
+          break;
+        case 'REJECTED':
+          updated = await rejectBudget.execute(id, req.body?.code);
+          break;
+        default:
+          throw new ValidationError(`Unsupported budget status: ${status}`);
+      }
+
+      res.json(updated);
+    } catch (err) { next(err); }
+  });
+
+  // --- Authenticated endpoints ---
+  router.use(authMiddleware);
+
+  /**
+   * @openapi
    * /service-orders/{id}:
    *   patch:
-   *     summary: Update OS status (single endpoint for all state transitions)
+   *     summary: Update OS status — internal state transitions (mechanic, admin)
    *     description: |
-   *       Body-driven state transition. Authentication depends on target `status`:
-   *       - **APPROVED** / **REJECTED** are public and require the customer 4-digit `code` (first 4 digits of CPF/CNPJ); rate-limited to 5 req/h per IP+OS.
-   *       - All other transitions require a JWT with role `mechanic` or `admin`.
+   *       Body-driven state transition for non-customer-facing transitions.
+   *       Customer budget approval/rejection lives at `PATCH /service-orders/{id}/budget`.
    *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -131,24 +174,18 @@ export function serviceOrderRoutes(): Router {
    *             properties:
    *               status:
    *                 type: string
-   *                 enum: [DIAGNOSIS, WAITING_APPROVAL, APPROVED, REJECTED, EXECUTION, FINISHED, DELIVERED]
-   *               code:
-   *                 type: string
-   *                 description: Required when status is APPROVED or REJECTED — first 4 digits of customer CPF or CNPJ.
-   *                 example: "5299"
+   *                 enum: [DIAGNOSIS, WAITING_APPROVAL, EXECUTION, FINISHED, DELIVERED]
    *     responses:
    *       200:
    *         description: Updated service order
    *       400:
-   *         description: Invalid status, transition, or code
+   *         description: Invalid status or transition
    *       401:
-   *         description: Missing or invalid token (non-public transitions)
+   *         description: Missing or invalid token
    *       403:
    *         description: Forbidden (wrong role)
-   *       429:
-   *         description: Too many attempts (APPROVED/REJECTED only)
    */
-  router.patch('/:id', conditionalBudgetLimiter, conditionalAuth, async (req: Request, res: Response, next: NextFunction) => {
+  router.patch('/:id', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const status = req.body?.status as OSStatus | undefined;
       if (!status) throw new ValidationError('status is required');
@@ -162,12 +199,6 @@ export function serviceOrderRoutes(): Router {
           break;
         case 'WAITING_APPROVAL':
           updated = await finishDiagnosis.execute(id);
-          break;
-        case 'APPROVED':
-          updated = await approveBudget.execute(id, req.body?.code);
-          break;
-        case 'REJECTED':
-          updated = await rejectBudget.execute(id, req.body?.code);
           break;
         case 'EXECUTION':
           updated = await startExecution.execute(id);
@@ -185,9 +216,6 @@ export function serviceOrderRoutes(): Router {
       res.json(updated);
     } catch (err) { next(err); }
   });
-
-  // --- Authenticated endpoints ---
-  router.use(authMiddleware);
 
   /**
    * @openapi

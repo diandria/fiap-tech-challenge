@@ -42,7 +42,8 @@ Run the folders in numbered order. Each request persists what subsequent ones ne
 
 - Customer approval code = first 4 digits of the CPF/CNPJ.
 - OS state machine: `RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINISHED → DELIVERED` (with `REJECTED` branch from `WAITING_APPROVAL`).
-- All OS state transitions go through `PATCH /service-orders/:id` with `{ status, code? }` in the body.
+- Internal OS transitions go through `PATCH /service-orders/:id` with `{ status }` (mechanic+admin).
+- Customer budget approval/rejection goes through `PATCH /service-orders/:id/budget` with `{ status: "APPROVED" | "REJECTED", code }` (public, rate-limited).
 - Per-service transitions go through `PATCH /service-orders/:id/services/:serviceId` with `{ status: "IN_PROGRESS" | "COMPLETED" }`.
 - Budget total = services + (item.price × quantity).
 - Role authorization: attendant (customers/vehicles/create OS), mechanic (diagnosis/execution/transitions), admin (catalog).

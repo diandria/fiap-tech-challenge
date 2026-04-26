@@ -108,8 +108,8 @@ describe('Full OS lifecycle', () => {
     expect(statusCheck.body.status).toBe('WAITING_APPROVAL');
     expect(statusCheck.body.budgetTotal).toBe(130);
 
-    // 7. Approve budget — public PATCH with first 4 digits of CPF (52998224725 → "5299") → APPROVED
-    const approve = await request(app).patch(`/service-orders/${osId}`)
+    // 7. Approve budget — public PATCH /budget with first 4 digits of CPF (52998224725 → "5299") → APPROVED
+    const approve = await request(app).patch(`/service-orders/${osId}/budget`)
       .send({ status: 'APPROVED', code: '5299' });
     expect(approve.status).toBe(200);
     expect(approve.body.status).toBe('APPROVED');
@@ -173,8 +173,8 @@ describe('Full OS lifecycle', () => {
     const beforeReject = await request(app).get(`/items/${itemId}`).set(auth);
     expect(beforeReject.body.reservedQuantity).toBe(3);
 
-    // Public PATCH with REJECTED + correct code
-    const reject = await request(app).patch(`/service-orders/${osId}`)
+    // Public PATCH /budget with REJECTED + correct code
+    const reject = await request(app).patch(`/service-orders/${osId}/budget`)
       .send({ status: 'REJECTED', code: '5299' });
     expect(reject.status).toBe(200);
     expect(reject.body.status).toBe('REJECTED');
@@ -185,7 +185,7 @@ describe('Full OS lifecycle', () => {
     expect(afterReject.body.availableQuantity).toBe(10);
   });
 
-  it('GIVEN an OS in WAITING_APPROVAL WHEN PATCH status=APPROVED is called with a wrong code THEN returns 400', async () => {
+  it('GIVEN an OS in WAITING_APPROVAL WHEN PATCH /budget with status=APPROVED is called with a wrong code THEN returns 400', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
     const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
@@ -193,7 +193,39 @@ describe('Full OS lifecycle', () => {
     await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
     await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
 
-    const res = await request(app).patch(`/service-orders/${osId}`).send({ status: 'APPROVED', code: '0000' });
+    const res = await request(app).patch(`/service-orders/${osId}/budget`).send({ status: 'APPROVED', code: '0000' });
+    expect(res.status).toBe(400);
+  });
+
+  it('GIVEN PATCH /:id with status=APPROVED THEN returns 400 (budget transitions live on /budget)', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
+    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
+    const osId = created.body.id;
+    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
+    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
+
+    const res = await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'APPROVED', code: '5299' });
+    expect(res.status).toBe(400);
+  });
+
+  it('GIVEN PATCH /budget with unsupported status THEN returns 400', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
+    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
+    const osId = created.body.id;
+    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
+    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
+
+    const res = await request(app).patch(`/service-orders/${osId}/budget`).send({ status: 'EXECUTION', code: '5299' });
+    expect(res.status).toBe(400);
+  });
+
+  it('GIVEN PATCH /budget without status in body THEN returns 400', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
+    const osId = created.body.id;
+    const res = await request(app).patch(`/service-orders/${osId}/budget`).send({ code: '5299' });
     expect(res.status).toBe(400);
   });
 

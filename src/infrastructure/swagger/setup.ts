@@ -34,8 +34,8 @@ All protected endpoints will now include the JWT automatically.
 
 > Public endpoints (no token required):
 > - \`GET /service-orders/{id}/status\` — check OS status and budget total.
-> - \`PATCH /service-orders/{id}\` with body \`{"status":"APPROVED","code":"5299"}\` or \`{"status":"REJECTED","code":"5299"}\` — customer-facing budget approval/rejection (rate-limited; \`code\` = first 4 digits of CPF/CNPJ).
-> All other transitions on the OS go through the same \`PATCH /service-orders/{id}\` endpoint with the target \`status\` in the body and require a JWT with role \`mechanic\` or \`admin\`.`,
+> - \`PATCH /service-orders/{id}/budget\` with body \`{"status":"APPROVED","code":"5299"}\` or \`{"status":"REJECTED","code":"5299"}\` — customer-facing budget approval/rejection (rate-limited; \`code\` = first 4 digits of CPF/CNPJ).
+> All other OS transitions go through \`PATCH /service-orders/{id}\` with the target \`status\` in the body and require a JWT with role \`mechanic\` or \`admin\`.`,
     },
     components: {
       securitySchemes: {
