@@ -18,8 +18,8 @@ Domain terms from the car repair shop and their counterparts in code. Reference 
 | **Item** | Physical part or supply used to perform a service | `Item` — entity with stock control (`stockQuantity`, `reservedQuantity`) |
 | **Inventory** | Set of items available at the shop; tracked by available and reserved quantities | `stockQuantity` and `reservedQuantity` fields on the `Item` entity |
 | **Budget** | Total amount computed from services and items in the OS; sent to the customer for approval | `budgetTotal` — computed on the `DIAGNOSIS → WAITING_APPROVAL` transition, stored as a fixed value |
-| **Approval** | Customer's decision to authorize the service execution after receiving the budget | Body `{ status: "APPROVED", code }` on `PATCH /service-orders/:id`; transition `WAITING_APPROVAL → APPROVED` |
-| **Rejection** | Customer's decision to decline the budget | Body `{ status: "REJECTED", code }` on `PATCH /service-orders/:id`; transition `WAITING_APPROVAL → REJECTED` |
+| **Approval** | Customer's decision to authorize the service execution after receiving the budget | Body `{ status: "APPROVED", code }` on `PATCH /service-orders/:id/budget`; transition `WAITING_APPROVAL → APPROVED` |
+| **Rejection** | Customer's decision to decline the budget | Body `{ status: "REJECTED", code }` on `PATCH /service-orders/:id/budget`; transition `WAITING_APPROVAL → REJECTED` |
 | **Execution** | Phase during which services are being performed by the mechanic | `EXECUTION` status; entered via `{ status: "EXECUTION" }` |
 | **Delivery** | Returning the vehicle to the customer after services are done | `DELIVERED` status; entered via `{ status: "DELIVERED" }` |
 

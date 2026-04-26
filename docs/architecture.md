@@ -114,17 +114,20 @@ RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINIS
                                         ↘ REJECTED (terminal)
 ```
 
-All OS transitions are body-driven via `PATCH /service-orders/:id` with `{ status, code? }`:
+OS transitions are split between two body-driven endpoints:
 
-| Transition | Body | Actor | Side effect |
-|---|---|---|---|
-| RECEIVED → DIAGNOSIS | `{ status: "DIAGNOSIS" }` | mechanic, admin | — |
-| DIAGNOSIS → WAITING_APPROVAL | `{ status: "WAITING_APPROVAL" }` | mechanic, admin | Computes and persists `budgetTotal` |
-| WAITING_APPROVAL → APPROVED | `{ status: "APPROVED", code: "..." }` | public (4-digit code, rate-limited) | Item reservations already made on add-item |
-| WAITING_APPROVAL → REJECTED | `{ status: "REJECTED", code: "..." }` | public (4-digit code, rate-limited) | Releases `reservedQuantity` of all OS items |
-| APPROVED → EXECUTION | `{ status: "EXECUTION" }` | mechanic, admin | Decrements `stockQuantity` and zeroes `reservedQuantity` of OS items |
-| EXECUTION → FINISHED | `{ status: "FINISHED" }` | mechanic, admin | Records `finishedAt` |
-| FINISHED → DELIVERED | `{ status: "DELIVERED" }` | mechanic, admin | Records `deliveredAt` |
+- **Internal transitions** — `PATCH /service-orders/:id` with `{ status }`. JWT, mechanic+admin.
+- **Customer budget decision** — `PATCH /service-orders/:id/budget` with `{ status, code }`. Public, rate-limited 5/h per IP+OS.
+
+| Transition | Endpoint | Body | Actor | Side effect |
+|---|---|---|---|---|
+| RECEIVED → DIAGNOSIS | `PATCH /service-orders/:id` | `{ status: "DIAGNOSIS" }` | mechanic, admin | — |
+| DIAGNOSIS → WAITING_APPROVAL | `PATCH /service-orders/:id` | `{ status: "WAITING_APPROVAL" }` | mechanic, admin | Computes and persists `budgetTotal` |
+| WAITING_APPROVAL → APPROVED | `PATCH /service-orders/:id/budget` | `{ status: "APPROVED", code: "..." }` | public (4-digit code, rate-limited) | Item reservations already made on add-item |
+| WAITING_APPROVAL → REJECTED | `PATCH /service-orders/:id/budget` | `{ status: "REJECTED", code: "..." }` | public (4-digit code, rate-limited) | Releases `reservedQuantity` of all OS items |
+| APPROVED → EXECUTION | `PATCH /service-orders/:id` | `{ status: "EXECUTION" }` | mechanic, admin | Decrements `stockQuantity` and zeroes `reservedQuantity` of OS items |
+| EXECUTION → FINISHED | `PATCH /service-orders/:id` | `{ status: "FINISHED" }` | mechanic, admin | Records `finishedAt` |
+| FINISHED → DELIVERED | `PATCH /service-orders/:id` | `{ status: "DELIVERED" }` | mechanic, admin | Records `deliveredAt` |
 
 Individual OS services are updated via `PATCH /service-orders/:id/services/:serviceId` with `{ status: "IN_PROGRESS" | "COMPLETED" }` (records `startedAt`/`finishedAt`).
 
@@ -195,7 +198,8 @@ Individual OS services are updated via `PATCH /service-orders/:id/services/:serv
 | DELETE | /service-orders/:id/services/:serviceId | mechanic, admin | Remove service from OS |
 | POST | /service-orders/:id/items | mechanic, admin | Add item to OS |
 | DELETE | /service-orders/:id/items/:itemId | mechanic, admin | Remove item from OS |
-| PATCH | /service-orders/:id | mechanic+admin (or public for `APPROVED`/`REJECTED`) | OS state transition driven by `{ status, code? }` in body |
+| PATCH | /service-orders/:id | mechanic, admin | Internal OS state transition driven by `{ status }` in body |
+| PATCH | /service-orders/:id/budget | public, rate-limited | Customer budget decision driven by `{ status: "APPROVED" \| "REJECTED", code }` in body |
 | PATCH | /service-orders/:id/services/:serviceId | mechanic, admin | Per-service transition driven by `{ status: "IN_PROGRESS" \| "COMPLETED" }` in body |
 
 ---
@@ -210,7 +214,7 @@ Individual OS services are updated via `PATCH /service-orders/:id/services/:serv
 
 ### Rate limiting
 - `POST /auth/login`: 10 req / 15 min per IP
-- `PATCH /service-orders/:id` with `{ status: "APPROVED" | "REJECTED" }`: 5 req / hour per IP + OS ID combination
+- `PATCH /service-orders/:id/budget` (public): 5 req / hour per IP + OS ID combination
 
 ### Sensitive data validation
 - CPF: 11 digits + validation of both check digits (mod 11)

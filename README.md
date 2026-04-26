@@ -43,7 +43,7 @@ src/
 | `mechanic`  | Run diagnosis (start/finish); add/remove services and items; start/finish individual services; execute, finish and deliver OS |
 | `admin`     | Full access to all operations including catalog and inventory management                                             |
 
-Budget approval and rejection endpoints are **public** (no JWT required) — confirmed with the first 4 digits of the customer's CPF or CNPJ.
+Budget approval and rejection use a separate **public** endpoint (`PATCH /service-orders/:id/budget`) — confirmed with the first 4 digits of the customer's CPF or CNPJ.
 
 ---
 
@@ -209,17 +209,20 @@ RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINIS
                                         ↘ REJECTED (terminal)
 ```
 
-Every OS transition goes through **a single endpoint** — `PATCH /service-orders/:id` — with the target action sent in the body as `status`. Authentication depends on the `status`:
+OS transitions are split between two body-driven endpoints:
 
-| Transition                   | Body                                              | Auth                                     |
-|------------------------------|---------------------------------------------------|------------------------------------------|
-| RECEIVED → DIAGNOSIS         | `{ "status": "DIAGNOSIS" }`                       | JWT — mechanic, admin                    |
-| DIAGNOSIS → WAITING_APPROVAL | `{ "status": "WAITING_APPROVAL" }`                | JWT — mechanic, admin                    |
-| WAITING_APPROVAL → APPROVED  | `{ "status": "APPROVED", "code": "5299" }`        | public (rate-limit 5/h per IP+OS)        |
-| WAITING_APPROVAL → REJECTED  | `{ "status": "REJECTED", "code": "5299" }`        | public (rate-limit 5/h per IP+OS)        |
-| APPROVED → EXECUTION         | `{ "status": "EXECUTION" }`                       | JWT — mechanic, admin                    |
-| EXECUTION → FINISHED         | `{ "status": "FINISHED" }`                        | JWT — mechanic, admin                    |
-| FINISHED → DELIVERED         | `{ "status": "DELIVERED" }`                       | JWT — mechanic, admin                    |
+- **Internal transitions** — `PATCH /service-orders/:id` with `{ "status": "..." }`. JWT, mechanic+admin.
+- **Customer budget decision** — `PATCH /service-orders/:id/budget` with `{ "status": "APPROVED" | "REJECTED", "code": "..." }`. Public, rate-limited.
+
+| Transition                   | Endpoint                              | Body                                              | Auth                                     |
+|------------------------------|---------------------------------------|---------------------------------------------------|------------------------------------------|
+| RECEIVED → DIAGNOSIS         | `PATCH /service-orders/:id`           | `{ "status": "DIAGNOSIS" }`                       | JWT — mechanic, admin                    |
+| DIAGNOSIS → WAITING_APPROVAL | `PATCH /service-orders/:id`           | `{ "status": "WAITING_APPROVAL" }`                | JWT — mechanic, admin                    |
+| WAITING_APPROVAL → APPROVED  | `PATCH /service-orders/:id/budget`    | `{ "status": "APPROVED", "code": "5299" }`        | public (rate-limit 5/h per IP+OS)        |
+| WAITING_APPROVAL → REJECTED  | `PATCH /service-orders/:id/budget`    | `{ "status": "REJECTED", "code": "5299" }`        | public (rate-limit 5/h per IP+OS)        |
+| APPROVED → EXECUTION         | `PATCH /service-orders/:id`           | `{ "status": "EXECUTION" }`                       | JWT — mechanic, admin                    |
+| EXECUTION → FINISHED         | `PATCH /service-orders/:id`           | `{ "status": "FINISHED" }`                        | JWT — mechanic, admin                    |
+| FINISHED → DELIVERED         | `PATCH /service-orders/:id`           | `{ "status": "DELIVERED" }`                       | JWT — mechanic, admin                    |
 
 Each individual OS service is updated through `PATCH /service-orders/:id/services/:serviceId` with `{ "status": "IN_PROGRESS" | "COMPLETED" }` (records `startedAt`/`finishedAt`).
 
@@ -274,8 +277,8 @@ Expand any endpoint, click **Try it out**, fill in the parameters, and click **E
 | Endpoint | Description |
 |---|---|
 | `GET /service-orders/:id/status` | Read OS status and budget |
-| `PATCH /service-orders/:id` with `{ "status": "APPROVED", "code": "..." }` | Approve the budget using the customer's 4-digit code |
-| `PATCH /service-orders/:id` with `{ "status": "REJECTED", "code": "..." }` | Reject the budget using the customer's 4-digit code |
+| `PATCH /service-orders/:id/budget` with `{ "status": "APPROVED", "code": "..." }` | Approve the budget using the customer's 4-digit code |
+| `PATCH /service-orders/:id/budget` with `{ "status": "REJECTED", "code": "..." }` | Reject the budget using the customer's 4-digit code |
 
 ---
 
@@ -289,6 +292,7 @@ Expand any endpoint, click **Try it out**, fill in the parameters, and click **E
 - `GET|POST|PUT|DELETE /items` *(authenticated, writes admin)*
 - `POST /service-orders` — create OS *(attendant, admin)*
 - `GET /service-orders/:id/status` — read status *(public)*
-- `PATCH /service-orders/:id` body `{ status, code? }` — OS transitions (mechanic+admin, or public for APPROVED/REJECTED)
+- `PATCH /service-orders/:id` body `{ status }` — internal OS transitions *(mechanic, admin)*
+- `PATCH /service-orders/:id/budget` body `{ status: APPROVED | REJECTED, code }` — customer budget decision *(public, rate-limited)*
 - `PATCH /service-orders/:id/services/:serviceId` body `{ status: IN_PROGRESS | COMPLETED }` — update an individual service *(mechanic, admin)*
 - `POST|DELETE /service-orders/:id/services` and `/items` — manage services/items on the OS *(mechanic, admin)*

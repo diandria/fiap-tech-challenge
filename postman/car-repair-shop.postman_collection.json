@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-car-repair-shop-0001",
     "name": "Car Repair Shop API",
-    "description": "End-to-end flow for the Car Repair Shop API (FIAP Tech Challenge - Phase 1).\n\nOrganized into folders that represent the full flow:\n\n1. **00 - Setup** - admin login, attendant and mechanic registration, login per role.\n2. **01 - Catalog (admin)** - register a service and a stock item.\n3. **02 - Customer and Vehicle (attendant)** - register a customer (CPF) and vehicle.\n4. **03 - OS Happy Path** - complete OS lifecycle through DELIVERED.\n5. **04 - Rejection Flow** - OS created, budget rejected, reservations released.\n6. **05 - Stats and Listings** - avg-execution and listings with filters.\n7. **06 - Error Scenarios** - 400, 401, 403, 404.\n\n## How to use\n\n1. Import `car-repair-shop.postman_environment.json` and select it as the active environment.\n2. Adjust `baseUrl` and `adminPassword` (must match the `ADMIN_PASSWORD` env var of your deployment).\n3. Run the full collection (Collection Runner) or run folder by folder in order.\n\nTokens and IDs are captured automatically by the test scripts and reused via environment variables.\n\n## Notes\n\n- Every OS state transition goes through `PATCH /service-orders/:id` with `{ status, code? }` in the body. Approve/reject are public (rate-limited 5 req/hour per IP+OS); the rest require a JWT (mechanic or admin).\n- Per-service transitions go through `PATCH /service-orders/:id/services/:serviceId` with `{ status: \"IN_PROGRESS\" | \"COMPLETED\" }`.\n- `POST /auth/login` is rate-limited to 10 req / 15 min per IP.",
+    "description": "End-to-end flow for the Car Repair Shop API (FIAP Tech Challenge - Phase 1).\n\nOrganized into folders that represent the full flow:\n\n1. **00 - Setup** - admin login, attendant and mechanic registration, login per role.\n2. **01 - Catalog (admin)** - register a service and a stock item.\n3. **02 - Customer and Vehicle (attendant)** - register a customer (CPF) and vehicle.\n4. **03 - OS Happy Path** - complete OS lifecycle through DELIVERED.\n5. **04 - Rejection Flow** - OS created, budget rejected, reservations released.\n6. **05 - Stats and Listings** - avg-execution and listings with filters.\n7. **06 - Error Scenarios** - 400, 401, 403, 404.\n\n## How to use\n\n1. Import `car-repair-shop.postman_environment.json` and select it as the active environment.\n2. Adjust `baseUrl` and `adminPassword` (must match the `ADMIN_PASSWORD` env var of your deployment).\n3. Run the full collection (Collection Runner) or run folder by folder in order.\n\nTokens and IDs are captured automatically by the test scripts and reused via environment variables.\n\n## Notes\n\n- Internal OS transitions go through `PATCH /service-orders/:id` with `{ status }` in the body and require a JWT (mechanic or admin).\n- Customer budget decisions (approve/reject) go through `PATCH /service-orders/:id/budget` with `{ status: \"APPROVED\" | \"REJECTED\", code }`. Public, rate-limited 5 req/hour per IP+OS.\n- Per-service transitions go through `PATCH /service-orders/:id/services/:serviceId` with `{ status: \"IN_PROGRESS\" | \"COMPLETED\" }`.\n- `POST /auth/login` is rate-limited to 10 req / 15 min per IP.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -332,7 +332,7 @@
     },
     {
       "name": "03 - OS Happy Path",
-      "description": "Full lifecycle: RECEIVED -> DIAGNOSIS -> WAITING_APPROVAL -> APPROVED -> EXECUTION -> FINISHED -> DELIVERED. State transitions go through PATCH /service-orders/:id with { status, code? } in the body.",
+      "description": "Full lifecycle: RECEIVED -> DIAGNOSIS -> WAITING_APPROVAL -> APPROVED -> EXECUTION -> FINISHED -> DELIVERED. Internal transitions go through PATCH /service-orders/:id; the customer budget decision goes through PATCH /service-orders/:id/budget.",
       "item": [
         {
           "name": "Create OS (attendant)",
@@ -544,9 +544,9 @@
               "raw": "{\n  \"status\": \"APPROVED\",\n  \"code\": \"{{customerCode}}\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/service-orders/{{osId}}",
+              "raw": "{{baseUrl}}/service-orders/{{osId}}/budget",
               "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}"]
+              "path": ["service-orders", "{{osId}}", "budget"]
             }
           }
         },
@@ -821,9 +821,9 @@
               "raw": "{\n  \"status\": \"REJECTED\",\n  \"code\": \"{{customerCode}}\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/service-orders/{{osRejectId}}",
+              "raw": "{{baseUrl}}/service-orders/{{osRejectId}}/budget",
               "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osRejectId}}"]
+              "path": ["service-orders", "{{osRejectId}}", "budget"]
             }
           }
         },
@@ -1081,9 +1081,9 @@
               "raw": "{\n  \"status\": \"APPROVED\",\n  \"code\": \"0000\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/service-orders/{{osId}}",
+              "raw": "{{baseUrl}}/service-orders/{{osId}}/budget",
               "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}"]
+              "path": ["service-orders", "{{osId}}", "budget"]
             }
           }
         },
