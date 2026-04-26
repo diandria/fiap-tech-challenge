@@ -8,7 +8,7 @@
     "seed:dev": "ts-node scripts/seed-dev.ts",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "sonar": "sonar-scanner"
+    "sonar": "docker run --rm --network host -v \"$PWD\":/usr/src --env-file .env sonarsource/sonar-scanner-cli"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
