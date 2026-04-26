@@ -6,17 +6,7 @@ REST API for managing service orders, customers, vehicles, services, and invento
 
 ## Architecture
 
-Simple hexagonal (ports and adapters) monolith. The domain and application layers have zero infrastructure imports. Use cases depend on repository interfaces (ports); Mongoose implementations are injected at the route layer.
-
-```
-src/
-  domain/         # Entities, port interfaces, validators, state machine
-  application/    # Use cases (one file per operation)
-  infrastructure/
-    http/         # Express routes and middlewares
-    persistence/  # Mongoose models and repository implementations
-    swagger/      # OpenAPI setup
-```
+Hexagonal monolith (ports & adapters). See [docs/architecture.md](docs/architecture.md) for the full design — layers, data model, state machine, and infra decisions.
 
 ---
 
@@ -51,6 +41,16 @@ Budget approval and rejection use a separate **public** endpoint (`PATCH /servic
 
 - [Node.js 20+](https://nodejs.org/)
 - [Docker](https://docs.docker.com/get-docker/) + [docker-compose](https://docs.docker.com/compose/)
+
+---
+
+## Quickstart
+
+```bash
+./scripts/bootstrap.sh
+```
+
+Sobe app + mongo, instala dependências, copia `.env` e roda o seed. Para incluir SonarQube local: `./scripts/bootstrap.sh --with-sonar`.
 
 ---
 
@@ -133,6 +133,7 @@ Cria:
 - **6 itens** (com estoque): 5W30 Synthetic Oil, Front Brake Pad Kit, Air Filter, Battery 60Ah, Spark Plug, Engine Coolant 1L.
 - **4 clientes** (3 CPFs + 1 CNPJ).
 - **7 veículos** distribuídos entre os clientes — alguns clientes têm mais de um veículo (Maria Santos com 2, Auto Frota LTDA com 3) para exercitar listagem por `customerId`.
+- **3 usuários** (senha: `dev123`): `admin@dev.local` (admin), `attendant@dev.local` (attendant), `mechanic@dev.local` (mechanic). **Não use em produção** — senha fraca, apenas para dev.
 
 O script é **idempotente**: roda quantas vezes quiser que os registros já existentes (mesma `taxId`, mesma placa, mesmo nome de serviço/item) são pulados.
 
@@ -158,6 +159,50 @@ npm run sonar
 
 ---
 
+## SonarQube (opcional)
+
+Análise estática rodando em SonarQube local via Docker. O serviço é pesado (~2 GB RAM, sobe em 1-2 min) e fica fora do `docker-compose up` padrão — só sobe sob o profile `sonar`.
+
+### Pré-requisitos
+
+- Docker (já listado em [Prerequisites](#prerequisites)).
+- `vm.max_map_count >= 262144` no host (Linux/WSL):
+  ```bash
+  sudo sysctl -w vm.max_map_count=262144
+  ```
+  Para persistir, adicione `vm.max_map_count=262144` em `/etc/sysctl.conf`.
+- Pelo menos 2 GB de RAM livres.
+
+### Subir
+
+```bash
+docker-compose --profile sonar up -d sonarqube sonar-db
+# ou: ./scripts/bootstrap.sh --with-sonar
+```
+
+Aguarde 1-2 min até `http://localhost:9000` responder.
+
+### Configurar o token
+
+1. Abra `http://localhost:9000`, login `admin` / `admin`, troque a senha.
+2. **My Account → Security → Generate Token** — copie o valor.
+3. Adicione ao `.env`:
+   ```
+   SONAR_HOST_URL=http://localhost:9000
+   SONAR_TOKEN=<token-gerado>
+   ```
+
+### Rodar a análise
+
+```bash
+npm run test:coverage   # gera coverage/lcov.info
+npm run sonar           # envia para o servidor local
+```
+
+Resultado em `http://localhost:9000/dashboard?id=car-repair-shop-api`.
+
+---
+
 ## Variáveis de Ambiente
 
 | Variável         | Descrição                                                                              | Obrigatória |
@@ -168,6 +213,8 @@ npm run sonar
 | `CORS_ORIGIN`    | Origens permitidas, separadas por vírgula                                              | Não         |
 | `ADMIN_EMAIL`    | Email do admin padrão (default: `admin@master.com`)                                    | Não         |
 | `ADMIN_PASSWORD` | Senha do admin padrão; se vazio o seed é pulado e um warning é logado                  | Não         |
+| `SONAR_HOST_URL` | URL do servidor SonarQube (ex.: `http://localhost:9000`)                                | Não         |
+| `SONAR_TOKEN`    | Token gerado na UI do SonarQube; obrigatório só para rodar `npm run sonar`              | Não         |
 
 ---
 
@@ -181,77 +228,6 @@ docker-compose down
 # Ctrl+C no terminal do npm run dev
 docker-compose down  # para o mongo
 ```
-
----
-
-## Arquitetura
-
-Monolito hexagonal (ports & adapters) simples. Domínio e aplicação não importam infraestrutura. Use cases dependem de interfaces de repositório (ports); implementações Mongoose são injetadas na camada de rotas.
-
-```
-src/
-  domain/         # Entidades, ports, validators, máquina de estados
-  application/    # Use cases (um arquivo por operação)
-  infrastructure/
-    http/         # Rotas Express e middlewares
-    persistence/  # Models Mongoose e implementações de repositório
-    swagger/      # Setup OpenAPI
-```
-
-| Concern    | Stack                              |
-|------------|------------------------------------|
-| Runtime    | Node.js 20 + TypeScript            |
-| HTTP       | Express                            |
-| Database   | MongoDB + Mongoose                 |
-| Auth       | JWT (jsonwebtoken) + bcryptjs      |
-| API Docs   | swagger-ui-express + swagger-jsdoc |
-| Tests      | Jest + ts-jest + Supertest         |
-| Test DB    | mongodb-memory-server              |
-| Container  | Docker + docker-compose            |
-
----
-
-## Perfis de Usuário
-
-| Role        | Permissões                                                                                                |
-|-------------|-----------------------------------------------------------------------------------------------------------|
-| `attendant` | Cadastrar clientes/veículos; abrir OS; iniciar/finalizar diagnóstico; gerar orçamento                     |
-| `mechanic`  | Adicionar/remover serviços e itens no diagnóstico; iniciar/finalizar serviços; finalizar e entregar OS    |
-| `admin`     | Acesso completo, incluindo catálogo (services, items) e gestão de usuários                                |
-
-Aprovação e rejeição de orçamento são **públicas** (sem JWT) — confirmadas com os 4 primeiros dígitos do CPF/CNPJ do cliente.
-
----
-
-## Máquina de Estados da OS
-
-```
-RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINISHED → DELIVERED
-                                        ↘ REJECTED (terminal)
-```
-
-OS transitions are split between two body-driven endpoints:
-
-- **Internal transitions** — `PATCH /service-orders/:id` with `{ "status": "..." }`. JWT, mechanic+admin.
-- **Customer budget decision** — `PATCH /service-orders/:id/budget` with `{ "status": "APPROVED" | "REJECTED", "code": "..." }`. Public, rate-limited.
-
-| Transition                   | Endpoint                              | Body                                              | Auth                                     |
-|------------------------------|---------------------------------------|---------------------------------------------------|------------------------------------------|
-| RECEIVED → DIAGNOSIS         | `PATCH /service-orders/:id`           | `{ "status": "DIAGNOSIS" }`                       | JWT — mechanic, admin                    |
-| DIAGNOSIS → WAITING_APPROVAL | `PATCH /service-orders/:id`           | `{ "status": "WAITING_APPROVAL" }`                | JWT — mechanic, admin                    |
-| WAITING_APPROVAL → APPROVED  | `PATCH /service-orders/:id/budget`    | `{ "status": "APPROVED", "code": "5299" }`        | public (rate-limit 5/h per IP+OS)        |
-| WAITING_APPROVAL → REJECTED  | `PATCH /service-orders/:id/budget`    | `{ "status": "REJECTED", "code": "5299" }`        | public (rate-limit 5/h per IP+OS)        |
-| APPROVED → EXECUTION         | `PATCH /service-orders/:id`           | `{ "status": "EXECUTION" }`                       | JWT — mechanic, admin                    |
-| EXECUTION → FINISHED         | `PATCH /service-orders/:id`           | `{ "status": "FINISHED" }`                        | JWT — mechanic, admin                    |
-| FINISHED → DELIVERED         | `PATCH /service-orders/:id`           | `{ "status": "DELIVERED" }`                       | JWT — mechanic, admin                    |
-
-> **Side effect on `DIAGNOSIS → WAITING_APPROVAL`:** a best-effort customer notification is fired through the `INotificationService` port. In the MVP the adapter is a `console.log` mock — the server stdout shows `[NOTIFICATION] Email sent to <customer.email>` after the transition. Notification failure does not roll back the status change.
-
-Each individual OS service is updated through `PATCH /service-orders/:id/services/:serviceId` with `{ "status": "IN_PROGRESS" | "COMPLETED" }` (records `startedAt`/`finishedAt`).
-
-The 4-digit `code` is the **first 4 digits of the customer's CPF or CNPJ** (digits only).
-
-Items are **reserved** when added to the OS during diagnosis and **consumed** (debited from stock) when the mechanic starts execution. Rejecting the budget releases all reservations.
 
 ---
 
