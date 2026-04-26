@@ -12,12 +12,20 @@ import { setupSwagger } from './infrastructure/swagger/setup';
 export function createApp(): Application {
   const app = express();
 
-  app.use(helmet({ contentSecurityPolicy: false }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          'script-src': ["'self'", "'unsafe-inline'"],
+        },
+      },
+    }),
+  );
   app.use(express.json());
 
   // CORS
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',');
+    const allowedOrigins = (process.env.CORS_ORIGIN ?? '').split(',');
     const origin = req.headers.origin;
     if (origin && allowedOrigins.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);

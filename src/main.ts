@@ -3,8 +3,8 @@ import { createApp } from './app';
 import { connectDB, disconnectDB } from './infrastructure/persistence/connection';
 import { seedDefaultAdmin } from './infrastructure/persistence/seed';
 
-const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/car-repair-shop';
+const PORT = process.env.PORT ?? 3000;
+const MONGODB_URI = process.env.MONGODB_URI ?? 'mongodb://localhost:27017/car-repair-shop';
 
 async function main(): Promise<void> {
   await connectDB(MONGODB_URI);
