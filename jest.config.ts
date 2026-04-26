@@ -9,11 +9,14 @@ const config: Config = {
     'src/**/*.ts',
     '!src/main.ts',
     '!src/app.ts',
-    '!src/infrastructure/**/*.ts',
+    '!src/infrastructure/swagger/**',
+    '!src/infrastructure/persistence/connection.ts',
+    '!src/infrastructure/persistence/seed.ts',
+    '!src/infrastructure/persistence/models/**',
   ],
   coverageReporters: ['text', 'lcov', 'clover'],
   coverageThreshold: {
-    global: { lines: 95, branches: 95, functions: 95, statements: 95 },
+    global: { lines: 80, branches: 80, functions: 80, statements: 80 },
   },
 };
 

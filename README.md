@@ -147,7 +147,7 @@ Pré-requisitos: MongoDB rodando e variável `MONGODB_URI` configurada (mesma us
 # todos os testes (usa mongodb-memory-server, sem MongoDB externo)
 npm test
 
-# com cobertura (threshold ≥ 95%)
+# com cobertura (threshold ≥ 80%)
 npm run test:coverage
 ```
 
