@@ -5,11 +5,11 @@ services:
     build: .
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
-      PORT: 3000
       MONGODB_URI: mongodb://mongo:27017/car-repair-shop
-      JWT_SECRET: change-me-in-production
-      CORS_ORIGIN: http://localhost:3000
+      PORT: 3000
     depends_on:
       - mongo
     restart: unless-stopped
