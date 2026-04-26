@@ -39,8 +39,8 @@ src/
 
 | Role        | Permissions                                                                                                          |
 |-------------|----------------------------------------------------------------------------------------------------------------------|
-| `attendant` | Register customers and vehicles; open OS; run diagnosis (start/finish); generate budget                              |
-| `mechanic`  | Add/remove services and items during diagnosis; start/finish individual services; finish and deliver OS              |
+| `attendant` | Register customers and vehicles; open OS                                                                              |
+| `mechanic`  | Run diagnosis (start/finish); add/remove services and items; start/finish individual services; execute, finish and deliver OS |
 | `admin`     | Full access to all operations including catalog and inventory management                                             |
 
 Budget approval and rejection endpoints are **public** (no JWT required) — confirmed with the first 4 digits of the customer's CPF or CNPJ.
@@ -142,19 +142,23 @@ RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINIS
                                         ↘ REJECTED (terminal)
 ```
 
-| Transition                           | Endpoint                                        | Role                  |
-|--------------------------------------|-------------------------------------------------|-----------------------|
-| RECEIVED → DIAGNOSIS                 | `PATCH /service-orders/:id/start-diagnosis`     | attendant, admin      |
-| DIAGNOSIS → WAITING_APPROVAL         | `PATCH /service-orders/:id/finish-diagnosis`    | attendant, admin      |
-| WAITING_APPROVAL → APPROVED          | `POST /service-orders/:id/approve-budget`       | public (4-digit code) |
-| WAITING_APPROVAL → REJECTED          | `POST /service-orders/:id/reject-budget`        | public (4-digit code) |
-| APPROVED → EXECUTION                 | `PATCH /service-orders/:id/start-execution`     | mechanic, admin       |
-| EXECUTION → FINISHED                 | `PATCH /service-orders/:id/finish`              | mechanic, admin       |
-| FINISHED → DELIVERED                 | `PATCH /service-orders/:id/deliver`             | mechanic, admin       |
+Every OS transition goes through **a single endpoint** — `PATCH /service-orders/:id` — with the target action sent in the body as `status`. Authentication depends on the `status`:
 
-The 4-digit confirmation code is the **first 4 digits** of the customer's CPF or CNPJ (digits only).
+| Transition                   | Body                                              | Auth                                     |
+|------------------------------|---------------------------------------------------|------------------------------------------|
+| RECEIVED → DIAGNOSIS         | `{ "status": "DIAGNOSIS" }`                       | JWT — mechanic, admin                    |
+| DIAGNOSIS → WAITING_APPROVAL | `{ "status": "WAITING_APPROVAL" }`                | JWT — mechanic, admin                    |
+| WAITING_APPROVAL → APPROVED  | `{ "status": "APPROVED", "code": "5299" }`        | public (rate-limit 5/h per IP+OS)        |
+| WAITING_APPROVAL → REJECTED  | `{ "status": "REJECTED", "code": "5299" }`        | public (rate-limit 5/h per IP+OS)        |
+| APPROVED → EXECUTION         | `{ "status": "EXECUTION" }`                       | JWT — mechanic, admin                    |
+| EXECUTION → FINISHED         | `{ "status": "FINISHED" }`                        | JWT — mechanic, admin                    |
+| FINISHED → DELIVERED         | `{ "status": "DELIVERED" }`                       | JWT — mechanic, admin                    |
 
-Stock items are **reserved** when added to the OS during diagnosis and **consumed** (deducted from stock) when the mechanic starts execution. Rejecting a budget releases all reservations.
+Each individual OS service is updated through `PATCH /service-orders/:id/services/:serviceId` with `{ "status": "IN_PROGRESS" | "COMPLETED" }` (records `startedAt`/`finishedAt`).
+
+The 4-digit `code` is the **first 4 digits of the customer's CPF or CNPJ** (digits only).
+
+Items are **reserved** when added to the OS during diagnosis and **consumed** (debited from stock) when the mechanic starts execution. Rejecting the budget releases all reservations.
 
 ---
 
@@ -200,25 +204,24 @@ Expand any endpoint, click **Try it out**, fill in the parameters, and click **E
 
 ### Public endpoints (no token required)
 
-These three endpoints work without authorization:
-
 | Endpoint | Description |
 |---|---|
-| `GET /service-orders/:id/status` | Check OS status and budget total |
-| `POST /service-orders/:id/approve-budget` | Approve budget with 4-digit customer code |
-| `POST /service-orders/:id/reject-budget` | Reject budget with 4-digit customer code |
+| `GET /service-orders/:id/status` | Read OS status and budget |
+| `PATCH /service-orders/:id` with `{ "status": "APPROVED", "code": "..." }` | Approve the budget using the customer's 4-digit code |
+| `PATCH /service-orders/:id` with `{ "status": "REJECTED", "code": "..." }` | Reject the budget using the customer's 4-digit code |
 
 ---
 
 ### Key endpoint groups
 
-- `POST /auth/login` — authenticate, receive JWT
+- `POST /auth/login` — authenticate and return a JWT
 - `POST /auth/register` *(admin)* — create a new user
 - `GET|POST|PUT|DELETE /customers` *(attendant, admin)*
 - `GET|POST|PUT|DELETE /vehicles` *(attendant, admin)*
-- `GET|POST|PUT|DELETE /services` *(GET public, write admin)*
-- `GET|POST|PUT|DELETE /items` *(authenticated, write admin)*
+- `GET|POST|PUT|DELETE /services` *(GET authenticated, writes admin)*
+- `GET|POST|PUT|DELETE /items` *(authenticated, writes admin)*
 - `POST /service-orders` — create OS *(attendant, admin)*
-- `GET /service-orders/:id/status` — check OS status *(public)*
-- `POST /service-orders/:id/approve-budget` — approve *(public)*
-- `POST /service-orders/:id/reject-budget` — reject *(public)*
+- `GET /service-orders/:id/status` — read status *(public)*
+- `PATCH /service-orders/:id` body `{ status, code? }` — OS transitions (mechanic+admin, or public for APPROVED/REJECTED)
+- `PATCH /service-orders/:id/services/:serviceId` body `{ status: IN_PROGRESS | COMPLETED }` — update an individual service *(mechanic, admin)*
+- `POST|DELETE /service-orders/:id/services` and `/items` — manage services/items on the OS *(mechanic, admin)*

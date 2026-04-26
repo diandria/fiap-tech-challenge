@@ -1,71 +1,71 @@
-# Linguagem Ubiqua — Car Repair Shop
+# Ubiquitous Language — Car Repair Shop
 
-Termos do dominio da oficina mecanica e seus equivalentes no codigo. Referencia para comunicacao entre negocio e desenvolvimento.
+Domain terms from the car repair shop and their counterparts in code. Reference for communication between business and engineering.
 
-> Diagramas visuais em `docs/ddd/`: Event Storming, Linguagem Pictografica, Linguagem Ubiqua.
+> Visual diagrams in `docs/ddd/`: Event Storming, Pictographic Language, Ubiquitous Language.
 
 ---
 
-## Termos do Dominio
+## Domain Terms
 
-| Termo (negocio) | Definicao | Equivalente no codigo |
+| Term (business) | Definition | Code counterpart |
 |---|---|---|
-| **Cliente** | Pessoa fisica ou juridica que solicita e aprova o servico | `Customer` — entidade com `taxId` (CPF ou CNPJ) |
-| **Veiculo** | Bem do cliente que sera atendido na oficina | `Vehicle` — vinculado a um `Customer` por `customerId` |
-| **Ordem de Servico (OS)** | Registro central que controla todo o atendimento: do recebimento a entrega | `ServiceOrder` — agregado principal do sistema |
-| **Diagnostico** | Analise tecnica do veiculo feita pelo mecanico para identificar o que precisa ser feito | Fase `DIAGNOSIS` da OS; comandos `start-diagnosis` e `finish-diagnosis` |
-| **Servico** | Atividade tecnica executada no veiculo (ex: troca de oleo, alinhamento) | `Service` — entidade do catalogo com `name`, `price`, `estimatedMinutes` |
-| **Item** | Peca ou insumo fisico utilizado na execucao de um servico | `Item` — entidade com controle de estoque (`stockQuantity`, `reservedQuantity`) |
-| **Estoque** | Conjunto de itens disponiveis na oficina; controlado por quantidade disponivel e reservada | Campo `stockQuantity` e `reservedQuantity` na entidade `Item` |
-| **Orcamento** | Valor total calculado com base nos servicos e itens incluidos na OS; enviado ao cliente para aprovacao | `budgetTotal` — calculado no `finish-diagnosis`, armazenado como valor fixo |
-| **Aprovacao** | Decisao do cliente de autorizar a execucao dos servicos apos receber o orcamento | Comando `approve-budget`; transicao `WAITING_APPROVAL → APPROVED` |
-| **Rejeicao** | Decisao do cliente de nao autorizar o orcamento | Comando `reject-budget`; transicao `WAITING_APPROVAL → REJECTED` |
-| **Execucao** | Fase em que os servicos estao sendo realizados pelo mecanico | Status `EXECUTION`; iniciada pelo comando `start-execution` |
-| **Entrega** | Devolucao do veiculo ao cliente apos finalizacao dos servicos | Status `DELIVERED`; comando `deliver` |
+| **Customer** | Individual or company that requests and approves the service | `Customer` — entity with `taxId` (CPF or CNPJ) |
+| **Vehicle** | Customer asset that will be serviced at the shop | `Vehicle` — linked to a `Customer` by `customerId` |
+| **Service Order (OS)** | Central record that tracks the whole job from intake to delivery | `ServiceOrder` — main aggregate of the system |
+| **Diagnosis** | Technical analysis of the vehicle, performed by the mechanic, to identify what needs to be done | `DIAGNOSIS` phase of the OS; transitions `DIAGNOSIS` and `WAITING_APPROVAL` via `PATCH /service-orders/:id` |
+| **Service** | Technical activity performed on the vehicle (e.g., oil change, alignment) | `Service` — catalog entity with `name`, `price`, `estimatedMinutes` |
+| **Item** | Physical part or supply used to perform a service | `Item` — entity with stock control (`stockQuantity`, `reservedQuantity`) |
+| **Inventory** | Set of items available at the shop; tracked by available and reserved quantities | `stockQuantity` and `reservedQuantity` fields on the `Item` entity |
+| **Budget** | Total amount computed from services and items in the OS; sent to the customer for approval | `budgetTotal` — computed on the `DIAGNOSIS → WAITING_APPROVAL` transition, stored as a fixed value |
+| **Approval** | Customer's decision to authorize the service execution after receiving the budget | Body `{ status: "APPROVED", code }` on `PATCH /service-orders/:id`; transition `WAITING_APPROVAL → APPROVED` |
+| **Rejection** | Customer's decision to decline the budget | Body `{ status: "REJECTED", code }` on `PATCH /service-orders/:id`; transition `WAITING_APPROVAL → REJECTED` |
+| **Execution** | Phase during which services are being performed by the mechanic | `EXECUTION` status; entered via `{ status: "EXECUTION" }` |
+| **Delivery** | Returning the vehicle to the customer after services are done | `DELIVERED` status; entered via `{ status: "DELIVERED" }` |
 
 ---
 
-## Atores
+## Actors
 
-| Ator (negocio) | Definicao | Role no sistema |
+| Actor (business) | Definition | System role |
 |---|---|---|
-| **Atendente** | Responsavel pelo atendimento ao cliente: cadastro, abertura de OS, geracao de orcamento | `attendant` |
-| **Mecanico** | Responsavel pela execucao tecnica: diagnostico, adicao de servicos/itens, execucao e entrega | `mechanic` |
-| **Admin** | Acesso total; gerencia usuarios, catalogo de servicos e estoque | `admin` |
-| **Cliente** | Consulta status da OS e aprova/rejeita orcamento via codigo de verificacao | publico (sem autenticacao JWT) |
+| **Attendant** | Front desk: customer/vehicle registration, opening OS | `attendant` |
+| **Mechanic** | Technical execution: diagnosis, services/items, execution, delivery | `mechanic` |
+| **Admin** | Full access; manages users, service catalog, and inventory | `admin` |
+| **Customer** | Reads OS status and approves/rejects the budget through a verification code | public (no JWT) |
 
 ---
 
-## Conceitos Tecnicos do Dominio
+## Technical Domain Concepts
 
-| Conceito | Definicao |
+| Concept | Definition |
 |---|---|
-| **Codigo de aprovacao** | Primeiros 4 digitos do CPF ou CNPJ do cliente. Usado para autenticar a aprovacao ou rejeicao do orcamento sem login. Ex: CPF `529.982.247-25` → codigo `5299` |
-| **Reserva de estoque** | Quantidade de um item separada para uma OS especifica, mas ainda nao consumida. Incrementada ao adicionar item a OS; decrementada ao iniciar execucao (consumo) ou rejeitar orcamento (liberacao) |
-| **Preco fixado** | O `budgetTotal` e calculado e armazenado no momento do `finish-diagnosis`. Alteracoes posteriores no catalogo de servicos ou itens nao afetam o orcamento ja gerado |
-| **Soft delete** | Clientes nao sao removidos fisicamente; recebem `deletedAt`. Mantem historico de OS vinculadas |
-| **taxId** | CPF (11 digitos) ou CNPJ (14 digitos) armazenado apenas como digitos, sem formatacao. `taxType` indica qual dos dois |
+| **Approval code** | First 4 digits of the customer's CPF or CNPJ. Used to authenticate budget approval/rejection without login. E.g., CPF `529.982.247-25` → code `5299` |
+| **Stock reservation** | Quantity of an item set aside for a specific OS but not yet consumed. Incremented when the item is added to the OS; decremented when execution starts (consumption) or the budget is rejected (release) |
+| **Frozen price** | `budgetTotal` is computed and stored at the `DIAGNOSIS → WAITING_APPROVAL` transition. Later changes to the service or item catalog do not affect a budget that was already generated |
+| **Soft delete** | Customers are not physically removed; they receive `deletedAt`. Preserves history of linked OS |
+| **taxId** | CPF (11 digits) or CNPJ (14 digits) stored as digits only, no formatting. `taxType` indicates which one |
 
 ---
 
-## Status da Ordem de Servico
+## Service Order Status
 
-| Status (codigo) | Nome no negocio | Descricao |
+| Status (code) | Business name | Description |
 |---|---|---|
-| `RECEIVED` | Recebida | OS aberta; veiculo aguardando diagnostico |
-| `DIAGNOSIS` | Em diagnostico | Mecanico avaliando o veiculo; adicionando servicos e itens |
-| `WAITING_APPROVAL` | Aguardando aprovacao | Orcamento gerado e enviado; aguardando decisao do cliente |
-| `APPROVED` | Aprovada | Cliente autorizou; aguardando inicio da execucao |
-| `EXECUTION` | Em execucao | Servicos sendo realizados |
-| `FINISHED` | Finalizada | Todos os servicos concluidos; aguardando entrega |
-| `DELIVERED` | Entregue | Veiculo devolvido ao cliente (status terminal) |
-| `REJECTED` | Rejeitada | Cliente nao aprovou o orcamento (status terminal) |
+| `RECEIVED` | Received | OS opened; vehicle awaiting diagnosis |
+| `DIAGNOSIS` | In diagnosis | Mechanic assessing the vehicle; adding services and items |
+| `WAITING_APPROVAL` | Waiting for approval | Budget generated and sent; awaiting customer decision |
+| `APPROVED` | Approved | Customer authorized; awaiting start of execution |
+| `EXECUTION` | In execution | Services being performed |
+| `FINISHED` | Finished | All services completed; awaiting delivery |
+| `DELIVERED` | Delivered | Vehicle returned to customer (terminal status) |
+| `REJECTED` | Rejected | Customer did not approve the budget (terminal status) |
 
 ---
 
-## Discrepancias Conhecidas
+## Known Discrepancies
 
-| Item | Diagrama DDD | Codigo atual | Decisao |
+| Item | DDD diagram | Current code | Decision |
 |---|---|---|---|
-| Quem adiciona servicos e itens a OS | Mecanico (Linguagem Pictografica) | `attendant` e `admin` | **Bug** — corrigir para `mechanic` e `admin` (Fase 1, item #1 dos gaps) |
-| Envio do orcamento ao cliente | Comando explicito no Event Storming | Sem mecanismo de envio ativo; cliente consulta via endpoint publico | Decisao de MVP — sem canal de notificacao externo |
+| Who runs diagnosis (start/finish) | Mechanic (Pictographic Language) | `mechanic` and `admin` | Fixed in `feat/os-status-body` — diagnosis transitions require `mechanic` or `admin` |
+| Sending the budget to the customer | Explicit command in Event Storming | No active push mechanism; customer reads it through the public endpoint | MVP decision — no external notification channel |

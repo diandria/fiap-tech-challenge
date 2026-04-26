@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction, RequestHandler } from 'express';
 import rateLimit from 'express-rate-limit';
 import { MongoServiceOrderRepository } from '../../persistence/repositories/MongoServiceOrderRepository';
 import { MongoCustomerRepository } from '../../persistence/repositories/MongoCustomerRepository';
@@ -24,6 +24,9 @@ import { FinishOSUseCase } from '../../../application/use-cases/service-orders/F
 import { DeliverOSUseCase } from '../../../application/use-cases/service-orders/DeliverOSUseCase';
 import { GetAvgExecutionTimeUseCase } from '../../../application/use-cases/service-orders/GetAvgExecutionTimeUseCase';
 import { OSStatus } from '../../../domain/entities/ServiceOrder';
+import { ValidationError } from '../../../domain/errors/AppError';
+
+const PUBLIC_TRANSITIONS: ReadonlySet<OSStatus> = new Set(['APPROVED', 'REJECTED']);
 
 const budgetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -31,6 +34,25 @@ const budgetLimiter = rateLimit({
   keyGenerator: (req) => `${req.ip}-${req.params.id}`,
   message: { error: 'Too many attempts, please try again later' },
 });
+
+function isPublicTransition(req: Request): boolean {
+  return PUBLIC_TRANSITIONS.has(req.body?.status as OSStatus);
+}
+
+const conditionalBudgetLimiter: RequestHandler = (req, res, next) => {
+  if (isPublicTransition(req)) {
+    return budgetLimiter(req, res, next);
+  }
+  next();
+};
+
+const conditionalAuth: RequestHandler = (req, res, next) => {
+  if (isPublicTransition(req)) return next();
+  authMiddleware(req, res, (err?: unknown) => {
+    if (err) return next(err);
+    requireRole('mechanic', 'admin')(req, res, next);
+  });
+};
 
 export function serviceOrderRoutes(): Router {
   const router = Router();
@@ -58,36 +80,7 @@ export function serviceOrderRoutes(): Router {
   const deliverOS = new DeliverOSUseCase(osRepo);
   const getAvgExecution = new GetAvgExecutionTimeUseCase(osRepo);
 
-  // --- Public ---
-
-  /**
-   * @openapi
-   * /service-orders/stats/avg-execution:
-   *   get:
-   *     summary: Average execution time per service (authenticated)
-   *     tags: [Service Orders]
-   *     security:
-   *       - bearerAuth: []
-   *     responses:
-   *       200:
-   *         description: Array of avg execution results
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: array
-   *               items:
-   *                 type: object
-   *                 properties:
-   *                   serviceId: { type: string }
-   *                   avgMinutes: { type: number }
-   *                   count: { type: integer }
-   */
-  router.get('/stats/avg-execution', authMiddleware, requireRole('attendant', 'admin'), async (req, res, next) => {
-    try {
-      const result = await getAvgExecution.execute();
-      res.json(result);
-    } catch (err) { next(err); }
-  });
+  // --- Public endpoints (defined before authMiddleware) ---
 
   /**
    * @openapi
@@ -115,9 +108,13 @@ export function serviceOrderRoutes(): Router {
 
   /**
    * @openapi
-   * /service-orders/{id}/approve-budget:
-   *   post:
-   *     summary: Approve budget (public — requires customer 4-digit code)
+   * /service-orders/{id}:
+   *   patch:
+   *     summary: Update OS status (single endpoint for all state transitions)
+   *     description: |
+   *       Body-driven state transition. Authentication depends on target `status`:
+   *       - **APPROVED** / **REJECTED** are public and require the customer 4-digit `code` (first 4 digits of CPF/CNPJ); rate-limited to 5 req/h per IP+OS.
+   *       - All other transitions require a JWT with role `mechanic` or `admin`.
    *     tags: [Service Orders]
    *     parameters:
    *       - in: path
@@ -130,67 +127,96 @@ export function serviceOrderRoutes(): Router {
    *         application/json:
    *           schema:
    *             type: object
-   *             required: [code]
+   *             required: [status]
    *             properties:
+   *               status:
+   *                 type: string
+   *                 enum: [DIAGNOSIS, WAITING_APPROVAL, APPROVED, REJECTED, EXECUTION, FINISHED, DELIVERED]
    *               code:
    *                 type: string
-   *                 description: First 4 digits of customer CPF or CNPJ
+   *                 description: Required when status is APPROVED or REJECTED — first 4 digits of customer CPF or CNPJ.
    *                 example: "5299"
    *     responses:
    *       200:
-   *         description: OS approved
+   *         description: Updated service order
    *       400:
-   *         description: Invalid code or wrong status
+   *         description: Invalid status, transition, or code
+   *       401:
+   *         description: Missing or invalid token (non-public transitions)
+   *       403:
+   *         description: Forbidden (wrong role)
    *       429:
-   *         description: Too many attempts
+   *         description: Too many attempts (APPROVED/REJECTED only)
    */
-  router.post('/:id/approve-budget', budgetLimiter, async (req, res, next) => {
+  router.patch('/:id', conditionalBudgetLimiter, conditionalAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const os = await approveBudget.execute(req.params.id, req.body.code);
-      res.json(os);
+      const status = req.body?.status as OSStatus | undefined;
+      if (!status) throw new ValidationError('status is required');
+
+      const id = req.params.id;
+      let updated;
+
+      switch (status) {
+        case 'DIAGNOSIS':
+          updated = await startDiagnosis.execute(id);
+          break;
+        case 'WAITING_APPROVAL':
+          updated = await finishDiagnosis.execute(id);
+          break;
+        case 'APPROVED':
+          updated = await approveBudget.execute(id, req.body?.code);
+          break;
+        case 'REJECTED':
+          updated = await rejectBudget.execute(id, req.body?.code);
+          break;
+        case 'EXECUTION':
+          updated = await startExecution.execute(id);
+          break;
+        case 'FINISHED':
+          updated = await finishOS.execute(id);
+          break;
+        case 'DELIVERED':
+          updated = await deliverOS.execute(id);
+          break;
+        default:
+          throw new ValidationError(`Unsupported target status: ${status}`);
+      }
+
+      res.json(updated);
     } catch (err) { next(err); }
   });
+
+  // --- Authenticated endpoints ---
+  router.use(authMiddleware);
 
   /**
    * @openapi
-   * /service-orders/{id}/reject-budget:
-   *   post:
-   *     summary: Reject budget (public — requires customer 4-digit code)
+   * /service-orders/stats/avg-execution:
+   *   get:
+   *     summary: Average execution time per service (authenticated)
    *     tags: [Service Orders]
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: string }
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required: [code]
-   *             properties:
-   *               code:
-   *                 type: string
-   *                 description: First 4 digits of customer CPF or CNPJ
-   *                 example: "5299"
+   *     security:
+   *       - bearerAuth: []
    *     responses:
    *       200:
-   *         description: OS rejected, reservations released
-   *       400:
-   *         description: Invalid code or wrong status
-   *       429:
-   *         description: Too many attempts
+   *         description: Array of avg execution results
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: object
+   *                 properties:
+   *                   serviceId: { type: string }
+   *                   avgMinutes: { type: number }
+   *                   count: { type: integer }
    */
-  router.post('/:id/reject-budget', budgetLimiter, async (req, res, next) => {
+  router.get('/stats/avg-execution', requireRole('attendant', 'admin'), async (req, res, next) => {
     try {
-      const os = await rejectBudget.execute(req.params.id, req.body.code);
-      res.json(os);
+      const result = await getAvgExecution.execute();
+      res.json(result);
     } catch (err) { next(err); }
   });
-
-  // --- Authenticated ---
-  router.use(authMiddleware);
 
   /**
    * @openapi
@@ -289,59 +315,6 @@ export function serviceOrderRoutes(): Router {
     } catch (err) { next(err); }
   });
 
-  // Diagnosis
-  /**
-   * @openapi
-   * /service-orders/{id}/start-diagnosis:
-   *   patch:
-   *     summary: Start diagnosis (RECEIVED → DIAGNOSIS)
-   *     tags: [Service Orders]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: string }
-   *     responses:
-   *       200:
-   *         description: Updated service order
-   *       400:
-   *         description: Invalid status transition
-   */
-  router.patch('/:id/start-diagnosis', requireRole('attendant', 'admin'), async (req, res, next) => {
-    try {
-      const os = await startDiagnosis.execute(req.params.id);
-      res.json(os);
-    } catch (err) { next(err); }
-  });
-
-  /**
-   * @openapi
-   * /service-orders/{id}/finish-diagnosis:
-   *   patch:
-   *     summary: Finish diagnosis and calculate budget (DIAGNOSIS → WAITING_APPROVAL)
-   *     tags: [Service Orders]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: string }
-   *     responses:
-   *       200:
-   *         description: Updated service order with budgetTotal
-   *       400:
-   *         description: Invalid status transition
-   */
-  router.patch('/:id/finish-diagnosis', requireRole('attendant', 'admin'), async (req, res, next) => {
-    try {
-      const os = await finishDiagnosis.execute(req.params.id);
-      res.json(os);
-    } catch (err) { next(err); }
-  });
-
   // Line items
   /**
    * @openapi
@@ -375,6 +348,64 @@ export function serviceOrderRoutes(): Router {
     try {
       const os = await addService.execute(req.params.id, req.body.serviceId);
       res.json(os);
+    } catch (err) { next(err); }
+  });
+
+  /**
+   * @openapi
+   * /service-orders/{id}/services/{serviceId}:
+   *   patch:
+   *     summary: Update individual service status during EXECUTION
+   *     description: |
+   *       Body-driven update. `IN_PROGRESS` records `startedAt`; `COMPLETED` records `finishedAt`.
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *       - in: path
+   *         name: serviceId
+   *         required: true
+   *         schema: { type: string }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [status]
+   *             properties:
+   *               status:
+   *                 type: string
+   *                 enum: [IN_PROGRESS, COMPLETED]
+   *     responses:
+   *       200:
+   *         description: Updated service order
+   *       400:
+   *         description: Wrong OS status, invalid transition, or unsupported status
+   *       404:
+   *         description: Service not in order
+   */
+  router.patch('/:id/services/:serviceId', requireRole('mechanic', 'admin'), async (req, res, next) => {
+    try {
+      const status = req.body?.status as 'IN_PROGRESS' | 'COMPLETED' | undefined;
+      if (!status) throw new ValidationError('status is required');
+
+      let updated;
+      switch (status) {
+        case 'IN_PROGRESS':
+          updated = await startService.execute(req.params.id, req.params.serviceId);
+          break;
+        case 'COMPLETED':
+          updated = await finishService.execute(req.params.id, req.params.serviceId);
+          break;
+        default:
+          throw new ValidationError(`Unsupported service status: ${status}`);
+      }
+      res.json(updated);
     } catch (err) { next(err); }
   });
 
@@ -474,145 +505,6 @@ export function serviceOrderRoutes(): Router {
   router.delete('/:id/items/:itemId', requireRole('mechanic', 'admin'), async (req, res, next) => {
     try {
       const os = await removeItem.execute(req.params.id, req.params.itemId);
-      res.json(os);
-    } catch (err) { next(err); }
-  });
-
-  // Execution (mechanic)
-  /**
-   * @openapi
-   * /service-orders/{id}/start-execution:
-   *   patch:
-   *     summary: Start execution — consumes reserved stock (APPROVED → EXECUTION)
-   *     tags: [Service Orders]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: string }
-   *     responses:
-   *       200:
-   *         description: Updated service order
-   *       400:
-   *         description: Invalid status transition
-   */
-  router.patch('/:id/start-execution', requireRole('mechanic', 'admin'), async (req, res, next) => {
-    try {
-      const os = await startExecution.execute(req.params.id);
-      res.json(os);
-    } catch (err) { next(err); }
-  });
-
-  /**
-   * @openapi
-   * /service-orders/{id}/services/{serviceId}/start:
-   *   patch:
-   *     summary: Start a specific service (records startedAt)
-   *     tags: [Service Orders]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: string }
-   *       - in: path
-   *         name: serviceId
-   *         required: true
-   *         schema: { type: string }
-   *     responses:
-   *       200:
-   *         description: Updated service order
-   *       400:
-   *         description: Wrong OS status or service already started
-   */
-  router.patch('/:id/services/:serviceId/start', requireRole('mechanic', 'admin'), async (req, res, next) => {
-    try {
-      const os = await startService.execute(req.params.id, req.params.serviceId);
-      res.json(os);
-    } catch (err) { next(err); }
-  });
-
-  /**
-   * @openapi
-   * /service-orders/{id}/services/{serviceId}/finish:
-   *   patch:
-   *     summary: Finish a specific service (records finishedAt)
-   *     tags: [Service Orders]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: string }
-   *       - in: path
-   *         name: serviceId
-   *         required: true
-   *         schema: { type: string }
-   *     responses:
-   *       200:
-   *         description: Updated service order
-   *       400:
-   *         description: Wrong OS status, not started, or already finished
-   */
-  router.patch('/:id/services/:serviceId/finish', requireRole('mechanic', 'admin'), async (req, res, next) => {
-    try {
-      const os = await finishService.execute(req.params.id, req.params.serviceId);
-      res.json(os);
-    } catch (err) { next(err); }
-  });
-
-  /**
-   * @openapi
-   * /service-orders/{id}/finish:
-   *   patch:
-   *     summary: Finish the OS (EXECUTION → FINISHED)
-   *     tags: [Service Orders]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: string }
-   *     responses:
-   *       200:
-   *         description: Updated service order
-   *       400:
-   *         description: Invalid status transition
-   */
-  router.patch('/:id/finish', requireRole('mechanic', 'admin'), async (req, res, next) => {
-    try {
-      const os = await finishOS.execute(req.params.id);
-      res.json(os);
-    } catch (err) { next(err); }
-  });
-
-  /**
-   * @openapi
-   * /service-orders/{id}/deliver:
-   *   patch:
-   *     summary: Deliver the OS to the customer (FINISHED → DELIVERED)
-   *     tags: [Service Orders]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: string }
-   *     responses:
-   *       200:
-   *         description: Updated service order
-   *       400:
-   *         description: Invalid status transition
-   */
-  router.patch('/:id/deliver', requireRole('mechanic', 'admin'), async (req, res, next) => {
-    try {
-      const os = await deliverOS.execute(req.params.id);
       res.json(os);
     } catch (err) { next(err); }
   });

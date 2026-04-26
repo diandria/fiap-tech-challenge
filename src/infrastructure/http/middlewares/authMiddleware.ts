@@ -19,14 +19,15 @@ declare global {
 export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
-    throw new UnauthorizedError();
+    return next(new UnauthorizedError());
   }
   const token = header.split(' ')[1];
+  let payload: JwtPayload;
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
-    req.user = payload;
-    next();
+    payload = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
   } catch {
-    throw new UnauthorizedError('Invalid or expired token');
+    return next(new UnauthorizedError('Invalid or expired token'));
   }
+  req.user = payload;
+  next();
 }

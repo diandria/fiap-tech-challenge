@@ -5,7 +5,7 @@ import { ForbiddenError } from '../../../domain/errors/AppError';
 export function requireRole(...roles: UserRole[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user || !roles.includes(req.user.role)) {
-      throw new ForbiddenError();
+      return next(new ForbiddenError());
     }
     next();
   };
