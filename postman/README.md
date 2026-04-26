@@ -49,6 +49,7 @@ Run the folders in numbered order. Each request persists what subsequent ones ne
 - Per-service transitions go through `PATCH /service-orders/:id/services/:serviceId` with `{ status: "IN_PROGRESS" | "COMPLETED" }`.
 - Budget total = services + (item.price × quantity).
 - Role authorization: attendant (customers/vehicles/create OS), mechanic (diagnosis/execution/transitions), admin (catalog).
+- On the `DIAGNOSIS → WAITING_APPROVAL` transition the server fires a customer notification through `INotificationService`. In the MVP the adapter is a `console.log` mock — the API response is unchanged; check the server stdout for `[NOTIFICATION] Email sent to ...`.
 
 ## Run via CLI (Newman)
 

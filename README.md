@@ -224,6 +224,8 @@ OS transitions are split between two body-driven endpoints:
 | EXECUTION → FINISHED         | `PATCH /service-orders/:id`           | `{ "status": "FINISHED" }`                        | JWT — mechanic, admin                    |
 | FINISHED → DELIVERED         | `PATCH /service-orders/:id`           | `{ "status": "DELIVERED" }`                       | JWT — mechanic, admin                    |
 
+> **Side effect on `DIAGNOSIS → WAITING_APPROVAL`:** a best-effort customer notification is fired through the `INotificationService` port. In the MVP the adapter is a `console.log` mock — the server stdout shows `[NOTIFICATION] Email sent to <customer.email>` after the transition. Notification failure does not roll back the status change.
+
 Each individual OS service is updated through `PATCH /service-orders/:id/services/:serviceId` with `{ "status": "IN_PROGRESS" | "COMPLETED" }` (records `startedAt`/`finishedAt`).
 
 The 4-digit `code` is the **first 4 digits of the customer's CPF or CNPJ** (digits only).

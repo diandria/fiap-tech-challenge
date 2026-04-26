@@ -158,6 +158,7 @@ export function serviceOrderRoutes(): Router {
    *     description: |
    *       Body-driven state transition for non-customer-facing transitions.
    *       Customer budget approval/rejection lives at `PATCH /service-orders/{id}/budget`.
+   *       Side effect: the `DIAGNOSIS → WAITING_APPROVAL` transition fires a best-effort customer notification (MVP: `console.log` mock); failure does not roll back the status change.
    *     tags: [Service Orders]
    *     security:
    *       - bearerAuth: []

@@ -22,6 +22,7 @@ Domain terms from the car repair shop and their counterparts in code. Reference 
 | **Rejection** | Customer's decision to decline the budget | Body `{ status: "REJECTED", code }` on `PATCH /service-orders/:id/budget`; transition `WAITING_APPROVAL → REJECTED` |
 | **Execution** | Phase during which services are being performed by the mechanic | `EXECUTION` status; entered via `{ status: "EXECUTION" }` |
 | **Delivery** | Returning the vehicle to the customer after services are done | `DELIVERED` status; entered via `{ status: "DELIVERED" }` |
+| **Customer notification** | Outbound message that informs the customer the budget is ready for approval | `INotificationService` port (`domain/ports/`); MVP adapter `ConsoleNotificationService` logs to stdout; fired best-effort on the `DIAGNOSIS → WAITING_APPROVAL` transition |
 
 ---
 
@@ -68,4 +69,4 @@ Domain terms from the car repair shop and their counterparts in code. Reference 
 | Item | DDD diagram | Current code | Decision |
 |---|---|---|---|
 | Who runs diagnosis (start/finish) | Mechanic (Pictographic Language) | `mechanic` and `admin` | Fixed in `feat/os-status-body` — diagnosis transitions require `mechanic` or `admin` |
-| Sending the budget to the customer | Explicit command in Event Storming | No active push mechanism; customer reads it through the public endpoint | MVP decision — no external notification channel |
+| Sending the budget to the customer | Explicit command in Event Storming | `INotificationService` is fired on `DIAGNOSIS → WAITING_APPROVAL`; MVP adapter is a `console.log` mock | Real transport (email/SMS) deferred to post-MVP — port is in place so swapping the adapter is the only change required |
