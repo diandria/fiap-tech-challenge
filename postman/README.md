@@ -1,51 +1,53 @@
 # Postman Collection — Car Repair Shop API
 
-Coleção Postman com fluxo completo ponta a ponta da API: autenticação, cadastros, ciclo de vida da OS (diagnóstico → orçamento → aprovação → execução → entrega), rejeição de orçamento, estatísticas e cenários de erro (401/403/400/404).
+Postman collection with the full end-to-end API flow: authentication, master data, OS lifecycle (diagnosis → budget → approval → execution → delivery), budget rejection, statistics, and error scenarios (401/403/400/404).
 
-## Arquivos
+## Files
 
-- `car-repair-shop.postman_collection.json` — coleção v2.1.0 com todas as chamadas organizadas em pastas numeradas.
-- `car-repair-shop.postman_environment.json` — environment com `baseUrl`, credenciais e variáveis persistidas entre requests (tokens, IDs).
+- `car-repair-shop.postman_collection.json` — v2.1.0 collection with all calls organized in numbered folders.
+- `car-repair-shop.postman_environment.json` — environment with `baseUrl`, credentials, and variables persisted between requests (tokens, IDs).
 
-## Pré-requisitos
+## Prerequisites
 
-1. API rodando localmente em `http://localhost:3000` (ajuste `baseUrl` no environment se necessário).
-2. MongoDB ativo conforme `.env`.
-3. Admin seed executado. As credenciais padrão do environment são:
+1. API running locally at `http://localhost:3000` (adjust `baseUrl` in the environment if needed).
+2. MongoDB running per `.env`.
+3. Admin seed executed. Default environment credentials are:
    - `adminEmail`: `admin@master.com`
    - `adminPassword`: `change-me-in-production`
-   Ajuste no environment para bater com o `ADMIN_PASSWORD` configurado no `.env` do servidor.
+   Update them in the environment to match the `ADMIN_PASSWORD` configured in your server's `.env`.
 
 ## Import
 
-No Postman: **Import → Upload Files** e selecione os dois arquivos. Em seguida, selecione o environment **Car Repair Shop — Local** no seletor do canto superior direito.
+In Postman: **Import → Upload Files** and select both files. Then pick the **Car Repair Shop — Local** environment from the selector at the top right.
 
-## Ordem de execução (fluxo)
+## Execution order (flow)
 
-Execute as pastas na ordem numerada. Cada request já persiste no environment o que as próximas precisam (token, IDs). Use o **Collection Runner** ou rode manualmente em sequência.
+Run the folders in numbered order. Each request persists what subsequent ones need (token, IDs) into the environment. Use **Collection Runner** or run them manually in sequence.
 
-| # | Pasta | O que faz |
-|---|-------|-----------|
-| 00 | Setup | Login admin, cadastra attendant/mechanic (idempotente: aceita 201 ou 409), login dos dois perfis |
-| 01 | Catálogo (admin) | Cria serviço (Troca de Óleo, R$ 120) e item (Óleo 5W30, R$ 40, estoque 10) |
-| 02 | Cliente e Veículo (attendant) | Cria cliente CPF (taxId `52998224725`, primeiros 4 dígitos = código de aprovação `5299`) e veículo `ABC-1234` |
-| 03 | Happy Path OS | Ciclo completo: cria OS → diagnóstico → adiciona serviço + item (qty 2) → finaliza diagnóstico (`budgetTotal = 200`) → consulta status público → aprova com código `5299` → execução → entrega |
-| 04 | Rejeição | Segunda OS que é rejeitada após orçamento — verifica retorno do item ao estoque |
-| 05 | Estatísticas e Listagens | `avg-execution`, filtros por `status` e `customerId`, detalhe por ID |
-| 06 | Cenários de Erro | 401 (senha errada, sem token), 403 (role errada), 400 (CPF/placa inválida, código errado, transição inválida), 404 |
+| # | Folder | What it does |
+|---|--------|--------------|
+| 00 | Setup | Admin login, attendant/mechanic registration (idempotent: accepts 201 or 409), login for both roles |
+| 01 | Catalog (admin) | Creates a service (Oil Change, R$ 120) and an item (5W30 Oil, R$ 40, stock 10) |
+| 02 | Customer and Vehicle (attendant) | Creates a customer with CPF (`52998224725`, first 4 digits = approval code `5299`) and a vehicle `ABC-1234` |
+| 03 | OS Happy Path | Full lifecycle: create OS → diagnosis → add service + item (qty 2) → finish diagnosis (`budgetTotal = 200`) → public status read → approve with code `5299` → execution → delivery |
+| 04 | Rejection | Second OS rejected after the budget — verifies the item returns to stock |
+| 05 | Stats and Listings | `avg-execution`, filters by `status` and `customerId`, detail by ID |
+| 06 | Error Scenarios | 401 (wrong password, no token), 403 (wrong role), 400 (invalid CPF/plate, wrong code, invalid transition), 404 |
 
-## Variáveis persistidas (setadas automaticamente)
+## Persisted variables (set automatically)
 
 `adminToken`, `attendantToken`, `mechanicToken`, `attendantId`, `mechanicId`, `customerId`, `customerTaxId`, `customerCode`, `vehicleId`, `serviceId`, `itemId`, `osId`, `osRejectId`.
 
-## Regras de negócio validadas pelo fluxo
+## Business rules covered by the flow
 
-- Código de aprovação do cliente = primeiros 4 dígitos do CPF/CNPJ.
-- Máquina de estados da OS: `RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINISHED → DELIVERED` (com ramo `REJECTED` a partir de `WAITING_APPROVAL`).
-- Soma do orçamento = serviços + (item.price × quantity).
-- Autorização por role: attendant (clientes/veículos/OS), mechanic (diagnóstico/execução), admin (catálogo).
+- Customer approval code = first 4 digits of the CPF/CNPJ.
+- OS state machine: `RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINISHED → DELIVERED` (with `REJECTED` branch from `WAITING_APPROVAL`).
+- All OS state transitions go through `PATCH /service-orders/:id` with `{ status, code? }` in the body.
+- Per-service transitions go through `PATCH /service-orders/:id/services/:serviceId` with `{ status: "IN_PROGRESS" | "COMPLETED" }`.
+- Budget total = services + (item.price × quantity).
+- Role authorization: attendant (customers/vehicles/create OS), mechanic (diagnosis/execution/transitions), admin (catalog).
 
-## Rodando via CLI (Newman)
+## Run via CLI (Newman)
 
 ```bash
 npx newman run postman/car-repair-shop.postman_collection.json \
