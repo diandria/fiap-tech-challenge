@@ -38,6 +38,10 @@ services:
     profiles: [sonar]
     depends_on:
       - sonar-db
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     ports:
       - "9000:9000"
     environment:
