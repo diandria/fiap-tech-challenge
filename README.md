@@ -196,8 +196,10 @@ Aguarde 1-2 min até `http://localhost:9000` responder.
 
 ```bash
 npm run test:coverage   # gera coverage/lcov.info
-npm run sonar           # envia para o servidor local
+npm run sonar           # roda sonar-scanner via Docker e envia para o servidor local
 ```
+
+`npm run sonar` usa a imagem oficial `sonarsource/sonar-scanner-cli` (download na primeira execução, ~150 MB). Não exige Java instalado no host. Os valores de `SONAR_HOST_URL` e `SONAR_TOKEN` vêm do `.env` via `--env-file`.
 
 Resultado em `http://localhost:9000/dashboard?id=car-repair-shop-api`.
 
