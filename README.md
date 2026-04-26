@@ -4,54 +4,57 @@ REST API for managing service orders, customers, vehicles, services, and invento
 
 ---
 
-## Quick Start
+## Architecture
 
-Get the API running and testable in 5 minutes.
+Simple hexagonal (ports and adapters) monolith. The domain and application layers have zero infrastructure imports. Use cases depend on repository interfaces (ports); Mongoose implementations are injected at the route layer.
 
-### Pré-requisitos
+```
+src/
+  domain/         # Entities, port interfaces, validators, state machine
+  application/    # Use cases (one file per operation)
+  infrastructure/
+    http/         # Express routes and middlewares
+    persistence/  # Mongoose models and repository implementations
+    swagger/      # OpenAPI setup
+```
+
+---
+
+## Tech Stack
+
+| Concern       | Choice                              |
+|---------------|-------------------------------------|
+| Runtime       | Node.js 20 + TypeScript             |
+| HTTP          | Express                             |
+| Database      | MongoDB + Mongoose                  |
+| Auth          | JWT (jsonwebtoken) + bcryptjs       |
+| API Docs      | swagger-ui-express + swagger-jsdoc  |
+| Tests         | Jest + ts-jest + Supertest          |
+| Test DB       | mongodb-memory-server               |
+| Container     | Docker + docker-compose             |
+
+---
+
+## User Roles
+
+| Role        | Permissions                                                                                                          |
+|-------------|----------------------------------------------------------------------------------------------------------------------|
+| `attendant` | Register customers and vehicles; open OS                                                                              |
+| `mechanic`  | Run diagnosis (start/finish); add/remove services and items; start/finish individual services; execute, finish and deliver OS |
+| `admin`     | Full access to all operations including catalog and inventory management                                             |
+
+Budget approval and rejection endpoints are **public** (no JWT required) — confirmed with the first 4 digits of the customer's CPF or CNPJ.
+
+---
+
+## Prerequisites
 
 - [Node.js 20+](https://nodejs.org/)
-- [Docker](https://docs.docker.com/get-docker/) + docker-compose
-- (opcional) [Postman](https://www.postman.com/downloads/) para testar o fluxo completo
+- [Docker](https://docs.docker.com/get-docker/) + [docker-compose](https://docs.docker.com/compose/)
 
-### Passo a passo
+---
 
-#### 1. Clonar o repositório
-
-```bash
-git clone git@github.com:diandria/fiap-tech-challenge.git
-cd fiap-tech-challenge
-```
-
-#### 2. Configurar variáveis de ambiente
-
-```bash
-cp .env.example .env
-```
-
-Abra `.env` e ajuste — em especial:
-
-- `JWT_SECRET` — string longa e aleatória
-- `ADMIN_PASSWORD` — defina uma senha; **se ficar em branco o admin padrão NÃO é criado** e você não conseguirá fazer login
-
-Conteúdo padrão:
-
-```env
-PORT=3000
-MONGODB_URI=mongodb://localhost:27017/car-repair-shop
-JWT_SECRET=change-me-in-production-use-a-long-random-string
-CORS_ORIGIN=http://localhost:3000
-ADMIN_EMAIL=admin@master.com
-ADMIN_PASSWORD=change-me-in-production
-```
-
-#### 3. Subir a aplicação
-
-Escolha **uma** das duas opções abaixo.
-
-**Opção A — Docker (mais simples, sobe app + MongoDB)**
-
-> O `docker-compose.yml` não passa `ADMIN_EMAIL`/`ADMIN_PASSWORD` por padrão. Para criar o admin pelo seed, edite o serviço `app` em `docker-compose.yml` e adicione essas duas vars no bloco `environment` antes de subir.
+## Running with Docker (recommended)
 
 ```bash
 docker-compose up --build
@@ -206,37 +209,86 @@ RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINIS
                                         ↘ REJECTED (terminal)
 ```
 
-| Transição                    | Endpoint                                        | Role                  |
-|------------------------------|-------------------------------------------------|-----------------------|
-| RECEIVED → DIAGNOSIS         | `PATCH /service-orders/:id/start-diagnosis`     | attendant, admin      |
-| DIAGNOSIS → WAITING_APPROVAL | `PATCH /service-orders/:id/finish-diagnosis`    | attendant, admin      |
-| WAITING_APPROVAL → APPROVED  | `POST /service-orders/:id/approve-budget`       | público (código 4d)   |
-| WAITING_APPROVAL → REJECTED  | `POST /service-orders/:id/reject-budget`        | público (código 4d)   |
-| APPROVED → EXECUTION         | `PATCH /service-orders/:id/start-execution`     | mechanic, admin       |
-| EXECUTION → FINISHED         | `PATCH /service-orders/:id/finish`              | mechanic, admin       |
-| FINISHED → DELIVERED         | `PATCH /service-orders/:id/deliver`             | mechanic, admin       |
+Every OS transition goes through **a single endpoint** — `PATCH /service-orders/:id` — with the target action sent in the body as `status`. Authentication depends on the `status`:
 
-Itens são **reservados** ao serem adicionados na OS durante o diagnóstico e **consumidos** (debitados do estoque) quando o mecânico inicia a execução. Rejeitar o orçamento libera todas as reservas.
+| Transition                   | Body                                              | Auth                                     |
+|------------------------------|---------------------------------------------------|------------------------------------------|
+| RECEIVED → DIAGNOSIS         | `{ "status": "DIAGNOSIS" }`                       | JWT — mechanic, admin                    |
+| DIAGNOSIS → WAITING_APPROVAL | `{ "status": "WAITING_APPROVAL" }`                | JWT — mechanic, admin                    |
+| WAITING_APPROVAL → APPROVED  | `{ "status": "APPROVED", "code": "5299" }`        | public (rate-limit 5/h per IP+OS)        |
+| WAITING_APPROVAL → REJECTED  | `{ "status": "REJECTED", "code": "5299" }`        | public (rate-limit 5/h per IP+OS)        |
+| APPROVED → EXECUTION         | `{ "status": "EXECUTION" }`                       | JWT — mechanic, admin                    |
+| EXECUTION → FINISHED         | `{ "status": "FINISHED" }`                        | JWT — mechanic, admin                    |
+| FINISHED → DELIVERED         | `{ "status": "DELIVERED" }`                       | JWT — mechanic, admin                    |
+
+Each individual OS service is updated through `PATCH /service-orders/:id/services/:serviceId` with `{ "status": "IN_PROGRESS" | "COMPLETED" }` (records `startedAt`/`finishedAt`).
+
+The 4-digit `code` is the **first 4 digits of the customer's CPF or CNPJ** (digits only).
+
+Items are **reserved** when added to the OS during diagnosis and **consumed** (debited from stock) when the mechanic starts execution. Rejecting the budget releases all reservations.
 
 ---
 
-## Endpoints Principais
+## API Reference
 
-Documentação completa em Swagger UI (`/docs`).
+Swagger UI is served at `/docs` when the server is running.
 
-- `POST /auth/login` — autentica, retorna JWT
-- `POST /auth/register` *(admin)* — cria novo usuário
+### Authenticating in Swagger UI
+
+Most endpoints require a JWT. The flow inside Swagger UI is:
+
+**1. Obtain a token**
+
+Open `POST /auth/login`, click **Try it out**, and send:
+
+```json
+{
+  "email": "admin@example.com",
+  "password": "your-password"
+}
+```
+
+Copy the `token` value from the response body.
+
+**2. Authorize the session**
+
+Click the **Authorize** button (lock icon, top-right of the page).  
+In the **bearerAuth** field enter the token value — **without** the `Bearer ` prefix:
+
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+Click **Authorize**, then **Close**. All subsequent requests will include the `Authorization: Bearer <token>` header automatically.
+
+**3. Make requests**
+
+Expand any endpoint, click **Try it out**, fill in the parameters, and click **Execute**.
+
+> The token expires according to the `JWT_SECRET` configuration. If you get a `401 Unauthorized`, repeat steps 1–2 to refresh it.
+
+---
+
+### Public endpoints (no token required)
+
+| Endpoint | Description |
+|---|---|
+| `GET /service-orders/:id/status` | Read OS status and budget |
+| `PATCH /service-orders/:id` with `{ "status": "APPROVED", "code": "..." }` | Approve the budget using the customer's 4-digit code |
+| `PATCH /service-orders/:id` with `{ "status": "REJECTED", "code": "..." }` | Reject the budget using the customer's 4-digit code |
+
+---
+
+### Key endpoint groups
+
+- `POST /auth/login` — authenticate and return a JWT
+- `POST /auth/register` *(admin)* — create a new user
 - `GET|POST|PUT|DELETE /customers` *(attendant, admin)*
 - `GET|POST|PUT|DELETE /vehicles` *(attendant, admin)*
-- `GET|POST|PUT|DELETE /services` *(GET público, escrita admin)*
-- `GET|POST|PUT|DELETE /items` *(autenticado, escrita admin)*
-- `POST /service-orders` — criar OS *(attendant, admin)*
-- `GET /service-orders/:id/status` — consultar status *(público)*
-- `POST /service-orders/:id/approve-budget` — aprovar *(público)*
-- `POST /service-orders/:id/reject-budget` — rejeitar *(público)*
-
-### Autenticando no Swagger UI
-
-1. Em `POST /auth/login`, clique **Try it out**, envie `{"email":"...","password":"..."}` e copie o `token` da resposta.
-2. Clique no botão **Authorize** (cadeado, topo direito) e cole o token no campo `bearerAuth` (sem o prefixo `Bearer `). Confirme.
-3. Os requests subsequentes já vão com o header `Authorization: Bearer <token>`. Se aparecer `401`, repita os passos 1–2.
+- `GET|POST|PUT|DELETE /services` *(GET authenticated, writes admin)*
+- `GET|POST|PUT|DELETE /items` *(authenticated, writes admin)*
+- `POST /service-orders` — create OS *(attendant, admin)*
+- `GET /service-orders/:id/status` — read status *(public)*
+- `PATCH /service-orders/:id` body `{ status, code? }` — OS transitions (mechanic+admin, or public for APPROVED/REJECTED)
+- `PATCH /service-orders/:id/services/:serviceId` body `{ status: IN_PROGRESS | COMPLETED }` — update an individual service *(mechanic, admin)*
+- `POST|DELETE /service-orders/:id/services` and `/items` — manage services/items on the OS *(mechanic, admin)*

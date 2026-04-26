@@ -32,7 +32,10 @@ A default admin user is created automatically on first startup:
 
 All protected endpoints will now include the JWT automatically.
 
-> The three \`/service-orders/{id}/approve-budget\`, \`/reject-budget\`, and \`/status\` endpoints are **public** and do not require a token.`,
+> Public endpoints (no token required):
+> - \`GET /service-orders/{id}/status\` — check OS status and budget total.
+> - \`PATCH /service-orders/{id}\` with body \`{"status":"APPROVED","code":"5299"}\` or \`{"status":"REJECTED","code":"5299"}\` — customer-facing budget approval/rejection (rate-limited; \`code\` = first 4 digits of CPF/CNPJ).
+> All other transitions on the OS go through the same \`PATCH /service-orders/{id}\` endpoint with the target \`status\` in the body and require a JWT with role \`mechanic\` or \`admin\`.`,
     },
     components: {
       securitySchemes: {
