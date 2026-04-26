@@ -119,6 +119,27 @@ Ver `postman/README.md` para detalhes do fluxo.
 
 ---
 
+## Popular Dados de Desenvolvimento (Seed)
+
+Para facilitar o teste manual dos fluxos, há um script que popula o banco com um conjunto de dados de exemplo (catálogo, clientes e veículos):
+
+```bash
+npm run seed:dev
+```
+
+Cria:
+
+- **5 serviços**: Oil Change, Wheel Alignment, Brake Pad Replacement, Battery Check, Engine Tune-up.
+- **6 itens** (com estoque): 5W30 Synthetic Oil, Front Brake Pad Kit, Air Filter, Battery 60Ah, Spark Plug, Engine Coolant 1L.
+- **4 clientes** (3 CPFs + 1 CNPJ).
+- **7 veículos** distribuídos entre os clientes — alguns clientes têm mais de um veículo (Maria Santos com 2, Auto Frota LTDA com 3) para exercitar listagem por `customerId`.
+
+O script é **idempotente**: roda quantas vezes quiser que os registros já existentes (mesma `taxId`, mesma placa, mesmo nome de serviço/item) são pulados.
+
+Pré-requisitos: MongoDB rodando e variável `MONGODB_URI` configurada (mesma usada pela API).
+
+---
+
 ## Rodar Testes
 
 ```bash

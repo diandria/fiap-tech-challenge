@@ -1,0 +1,197 @@
+import 'dotenv/config';
+import { connectDB, disconnectDB } from '../src/infrastructure/persistence/connection';
+import { MongoCustomerRepository } from '../src/infrastructure/persistence/repositories/MongoCustomerRepository';
+import { MongoVehicleRepository } from '../src/infrastructure/persistence/repositories/MongoVehicleRepository';
+import { MongoServiceRepository } from '../src/infrastructure/persistence/repositories/MongoServiceRepository';
+import { MongoItemRepository } from '../src/infrastructure/persistence/repositories/MongoItemRepository';
+import { CreateCustomerUseCase } from '../src/application/use-cases/customers/CreateCustomerUseCase';
+import { CreateVehicleUseCase } from '../src/application/use-cases/vehicles/CreateVehicleUseCase';
+import { CreateServiceUseCase } from '../src/application/use-cases/services/CreateServiceUseCase';
+import { CreateItemUseCase } from '../src/application/use-cases/items/CreateItemUseCase';
+import { ListServicesUseCase } from '../src/application/use-cases/services/ListServicesUseCase';
+import { ListItemsUseCase } from '../src/application/use-cases/items/ListItemsUseCase';
+import { TaxType } from '../src/domain/entities/Customer';
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/car-repair-shop';
+
+interface SeedCustomer {
+  name: string;
+  taxId: string;
+  taxType: TaxType;
+  email: string;
+  phone: string;
+  vehicles: { plate: string; brand: string; model: string; year: number }[];
+}
+
+const SERVICES = [
+  { name: 'Oil Change', price: 120, estimatedMinutes: 30 },
+  { name: 'Wheel Alignment', price: 80, estimatedMinutes: 45 },
+  { name: 'Brake Pad Replacement', price: 220, estimatedMinutes: 90 },
+  { name: 'Battery Check', price: 50, estimatedMinutes: 15 },
+  { name: 'Engine Tune-up', price: 350, estimatedMinutes: 120 },
+];
+
+const ITEMS = [
+  { name: '5W30 Synthetic Oil', price: 40, stockQuantity: 30 },
+  { name: 'Front Brake Pad Kit', price: 180, stockQuantity: 15 },
+  { name: 'Air Filter', price: 35, stockQuantity: 25 },
+  { name: 'Battery 60Ah', price: 420, stockQuantity: 8 },
+  { name: 'Spark Plug', price: 18, stockQuantity: 60 },
+  { name: 'Engine Coolant 1L', price: 25, stockQuantity: 40 },
+];
+
+const CUSTOMERS: SeedCustomer[] = [
+  {
+    name: 'Joao Silva',
+    taxId: '52998224725',
+    taxType: 'CPF',
+    email: 'joao.silva@example.com',
+    phone: '11987654321',
+    vehicles: [{ plate: 'BRA2E19', brand: 'Volkswagen', model: 'Gol', year: 2019 }],
+  },
+  {
+    name: 'Maria Santos',
+    taxId: '11144477735',
+    taxType: 'CPF',
+    email: 'maria.santos@example.com',
+    phone: '11912345678',
+    vehicles: [
+      { plate: 'CAR1A45', brand: 'Honda', model: 'Civic', year: 2021 },
+      { plate: 'VAN9D87', brand: 'Fiat', model: 'Toro', year: 2022 },
+    ],
+  },
+  {
+    name: 'Pedro Oliveira',
+    taxId: '39053344705',
+    taxType: 'CPF',
+    email: 'pedro.oliveira@example.com',
+    phone: '21998765432',
+    vehicles: [{ plate: 'TRK0H22', brand: 'Ford', model: 'Ranger', year: 2020 }],
+  },
+  {
+    name: 'Auto Frota LTDA',
+    taxId: '11222333000181',
+    taxType: 'CNPJ',
+    email: 'frota@autofrota.example.com',
+    phone: '1133224455',
+    vehicles: [
+      { plate: 'BUS6T01', brand: 'Mercedes-Benz', model: 'Sprinter', year: 2018 },
+      { plate: 'SUV3J88', brand: 'Toyota', model: 'Hilux', year: 2023 },
+      { plate: 'MOT5P34', brand: 'Renault', model: 'Master', year: 2017 },
+    ],
+  },
+];
+
+interface Result {
+  created: number;
+  skipped: number;
+}
+
+async function seedServices(): Promise<Result> {
+  const repo = new MongoServiceRepository();
+  const list = new ListServicesUseCase(repo);
+  const create = new CreateServiceUseCase(repo);
+  const existing = await list.execute();
+  const existingNames = new Set(existing.map((s) => s.name));
+  let created = 0;
+  let skipped = 0;
+  for (const data of SERVICES) {
+    if (existingNames.has(data.name)) {
+      skipped += 1;
+      continue;
+    }
+    await create.execute(data);
+    created += 1;
+  }
+  return { created, skipped };
+}
+
+async function seedItems(): Promise<Result> {
+  const repo = new MongoItemRepository();
+  const list = new ListItemsUseCase(repo);
+  const create = new CreateItemUseCase(repo);
+  const existing = await list.execute();
+  const existingNames = new Set(existing.map((i) => i.name));
+  let created = 0;
+  let skipped = 0;
+  for (const data of ITEMS) {
+    if (existingNames.has(data.name)) {
+      skipped += 1;
+      continue;
+    }
+    await create.execute(data);
+    created += 1;
+  }
+  return { created, skipped };
+}
+
+async function seedCustomersAndVehicles(): Promise<{ customers: Result; vehicles: Result }> {
+  const customerRepo = new MongoCustomerRepository();
+  const vehicleRepo = new MongoVehicleRepository();
+  const createCustomer = new CreateCustomerUseCase(customerRepo);
+  const createVehicle = new CreateVehicleUseCase(vehicleRepo);
+
+  const customers: Result = { created: 0, skipped: 0 };
+  const vehicles: Result = { created: 0, skipped: 0 };
+
+  for (const seed of CUSTOMERS) {
+    let customerId: string;
+    const existingCustomer = await customerRepo.findByTaxId(seed.taxId);
+    if (existingCustomer) {
+      customerId = existingCustomer.id;
+      customers.skipped += 1;
+    } else {
+      const created = await createCustomer.execute({
+        name: seed.name,
+        taxId: seed.taxId,
+        taxType: seed.taxType,
+        email: seed.email,
+        phone: seed.phone,
+      });
+      customerId = created.id;
+      customers.created += 1;
+    }
+
+    for (const v of seed.vehicles) {
+      const existingVehicle = await vehicleRepo.findByPlate(v.plate);
+      if (existingVehicle) {
+        vehicles.skipped += 1;
+        continue;
+      }
+      await createVehicle.execute({ ...v, customerId });
+      vehicles.created += 1;
+    }
+  }
+
+  return { customers, vehicles };
+}
+
+function summarize(label: string, r: Result): void {
+  console.log(`  ${label}: ${r.created} created, ${r.skipped} skipped`);
+}
+
+async function main(): Promise<void> {
+  console.log(`Connecting to ${MONGODB_URI}`);
+  await connectDB(MONGODB_URI);
+  try {
+    console.log('Seeding services...');
+    summarize('services', await seedServices());
+
+    console.log('Seeding items...');
+    summarize('items', await seedItems());
+
+    console.log('Seeding customers and vehicles...');
+    const { customers, vehicles } = await seedCustomersAndVehicles();
+    summarize('customers', customers);
+    summarize('vehicles', vehicles);
+
+    console.log('Done.');
+  } finally {
+    await disconnectDB();
+  }
+}
+
+main().catch((err) => {
+  console.error('Seed failed:', err);
+  process.exit(1);
+});
