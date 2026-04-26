@@ -28,12 +28,26 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
           }
         },
         {
@@ -60,14 +74,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{attendantEmail}}\",\n  \"password\": \"{{attendantPassword}}\",\n  \"role\": \"attendant\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
           }
         },
         {
@@ -94,14 +123,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{mechanicEmail}}\",\n  \"password\": \"{{mechanicPassword}}\",\n  \"role\": \"mechanic\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
           }
         },
         {
@@ -120,12 +164,26 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{attendantEmail}}\",\n  \"password\": \"{{attendantPassword}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
           }
         },
         {
@@ -144,12 +202,26 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{mechanicEmail}}\",\n  \"password\": \"{{mechanicPassword}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
           }
         }
       ]
@@ -177,22 +249,83 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Oil Change\",\n  \"price\": 120,\n  \"estimatedMinutes\": 30\n}"
             },
-            "url": { "raw": "{{baseUrl}}/services", "host": ["{{baseUrl}}"], "path": ["services"] }
+            "url": {
+              "raw": "{{baseUrl}}/services",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Service by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('id matches', () => pm.expect(pm.response.json().id).to.eql(pm.environment.get('serviceId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/{{serviceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "{{serviceId}}"
+              ]
+            }
           }
         },
         {
           "name": "List Services",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
-            "url": { "raw": "{{baseUrl}}/services", "host": ["{{baseUrl}}"], "path": ["services"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services"
+              ]
+            }
           }
         },
         {
@@ -214,22 +347,83 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"5W30 Oil\",\n  \"price\": 40,\n  \"stockQuantity\": 10\n}"
             },
-            "url": { "raw": "{{baseUrl}}/items", "host": ["{{baseUrl}}"], "path": ["items"] }
+            "url": {
+              "raw": "{{baseUrl}}/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "items"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Item by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('id matches', () => pm.expect(pm.response.json().id).to.eql(pm.environment.get('itemId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/items/{{itemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "items",
+                "{{itemId}}"
+              ]
+            }
           }
         },
         {
           "name": "List Items",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
-            "url": { "raw": "{{baseUrl}}/items", "host": ["{{baseUrl}}"], "path": ["items"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "items"
+              ]
+            }
           }
         }
       ]
@@ -257,25 +451,84 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{attendantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Joao Silva\",\n  \"taxId\": \"{{customerTaxId}}\",\n  \"taxType\": \"CPF\",\n  \"email\": \"joao@test.com\",\n  \"phone\": \"11999998888\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/customers", "host": ["{{baseUrl}}"], "path": ["customers"] }
+            "url": {
+              "raw": "{{baseUrl}}/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            }
           }
         },
         {
           "name": "Find Customer by CPF",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{attendantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/customers/tax/{{customerTaxId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["customers", "tax", "{{customerTaxId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "tax",
+                "{{customerTaxId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Customer by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('id matches', () => pm.expect(pm.response.json().id).to.eql(pm.environment.get('customerId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}"
+              ]
             }
           }
         },
@@ -283,8 +536,21 @@
           "name": "List Customers",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{attendantToken}}" }],
-            "url": { "raw": "{{baseUrl}}/customers", "host": ["{{baseUrl}}"], "path": ["customers"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            }
           }
         },
         {
@@ -305,26 +571,88 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{attendantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"plate\": \"ABC-1234\",\n  \"brand\": \"Honda\",\n  \"model\": \"Civic\",\n  \"year\": 2020\n}"
             },
-            "url": { "raw": "{{baseUrl}}/vehicles", "host": ["{{baseUrl}}"], "path": ["vehicles"] }
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Vehicle by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('id matches', () => pm.expect(pm.response.json().id).to.eql(pm.environment.get('vehicleId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{vehicleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{vehicleId}}"
+              ]
+            }
           }
         },
         {
           "name": "List Vehicles by Customer",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{attendantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/vehicles?customerId={{customerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["vehicles"],
-              "query": [{ "key": "customerId", "value": "{{customerId}}" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}"
+                }
+              ]
             }
           }
         }
@@ -353,14 +681,28 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{attendantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"vehicleId\": \"{{vehicleId}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/service-orders", "host": ["{{baseUrl}}"], "path": ["service-orders"] }
+            "url": {
+              "raw": "{{baseUrl}}/service-orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders"
+              ]
+            }
           }
         },
         {
@@ -380,8 +722,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -389,8 +737,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}"
+              ]
             }
           }
         },
@@ -412,8 +765,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -421,8 +780,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}/services",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}", "services"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "services"
+              ]
             }
           }
         },
@@ -448,8 +813,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -457,8 +828,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}/items",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}", "items"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "items"
+              ]
             }
           }
         },
@@ -481,8 +858,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -490,8 +873,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}"
+              ]
             }
           }
         },
@@ -517,8 +905,14 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "status"
+              ]
             }
           }
         },
@@ -538,15 +932,26 @@
           ],
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"APPROVED\",\n  \"code\": \"{{customerCode}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}/budget",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}", "budget"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "budget"
+              ]
             }
           }
         },
@@ -567,8 +972,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -576,8 +987,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}"
+              ]
             }
           }
         },
@@ -600,8 +1016,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -609,8 +1031,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}/services/{{serviceId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}", "services", "{{serviceId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "services",
+                "{{serviceId}}"
+              ]
             }
           }
         },
@@ -633,8 +1062,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -642,8 +1077,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}/services/{{serviceId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}", "services", "{{serviceId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "services",
+                "{{serviceId}}"
+              ]
             }
           }
         },
@@ -664,8 +1106,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -673,8 +1121,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}"
+              ]
             }
           }
         },
@@ -695,8 +1148,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -704,8 +1163,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}"
+              ]
             }
           }
         }
@@ -732,14 +1196,28 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{attendantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"vehicleId\": \"{{vehicleId}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/service-orders", "host": ["{{baseUrl}}"], "path": ["service-orders"] }
+            "url": {
+              "raw": "{{baseUrl}}/service-orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders"
+              ]
+            }
           }
         },
         {
@@ -747,8 +1225,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -756,8 +1240,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osRejectId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osRejectId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osRejectId}}"
+              ]
             }
           }
         },
@@ -766,8 +1255,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -775,8 +1270,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osRejectId}}/items",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osRejectId}}", "items"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osRejectId}}",
+                "items"
+              ]
             }
           }
         },
@@ -785,8 +1286,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -794,8 +1301,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osRejectId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osRejectId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osRejectId}}"
+              ]
             }
           }
         },
@@ -815,15 +1327,26 @@
           ],
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"REJECTED\",\n  \"code\": \"{{customerCode}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osRejectId}}/budget",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osRejectId}}", "budget"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osRejectId}}",
+                "budget"
+              ]
             }
           }
         },
@@ -846,11 +1369,21 @@
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/items/{{itemId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["items", "{{itemId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "items",
+                "{{itemId}}"
+              ]
             }
           }
         }
@@ -863,11 +1396,22 @@
           "name": "Average Execution Time per Service",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{attendantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/service-orders/stats/avg-execution",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "stats", "avg-execution"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "stats",
+                "avg-execution"
+              ]
             }
           }
         },
@@ -875,20 +1419,47 @@
           "name": "List OS (no filters)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{attendantToken}}" }],
-            "url": { "raw": "{{baseUrl}}/service-orders", "host": ["{{baseUrl}}"], "path": ["service-orders"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders"
+              ]
+            }
           }
         },
         {
           "name": "List OS by status=DELIVERED",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{attendantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/service-orders?status=DELIVERED",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders"],
-              "query": [{ "key": "status", "value": "DELIVERED" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "DELIVERED"
+                }
+              ]
             }
           }
         },
@@ -896,12 +1467,26 @@
           "name": "List OS by customerId",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{attendantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/service-orders?customerId={{customerId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders"],
-              "query": [{ "key": "customerId", "value": "{{customerId}}" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}"
+                }
+              ]
             }
           }
         },
@@ -909,11 +1494,21 @@
           "name": "Get OS by ID",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{attendantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}"
+              ]
             }
           }
         }
@@ -930,18 +1525,34 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test('status 401', () => pm.response.to.have.status(401));"]
+                "exec": [
+                  "pm.test('status 401', () => pm.response.to.have.status(401));"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"wrong-password\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
           }
         },
         {
@@ -951,13 +1562,23 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test('status 401', () => pm.response.to.have.status(401));"]
+                "exec": [
+                  "pm.test('status 401', () => pm.response.to.have.status(401));"
+                ]
               }
             }
           ],
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/customers", "host": ["{{baseUrl}}"], "path": ["customers"] }
+            "url": {
+              "raw": "{{baseUrl}}/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            }
           }
         },
         {
@@ -967,21 +1588,37 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test('status 403', () => pm.response.to.have.status(403));"]
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{attendantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Air Filter\",\n  \"price\": 35,\n  \"stockQuantity\": 5\n}"
             },
-            "url": { "raw": "{{baseUrl}}/items", "host": ["{{baseUrl}}"], "path": ["items"] }
+            "url": {
+              "raw": "{{baseUrl}}/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "items"
+              ]
+            }
           }
         },
         {
@@ -991,15 +1628,23 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test('status 403', () => pm.response.to.have.status(403));"]
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{attendantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1007,8 +1652,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}/services",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}", "services"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "services"
+              ]
             }
           }
         },
@@ -1019,21 +1670,37 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test('status 400', () => pm.response.to.have.status(400));"]
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{attendantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Invalid\",\n  \"taxId\": \"00000000000\",\n  \"taxType\": \"CPF\",\n  \"email\": \"x@x.com\",\n  \"phone\": \"11999\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/customers", "host": ["{{baseUrl}}"], "path": ["customers"] }
+            "url": {
+              "raw": "{{baseUrl}}/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            }
           }
         },
         {
@@ -1043,21 +1710,37 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test('status 400', () => pm.response.to.have.status(400));"]
+                "exec": [
+                  "pm.test('status 400', () => pm.response.to.have.status(400));"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{attendantToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"plate\": \"INVALID\",\n  \"brand\": \"Honda\",\n  \"model\": \"Civic\",\n  \"year\": 2020\n}"
             },
-            "url": { "raw": "{{baseUrl}}/vehicles", "host": ["{{baseUrl}}"], "path": ["vehicles"] }
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ]
+            }
           }
         },
         {
@@ -1075,15 +1758,26 @@
           ],
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"APPROVED\",\n  \"code\": \"0000\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}/budget",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osId}}", "budget"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "budget"
+              ]
             }
           }
         },
@@ -1094,17 +1788,29 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test('status 404', () => pm.response.to.have.status(404));"]
+                "exec": [
+                  "pm.test('status 404', () => pm.response.to.have.status(404));"
+                ]
               }
             }
           ],
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{attendantToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/service-orders/000000000000000000000000",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "000000000000000000000000"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "000000000000000000000000"
+              ]
             }
           }
         },
@@ -1124,8 +1830,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{mechanicToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1133,8 +1845,719 @@
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osRejectId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["service-orders", "{{osRejectId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osRejectId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - OS Item/Service Removal (mechanic)",
+      "item": [
+        {
+          "name": "Create OS for Removal Demo (attendant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('osRemovalId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"description\": \"Removal endpoints demo\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Start Diagnosis (Removal Demo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders/{{osRemovalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osRemovalId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DIAGNOSIS\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Add Service to OS (Removal Demo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 or 201', () => pm.expect([200,201]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders/{{osRemovalId}}/services",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osRemovalId}}",
+                "services"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceId\": \"{{serviceId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove Service from OS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders/{{osRemovalId}}/services/{{serviceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osRemovalId}}",
+                "services",
+                "{{serviceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Item to OS (Removal Demo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 or 201', () => pm.expect([200,201]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders/{{osRemovalId}}/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osRemovalId}}",
+                "items"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": \"{{itemId}}\",\n  \"quantity\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove Item from OS (releases stock)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders/{{osRemovalId}}/items/{{itemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osRemovalId}}",
+                "items",
+                "{{itemId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Maintenance (PUT/DELETE entities)",
+      "item": [
+        {
+          "name": "Create Temp Customer (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('tempCustomerId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maintenance Demo\",\n  \"taxId\": \"11144477735\",\n  \"email\": \"demo+maint@example.com\",\n  \"phone\": \"11999999999\",\n  \"taxType\": \"CPF\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Temp Vehicle (attendant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('tempVehicleId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{tempCustomerId}}\",\n  \"plate\": \"MNT-9999\",\n  \"brand\": \"Demo\",\n  \"model\": \"Maintenance\",\n  \"year\": 2024\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Temp Service (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('tempServiceId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maintenance Demo Service\",\n  \"price\": 99,\n  \"estimatedMinutes\": 15\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Temp Item (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('tempItemId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "items"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maintenance Demo Item\",\n  \"price\": 5,\n  \"stockQuantity\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Temp Customer (PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{tempCustomerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{tempCustomerId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"11988888888\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Temp Vehicle (PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{tempVehicleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{tempVehicleId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"Maintenance Updated\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Temp Service (PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/{{tempServiceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "{{tempServiceId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 110\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Temp Item (PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/items/{{tempItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "items",
+                "{{tempItemId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stockQuantity\": 5\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Temp Vehicle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/vehicles/{{tempVehicleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "vehicles",
+                "{{tempVehicleId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Temp Customer (soft)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{tempCustomerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{tempCustomerId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Temp Service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/{{tempServiceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "{{tempServiceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Temp Item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/items/{{tempItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "items",
+                "{{tempItemId}}"
+              ]
             }
           }
         }

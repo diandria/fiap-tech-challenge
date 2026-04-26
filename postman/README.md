@@ -33,10 +33,12 @@ Run the folders in numbered order. Each request persists what subsequent ones ne
 | 04 | Rejection | Second OS rejected after the budget — verifies the item returns to stock |
 | 05 | Stats and Listings | `avg-execution`, filters by `status` and `customerId`, detail by ID |
 | 06 | Error Scenarios | 401 (wrong password, no token), 403 (wrong role), 400 (invalid CPF/plate, wrong code, invalid transition), 404 |
+| 07 | OS Item/Service Removal (mechanic) | Creates a third OS, demos `DELETE /service-orders/:id/services/:serviceId` and `DELETE /service-orders/:id/items/:itemId` (releases stock) |
+| 08 | Maintenance (PUT/DELETE entities) | Creates temporary customer/vehicle/service/item, exercises every PUT and DELETE for catalog and customer/vehicle resources |
 
 ## Persisted variables (set automatically)
 
-`adminToken`, `attendantToken`, `mechanicToken`, `attendantId`, `mechanicId`, `customerId`, `customerTaxId`, `customerCode`, `vehicleId`, `serviceId`, `itemId`, `osId`, `osRejectId`.
+`adminToken`, `attendantToken`, `mechanicToken`, `attendantId`, `mechanicId`, `customerId`, `customerTaxId`, `customerCode`, `vehicleId`, `serviceId`, `itemId`, `osId`, `osRejectId`, `osRemovalId`, `tempCustomerId`, `tempVehicleId`, `tempServiceId`, `tempItemId`.
 
 ## Business rules covered by the flow
 

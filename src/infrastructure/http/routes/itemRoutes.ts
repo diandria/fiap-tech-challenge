@@ -37,6 +37,24 @@ export function itemRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /items/{id}:
+   *   get:
+   *     summary: Get an item by ID
+   *     tags: [Items]
+   *     security: [{ bearerAuth: [] }]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Item including availableQuantity
+   *       404:
+   *         description: Not found
+   */
   router.get('/:id', async (req, res, next) => {
     try {
       const item = await getItem.execute(req.params.id);
@@ -75,6 +93,35 @@ export function itemRoutes(): Router {
     } catch (err) { next(err); }
   });
 
+  /**
+   * @openapi
+   * /items/{id}:
+   *   put:
+   *     summary: Update an item (admin only)
+   *     tags: [Items]
+   *     security: [{ bearerAuth: [] }]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     requestBody:
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               name: { type: string }
+   *               price: { type: number, minimum: 0 }
+   *               stockQuantity: { type: integer, minimum: 0 }
+   *     responses:
+   *       200:
+   *         description: Updated item
+   *       400:
+   *         description: Validation error
+   *       404:
+   *         description: Not found
+   */
   router.put('/:id', requireRole('admin'), async (req, res, next) => {
     try {
       const item = await updateItem.execute(req.params.id, req.body);
