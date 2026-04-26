@@ -4,6 +4,10 @@ import { MongoCustomerRepository } from '../src/infrastructure/persistence/repos
 import { MongoVehicleRepository } from '../src/infrastructure/persistence/repositories/MongoVehicleRepository';
 import { MongoServiceRepository } from '../src/infrastructure/persistence/repositories/MongoServiceRepository';
 import { MongoItemRepository } from '../src/infrastructure/persistence/repositories/MongoItemRepository';
+import { MongoUserRepository } from '../src/infrastructure/persistence/repositories/MongoUserRepository';
+import { RegisterUseCase } from '../src/application/use-cases/auth/RegisterUseCase';
+import { ConflictError } from '../src/domain/errors/AppError';
+import { UserRole } from '../src/domain/entities/User';
 import { CreateCustomerUseCase } from '../src/application/use-cases/customers/CreateCustomerUseCase';
 import { CreateVehicleUseCase } from '../src/application/use-cases/vehicles/CreateVehicleUseCase';
 import { CreateServiceUseCase } from '../src/application/use-cases/services/CreateServiceUseCase';
@@ -80,6 +84,12 @@ const CUSTOMERS: SeedCustomer[] = [
       { plate: 'MOT5P34', brand: 'Renault', model: 'Master', year: 2017 },
     ],
   },
+];
+
+const USERS: { email: string; password: string; role: UserRole }[] = [
+  { email: 'admin@dev.local', password: 'dev123', role: 'admin' },
+  { email: 'attendant@dev.local', password: 'dev123', role: 'attendant' },
+  { email: 'mechanic@dev.local', password: 'dev123', role: 'mechanic' },
 ];
 
 interface Result {
@@ -166,6 +176,26 @@ async function seedCustomersAndVehicles(): Promise<{ customers: Result; vehicles
   return { customers, vehicles };
 }
 
+async function seedUsers(): Promise<Result> {
+  const repo = new MongoUserRepository();
+  const register = new RegisterUseCase(repo);
+  let created = 0;
+  let skipped = 0;
+  for (const data of USERS) {
+    try {
+      await register.execute(data);
+      created += 1;
+    } catch (err) {
+      if (err instanceof ConflictError) {
+        skipped += 1;
+        continue;
+      }
+      throw err;
+    }
+  }
+  return { created, skipped };
+}
+
 function summarize(label: string, r: Result): void {
   console.log(`  ${label}: ${r.created} created, ${r.skipped} skipped`);
 }
@@ -184,6 +214,10 @@ async function main(): Promise<void> {
     const { customers, vehicles } = await seedCustomersAndVehicles();
     summarize('customers', customers);
     summarize('vehicles', vehicles);
+
+    console.log('Seeding users...');
+    summarize('users', await seedUsers());
+    console.log('WARNING: dev seed users use weak password "dev123" — never run this in production');
 
     console.log('Done.');
   } finally {
