@@ -343,4 +343,4 @@ npm run sonar             # análise SonarQube (requer servidor local + token no
 
 Termos do domínio, atores e status da OS estão em [`docs/ddd/ubiquitous-language.md`](ddd/ubiquitous-language.md).
 
-Diagramas de DDD em `docs/ddd/`: Event Storming, Linguagem Pictográfica, Linguagem Ubíqua.
+Diagramas de DDD em `docs/ddd/`: Event Storming (`event-storming.png`), Linguagem Pictográfica (`linguagem-pictografica.png`).

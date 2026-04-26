@@ -2,7 +2,7 @@
 
 Termos do domínio da oficina mecânica e suas contrapartidas no código. Referência para alinhamento entre negócio e engenharia.
 
-> Diagramas visuais em `docs/ddd/`: Event Storming, Linguagem Pictográfica, Linguagem Ubíqua.
+> Diagramas visuais em `docs/ddd/`: Event Storming (`event-storming.png`), Linguagem Pictográfica (`linguagem-pictografica.png`).
 
 ---
 
