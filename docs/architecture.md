@@ -51,6 +51,7 @@ src/
       models/          # Mongoose schemas
       repositories/    # Domain port implementations
       seed.ts          # Creates default admin on first run
+    notifications/     # INotificationService adapters (MVP: console-log mock)
     swagger/           # swagger-jsdoc configuration
   app.ts               # Express setup, route registration
   main.ts              # Bootstrap, DB connection, graceful shutdown
@@ -122,7 +123,7 @@ OS transitions are split between two body-driven endpoints:
 | Transition | Endpoint | Body | Actor | Side effect |
 |---|---|---|---|---|
 | RECEIVED → DIAGNOSIS | `PATCH /service-orders/:id` | `{ status: "DIAGNOSIS" }` | mechanic, admin | — |
-| DIAGNOSIS → WAITING_APPROVAL | `PATCH /service-orders/:id` | `{ status: "WAITING_APPROVAL" }` | mechanic, admin | Computes and persists `budgetTotal` |
+| DIAGNOSIS → WAITING_APPROVAL | `PATCH /service-orders/:id` | `{ status: "WAITING_APPROVAL" }` | mechanic, admin | Computes and persists `budgetTotal`; fires a best-effort customer notification through `INotificationService` (MVP: `console.log` mock) |
 | WAITING_APPROVAL → APPROVED | `PATCH /service-orders/:id/budget` | `{ status: "APPROVED", code: "..." }` | public (4-digit code, rate-limited) | Item reservations already made on add-item |
 | WAITING_APPROVAL → REJECTED | `PATCH /service-orders/:id/budget` | `{ status: "REJECTED", code: "..." }` | public (4-digit code, rate-limited) | Releases `reservedQuantity` of all OS items |
 | APPROVED → EXECUTION | `PATCH /service-orders/:id` | `{ status: "EXECUTION" }` | mechanic, admin | Decrements `stockQuantity` and zeroes `reservedQuantity` of OS items |
@@ -303,3 +304,4 @@ Items identified in the Phase 1 review. All were addressed on branch `feat/phase
 | 7 | **Test fixtures** — `tests/unit/fixtures/` created with shared factories | Done |
 | 8 | **Admin password via env var** — `ADMIN_PASSWORD` required; seed skipped if absent | Done |
 | 9 | **helmet** — HTTP security headers enabled | Done |
+| 10 | **Customer notification on `DIAGNOSIS → WAITING_APPROVAL`** — `INotificationService` port + `ConsoleNotificationService` mock adapter; best-effort, never rolls back the transition | Done (mock; ready for a real adapter post-MVP) |

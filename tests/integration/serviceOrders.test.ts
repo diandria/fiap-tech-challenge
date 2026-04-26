@@ -306,6 +306,32 @@ describe('Full OS lifecycle', () => {
     expect(res.status).toBe(400);
   });
 
+  it('GIVEN an OS in DIAGNOSIS WHEN PATCH status=WAITING_APPROVAL is called THEN the customer notification mock is logged with email and OS id', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
+
+    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
+    const osId = created.body.id;
+    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
+    await request(app).post(`/service-orders/${osId}/services`).set(mechAuth).send({ serviceId });
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const res = await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
+      expect(res.status).toBe(200);
+
+      const notificationLog = logSpy.mock.calls
+        .map((args) => String(args[0]))
+        .find((line) => line.startsWith('[NOTIFICATION]'));
+      expect(notificationLog).toBeDefined();
+      expect(notificationLog).toContain('Email sent to j@t.com');
+      expect(notificationLog).toContain(osId);
+      expect(notificationLog).toContain('R$ 80');
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   it('GIVEN two OS created WHEN one is moved to DIAGNOSIS THEN GET ?status=DIAGNOSIS returns only that one', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
     const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
