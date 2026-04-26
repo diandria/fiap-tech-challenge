@@ -1,14 +1,15 @@
 {
   "info": {
-    "_postman_id": "a1b2c3d4-car-repair-shop-0001",
+    "_postman_id": "ed9f6acf-89f2-4aef-8a95-6993786781c4",
     "name": "Car Repair Shop API",
     "description": "End-to-end flow for the Car Repair Shop API (FIAP Tech Challenge - Phase 1).\n\nOrganized into folders that represent the full flow:\n\n1. **00 - Setup** - admin login, attendant and mechanic registration, login per role.\n2. **01 - Catalog (admin)** - register a service and a stock item.\n3. **02 - Customer and Vehicle (attendant)** - register a customer (CPF) and vehicle.\n4. **03 - OS Happy Path** - complete OS lifecycle through DELIVERED.\n5. **04 - Rejection Flow** - OS created, budget rejected, reservations released.\n6. **05 - Stats and Listings** - avg-execution and listings with filters.\n7. **06 - Error Scenarios** - 400, 401, 403, 404.\n\n## How to use\n\n1. Import `car-repair-shop.postman_environment.json` and select it as the active environment.\n2. Adjust `baseUrl` and `adminPassword` (must match the `ADMIN_PASSWORD` env var of your deployment).\n3. Run the full collection (Collection Runner) or run folder by folder in order.\n\nTokens and IDs are captured automatically by the test scripts and reused via environment variables.\n\n## Notes\n\n- Internal OS transitions go through `PATCH /service-orders/:id` with `{ status }` in the body and require a JWT (mechanic or admin).\n- Customer budget decisions (approve/reject) go through `PATCH /service-orders/:id/budget` with `{ status: \"APPROVED\" | \"REJECTED\", code }`. Public, rate-limited 5 req/hour per IP+OS.\n- Per-service transitions go through `PATCH /service-orders/:id/services/:serviceId` with `{ status: \"IN_PROGRESS\" | \"COMPLETED\" }`.\n- `POST /auth/login` is rate-limited to 10 req / 15 min per IP.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "53906914",
+    "_collection_link": "https://go.postman.co/collection/53906914-ed9f6acf-89f2-4aef-8a95-6993786781c4?source=collection_link"
   },
   "item": [
     {
       "name": "00 - Setup",
-      "description": "Default admin login and registration/login of attendant and mechanic users.",
       "item": [
         {
           "name": "Login Admin",
@@ -48,7 +49,8 @@
                 "login"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Register Attendant",
@@ -97,7 +99,8 @@
                 "register"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Register Mechanic",
@@ -146,7 +149,8 @@
                 "register"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Login Attendant",
@@ -184,7 +188,8 @@
                 "login"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Login Mechanic",
@@ -222,13 +227,14 @@
                 "login"
               ]
             }
-          }
+          },
+          "response": []
         }
-      ]
+      ],
+      "description": "Default admin login and registration/login of attendant and mechanic users."
     },
     {
       "name": "01 - Catalog (admin)",
-      "description": "Catalog registration of a service and an inventory item. Requires admin role.",
       "item": [
         {
           "name": "Create Service (Oil Change)",
@@ -271,7 +277,8 @@
                 "services"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Get Service by ID",
@@ -305,7 +312,8 @@
                 "{{serviceId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "List Services",
@@ -326,7 +334,8 @@
                 "services"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Create Item (5W30 Oil)",
@@ -369,7 +378,8 @@
                 "items"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Get Item by ID",
@@ -403,7 +413,8 @@
                 "{{itemId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "List Items",
@@ -424,13 +435,14 @@
                 "items"
               ]
             }
-          }
+          },
+          "response": []
         }
-      ]
+      ],
+      "description": "Catalog registration of a service and an inventory item. Requires admin role."
     },
     {
       "name": "02 - Customer and Vehicle (attendant)",
-      "description": "Customer (CPF) and vehicle registration. Requires attendant or admin role.",
       "item": [
         {
           "name": "Create Customer (CPF)",
@@ -473,7 +485,8 @@
                 "customers"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Find Customer by CPF",
@@ -496,7 +509,8 @@
                 "{{customerTaxId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Get Customer by ID",
@@ -530,7 +544,8 @@
                 "{{customerId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "List Customers",
@@ -551,7 +566,8 @@
                 "customers"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Create Vehicle",
@@ -593,7 +609,8 @@
                 "vehicles"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Get Vehicle by ID",
@@ -627,7 +644,8 @@
                 "{{vehicleId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "List Vehicles by Customer",
@@ -654,13 +672,14 @@
                 }
               ]
             }
-          }
+          },
+          "response": []
         }
-      ]
+      ],
+      "description": "Customer (CPF) and vehicle registration. Requires attendant or admin role."
     },
     {
       "name": "03 - OS Happy Path",
-      "description": "Full lifecycle: RECEIVED -> DIAGNOSIS -> WAITING_APPROVAL -> APPROVED -> EXECUTION -> FINISHED -> DELIVERED. Internal transitions go through PATCH /service-orders/:id; the customer budget decision goes through PATCH /service-orders/:id/budget.",
       "item": [
         {
           "name": "Create OS (attendant)",
@@ -703,7 +722,8 @@
                 "service-orders"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Start Diagnosis (mechanic)",
@@ -745,7 +765,8 @@
                 "{{osId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Add Service to OS (mechanic)",
@@ -789,7 +810,8 @@
                 "services"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Add Item to OS (qty 2, mechanic)",
@@ -837,7 +859,8 @@
                 "items"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Finish Diagnosis (mechanic)",
@@ -881,7 +904,8 @@
                 "{{osId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "[Public] Read Status",
@@ -903,6 +927,7 @@
           ],
           "request": {
             "method": "GET",
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}/status",
               "host": [
@@ -914,7 +939,8 @@
                 "status"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "[Public] Approve Budget (code 5299)",
@@ -953,7 +979,8 @@
                 "budget"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Start Execution (mechanic)",
@@ -995,7 +1022,8 @@
                 "{{osId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Start Service (mechanic)",
@@ -1041,7 +1069,8 @@
                 "{{serviceId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Finish Service (mechanic)",
@@ -1087,7 +1116,8 @@
                 "{{serviceId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Finish OS (mechanic)",
@@ -1129,7 +1159,8 @@
                 "{{osId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Deliver OS (mechanic)",
@@ -1171,13 +1202,14 @@
                 "{{osId}}"
               ]
             }
-          }
+          },
+          "response": []
         }
-      ]
+      ],
+      "description": "Full lifecycle: RECEIVED -> DIAGNOSIS -> WAITING_APPROVAL -> APPROVED -> EXECUTION -> FINISHED -> DELIVERED. Internal transitions go through PATCH /service-orders/:id; the customer budget decision goes through PATCH /service-orders/:id/budget."
     },
     {
       "name": "04 - Rejection Flow",
-      "description": "Second OS that gets rejected after the budget is generated - verifies the item returns to stock.",
       "item": [
         {
           "name": "Create OS 2 (attendant)",
@@ -1218,7 +1250,8 @@
                 "service-orders"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Start Diagnosis (OS 2)",
@@ -1248,7 +1281,8 @@
                 "{{osRejectId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Add Item to OS 2 (qty 1, mechanic)",
@@ -1279,7 +1313,8 @@
                 "items"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Finish Diagnosis (OS 2)",
@@ -1309,7 +1344,8 @@
                 "{{osRejectId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "[Public] Reject Budget (code 5299)",
@@ -1348,7 +1384,8 @@
                 "budget"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Verify Item Released",
@@ -1385,9 +1422,11 @@
                 "{{itemId}}"
               ]
             }
-          }
+          },
+          "response": []
         }
-      ]
+      ],
+      "description": "Second OS that gets rejected after the budget is generated - verifies the item returns to stock."
     },
     {
       "name": "05 - Stats and Listings",
@@ -1413,7 +1452,8 @@
                 "avg-execution"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "List OS (no filters)",
@@ -1434,7 +1474,8 @@
                 "service-orders"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "List OS by status=DELIVERED",
@@ -1461,7 +1502,8 @@
                 }
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "List OS by customerId",
@@ -1488,7 +1530,8 @@
                 }
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Get OS by ID",
@@ -1510,13 +1553,13 @@
                 "{{osId}}"
               ]
             }
-          }
+          },
+          "response": []
         }
       ]
     },
     {
       "name": "06 - Error Scenarios",
-      "description": "Tests 401 (no token), 403 (wrong role), 400 (validation), 404 (not found) and 400 (invalid transition).",
       "item": [
         {
           "name": "401 - Login with wrong password",
@@ -1553,7 +1596,8 @@
                 "login"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "401 - List customers without token",
@@ -1570,6 +1614,7 @@
           ],
           "request": {
             "method": "GET",
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/customers",
               "host": [
@@ -1579,7 +1624,8 @@
                 "customers"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "403 - Attendant tries to create item",
@@ -1619,7 +1665,8 @@
                 "items"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "403 - Attendant tries to add service to OS (mechanic only)",
@@ -1661,7 +1708,8 @@
                 "services"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "400 - Customer with invalid CPF",
@@ -1701,7 +1749,8 @@
                 "customers"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "400 - Vehicle with invalid plate",
@@ -1741,7 +1790,8 @@
                 "vehicles"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "400 - Approve budget with wrong code",
@@ -1779,7 +1829,8 @@
                 "budget"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "404 - OS does not exist",
@@ -1812,7 +1863,8 @@
                 "000000000000000000000000"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "400 - Invalid transition (deliver on OS not finished)",
@@ -1853,9 +1905,11 @@
                 "{{osRejectId}}"
               ]
             }
-          }
+          },
+          "response": []
         }
-      ]
+      ],
+      "description": "Tests 401 (no token), 403 (wrong role), 400 (validation), 404 (not found) and 400 (invalid transition)."
     },
     {
       "name": "07 - OS Item/Service Removal (mechanic)",
@@ -1886,6 +1940,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"description\": \"Removal endpoints demo\"\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/service-orders",
               "host": [
@@ -1894,12 +1952,9 @@
               "path": [
                 "service-orders"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"description\": \"Removal endpoints demo\"\n}"
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Start Diagnosis (Removal Demo)",
@@ -1926,6 +1981,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DIAGNOSIS\"\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osRemovalId}}",
               "host": [
@@ -1935,12 +1994,9 @@
                 "service-orders",
                 "{{osRemovalId}}"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"DIAGNOSIS\"\n}"
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Add Service to OS (Removal Demo)",
@@ -1967,6 +2023,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceId\": \"{{serviceId}}\"\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osRemovalId}}/services",
               "host": [
@@ -1977,12 +2037,9 @@
                 "{{osRemovalId}}",
                 "services"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"serviceId\": \"{{serviceId}}\"\n}"
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Remove Service from OS",
@@ -1990,10 +2047,12 @@
             {
               "listen": "test",
               "script": {
-                "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 204', () => pm.response.to.have.status(204));"
-                ]
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
               }
             }
           ],
@@ -2017,7 +2076,8 @@
                 "{{serviceId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Add Item to OS (Removal Demo)",
@@ -2044,6 +2104,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": \"{{itemId}}\",\n  \"quantity\": 1\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osRemovalId}}/items",
               "host": [
@@ -2054,12 +2118,9 @@
                 "{{osRemovalId}}",
                 "items"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"itemId\": \"{{itemId}}\",\n  \"quantity\": 1\n}"
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Remove Item from OS (releases stock)",
@@ -2067,10 +2128,12 @@
             {
               "listen": "test",
               "script": {
-                "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 204', () => pm.response.to.have.status(204));"
-                ]
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
               }
             }
           ],
@@ -2094,7 +2157,8 @@
                 "{{itemId}}"
               ]
             }
-          }
+          },
+          "response": []
         }
       ]
     },
@@ -2127,6 +2191,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maintenance Demo\",\n  \"taxId\": \"11144477735\",\n  \"email\": \"demo+maint@example.com\",\n  \"phone\": \"11999999999\",\n  \"taxType\": \"CPF\"\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/customers",
               "host": [
@@ -2135,12 +2203,9 @@
               "path": [
                 "customers"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Maintenance Demo\",\n  \"taxId\": \"11144477735\",\n  \"email\": \"demo+maint@example.com\",\n  \"phone\": \"11999999999\",\n  \"taxType\": \"CPF\"\n}"
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Create Temp Vehicle (attendant)",
@@ -2168,6 +2233,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{tempCustomerId}}\",\n  \"plate\": \"MNT-9999\",\n  \"brand\": \"Demo\",\n  \"model\": \"Maintenance\",\n  \"year\": 2024\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/vehicles",
               "host": [
@@ -2176,12 +2245,9 @@
               "path": [
                 "vehicles"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{tempCustomerId}}\",\n  \"plate\": \"MNT-9999\",\n  \"brand\": \"Demo\",\n  \"model\": \"Maintenance\",\n  \"year\": 2024\n}"
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Create Temp Service (admin)",
@@ -2209,6 +2275,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maintenance Demo Service\",\n  \"price\": 99,\n  \"estimatedMinutes\": 15\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/services",
               "host": [
@@ -2217,12 +2287,9 @@
               "path": [
                 "services"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Maintenance Demo Service\",\n  \"price\": 99,\n  \"estimatedMinutes\": 15\n}"
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Create Temp Item (admin)",
@@ -2250,6 +2317,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maintenance Demo Item\",\n  \"price\": 5,\n  \"stockQuantity\": 1\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/items",
               "host": [
@@ -2258,12 +2329,9 @@
               "path": [
                 "items"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Maintenance Demo Item\",\n  \"price\": 5,\n  \"stockQuantity\": 1\n}"
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Update Temp Customer (PUT)",
@@ -2290,6 +2358,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"11988888888\"\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/customers/{{tempCustomerId}}",
               "host": [
@@ -2299,12 +2371,9 @@
                 "customers",
                 "{{tempCustomerId}}"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"phone\": \"11988888888\"\n}"
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Update Temp Vehicle (PUT)",
@@ -2331,6 +2400,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"Maintenance Updated\"\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/vehicles/{{tempVehicleId}}",
               "host": [
@@ -2340,12 +2413,9 @@
                 "vehicles",
                 "{{tempVehicleId}}"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"model\": \"Maintenance Updated\"\n}"
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Update Temp Service (PUT)",
@@ -2372,6 +2442,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 110\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/services/{{tempServiceId}}",
               "host": [
@@ -2381,12 +2455,9 @@
                 "services",
                 "{{tempServiceId}}"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"price\": 110\n}"
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Update Temp Item (PUT)",
@@ -2413,6 +2484,10 @@
                 "value": "application/json"
               }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stockQuantity\": 5\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/items/{{tempItemId}}",
               "host": [
@@ -2422,12 +2497,9 @@
                 "items",
                 "{{tempItemId}}"
               ]
-            },
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"stockQuantity\": 5\n}"
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Delete Temp Vehicle",
@@ -2460,7 +2532,8 @@
                 "{{tempVehicleId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Delete Temp Customer (soft)",
@@ -2493,7 +2566,8 @@
                 "{{tempCustomerId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Delete Temp Service",
@@ -2526,7 +2600,8 @@
                 "{{tempServiceId}}"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "Delete Temp Item",
@@ -2559,11 +2634,10 @@
                 "{{tempItemId}}"
               ]
             }
-          }
+          },
+          "response": []
         }
       ]
     }
-  ],
-  "event": [],
-  "variable": []
+  ]
 }
