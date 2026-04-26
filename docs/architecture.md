@@ -1,71 +1,71 @@
-# Architecture — Car Repair Shop API
+# Arquitetura — Car Repair Shop API
 
-**Project:** FIAP Tech Challenge — Phase 1  
-**Version:** 1.0 (MVP)  
+**Projeto:** FIAP Tech Challenge — Fase 1
+**Versão:** 1.0 (MVP)
 **Stack:** Node.js + TypeScript + Express + MongoDB
 
 ---
 
-## 1. Context
+## 1. Contexto
 
-Backend MVP for a mid-sized car repair shop. Replaces manual notes and spreadsheets with an integrated system that manages customers, vehicles, service orders, and parts inventory.
+MVP de backend para uma oficina mecânica de médio porte. Substitui anotações manuais e planilhas por um sistema integrado que gerencia clientes, veículos, ordens de serviço e estoque de peças.
 
-**Core problem:** service orders without traceability — no customer history, no parts control, no status visibility.
+**Problema central:** ordens de serviço sem rastreabilidade — sem histórico do cliente, sem controle de peças, sem visibilidade de status.
 
-**Solution:** monolithic REST API with auditable OS state, customer-driven budget approval via verification code, and stock reservation tracked across the OS lifecycle.
+**Solução:** API REST monolítica com estado de OS auditável, aprovação de orçamento pelo cliente via código de verificação e reserva de estoque acompanhada ao longo do ciclo de vida da OS.
 
 ---
 
-## 2. Stack and Decisions
+## 2. Stack e Decisões
 
-| Concern | Choice | Rationale |
+| Tema | Escolha | Razão |
 |---|---|---|
-| Runtime | Node.js + TypeScript | Static typing prevents domain errors; native async fits IO-bound work |
-| HTTP | Express | Minimal, unopinionated about structure — compatible with hexagonal architecture |
-| Database | MongoDB + Mongoose | ServiceOrder is a natural document — owns services and items that have no life outside the OS; eliminates joins |
-| Auth | jsonwebtoken + bcryptjs | Stateless JWT fits the MVP; bcrypt with 12 rounds for passwords |
-| API Docs | swagger-jsdoc + swagger-ui-express | Documentation next to code; supports inline JSDoc on routes |
-| Tests | Jest + ts-jest + Supertest + mongodb-memory-server | Unit tests with no database dependency; integration tests with no external infra |
-| Container | Docker + docker-compose | Reproducible environment; project requirement |
-| Rate limiting | express-rate-limit | Protects login and budget approval against brute force |
+| Runtime | Node.js + TypeScript | Tipagem estática evita erros de domínio; async nativo encaixa com trabalho IO-bound |
+| HTTP | Express | Mínimo, sem opinião sobre estrutura — compatível com arquitetura hexagonal |
+| Banco | MongoDB + Mongoose | ServiceOrder é um documento natural — agrupa serviços e itens que não existem fora da OS; elimina joins |
+| Auth | jsonwebtoken + bcryptjs | JWT stateless cabe no MVP; bcrypt com 12 rounds para senhas |
+| Docs API | swagger-jsdoc + swagger-ui-express | Documentação ao lado do código; suporta JSDoc inline nas rotas |
+| Testes | Jest + ts-jest + Supertest + mongodb-memory-server | Unitários sem dependência de banco; integração sem infra externa |
+| Container | Docker + docker-compose | Ambiente reprodutível; requisito do projeto |
+| Rate limiting | express-rate-limit | Protege login e aprovação de orçamento contra brute force |
 
 ---
 
-## 3. Architecture — Simple Hexagonal
+## 3. Arquitetura — Hexagonal Simples
 
 ```
 src/
   domain/
-    entities/          # Pure TypeScript interfaces — no framework coupling
-    ports/             # Repository interfaces (ICustomerRepository, etc.)
+    entities/          # Interfaces TypeScript puras — sem acoplamento a frameworks
+    ports/             # Interfaces de repositório (ICustomerRepository, etc.)
     errors/            # AppError, NotFoundError, ValidationError
-    validators.ts      # CPF, CNPJ, plate validation — pure functions
-    serviceOrderStateMachine.ts  # Valid OS transitions — pure functions
+    validators.ts      # Validações de CPF, CNPJ, placa — funções puras
+    serviceOrderStateMachine.ts  # Transições válidas da OS — funções puras
   application/
-    use-cases/         # One file per use case; depends only on domain ports
+    use-cases/         # Um arquivo por use case; depende só dos ports do domínio
   infrastructure/
     http/
-      routes/          # Express routers — one per resource
+      routes/          # Routers Express — um por recurso
       middlewares/     # authMiddleware, roleMiddleware, errorMiddleware
     persistence/
-      models/          # Mongoose schemas
-      repositories/    # Domain port implementations
-      seed.ts          # Creates default admin on first run
-    notifications/     # INotificationService adapters (MVP: console-log mock)
-    swagger/           # swagger-jsdoc configuration
-  app.ts               # Express setup, route registration
-  main.ts              # Bootstrap, DB connection, graceful shutdown
+      models/          # Schemas Mongoose
+      repositories/    # Implementações dos ports do domínio
+      seed.ts          # Cria o admin padrão na primeira execução
+    notifications/     # Adapters de INotificationService (MVP: mock console-log)
+    swagger/           # Configuração do swagger-jsdoc
+  app.ts               # Setup do Express, registro de rotas
+  main.ts              # Bootstrap, conexão com o banco, graceful shutdown
 ```
 
-**Dependency rule:** `domain/` and `application/` import nothing from `infrastructure/`. Dependency inversion is enforced by port interfaces.
+**Regra de dependência:** `domain/` e `application/` não importam nada de `infrastructure/`. A inversão de dependência é garantida pelas interfaces dos ports.
 
-**Why this matters for future phases:** adding a new database, message queue, or delivery channel only requires a new port implementation — the use cases stay the same.
+**Por que isso importa para fases futuras:** trocar de banco, adicionar uma fila de mensagens ou um novo canal de entrega exige só uma nova implementação de port — os use cases não mudam.
 
 ---
 
-## 4. Data Model
+## 4. Modelo de Dados
 
-### Entities and relationships
+### Entidades e relacionamentos
 
 ```
 User
@@ -74,7 +74,7 @@ User
 
 Customer
   _id, name
-  taxId: string        # digits only (CPF: 11, CNPJ: 14)
+  taxId: string        # só dígitos (CPF: 11, CNPJ: 14)
   taxType: 'CPF' | 'CNPJ'
   email, phone
   createdAt, updatedAt, deletedAt?   # soft delete
@@ -89,219 +89,210 @@ Service
 
 Item
   _id, name, price
-  stockQuantity        # total in stock
-  reservedQuantity     # reserved for in-flight OS
-  # availableQuantity = stockQuantity - reservedQuantity (derived, not stored)
+  stockQuantity        # total em estoque
+  reservedQuantity     # reservado por OS em andamento
+  # availableQuantity = stockQuantity - reservedQuantity (derivado, não persistido)
 
 ServiceOrder
   _id
   customerId → Customer
   vehicleId  → Vehicle
   status: OSStatus
-  budgetTotal?         # computed at the DIAGNOSIS -> WAITING_APPROVAL transition, stored as a fixed value
+  budgetTotal?         # calculado na transição DIAGNOSIS -> WAITING_APPROVAL, persistido como valor fixo
   services: [{ serviceId → Service, startedAt?, finishedAt? }]
   items:    [{ itemId → Item, quantity }]
   createdAt, startedAt?, finishedAt?, deliveredAt?
 ```
 
-**Note:** `services[]` and `items[]` store only references (`serviceId`, `itemId`). Prices are resolved at the `DIAGNOSIS → WAITING_APPROVAL` transition and stored in `budgetTotal` — price frozen at quote time, immune to future catalog changes.
+**Observação:** `services[]` e `items[]` guardam só referências (`serviceId`, `itemId`). Os preços são resolvidos na transição `DIAGNOSIS → WAITING_APPROVAL` e gravados em `budgetTotal` — preço congelado no momento do orçamento, imune a mudanças futuras no catálogo.
 
 ---
 
-## 5. State Machine — Service Order
+## 5. Máquina de Estados — Service Order
 
 ```
 RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINISHED → DELIVERED
                                         ↘ REJECTED (terminal)
 ```
 
-OS transitions are split between two body-driven endpoints:
+As transições da OS estão divididas em dois endpoints comandados pelo body:
 
-- **Internal transitions** — `PATCH /service-orders/:id` with `{ status }`. JWT, mechanic+admin.
-- **Customer budget decision** — `PATCH /service-orders/:id/budget` with `{ status, code }`. Public, rate-limited 5/h per IP+OS.
+- **Transições internas** — `PATCH /service-orders/:id` com `{ status }`. JWT, mechanic+admin.
+- **Decisão de orçamento pelo cliente** — `PATCH /service-orders/:id/budget` com `{ status, code }`. Pública, rate-limited 5/h por IP+OS.
 
-| Transition | Endpoint | Body | Actor | Side effect |
+| Transição | Endpoint | Body | Ator | Efeito colateral |
 |---|---|---|---|---|
 | RECEIVED → DIAGNOSIS | `PATCH /service-orders/:id` | `{ status: "DIAGNOSIS" }` | mechanic, admin | — |
-| DIAGNOSIS → WAITING_APPROVAL | `PATCH /service-orders/:id` | `{ status: "WAITING_APPROVAL" }` | mechanic, admin | Computes and persists `budgetTotal`; fires a best-effort customer notification through `INotificationService` (MVP: `console.log` mock) |
-| WAITING_APPROVAL → APPROVED | `PATCH /service-orders/:id/budget` | `{ status: "APPROVED", code: "..." }` | public (4-digit code, rate-limited) | Item reservations already made on add-item |
-| WAITING_APPROVAL → REJECTED | `PATCH /service-orders/:id/budget` | `{ status: "REJECTED", code: "..." }` | public (4-digit code, rate-limited) | Releases `reservedQuantity` of all OS items |
-| APPROVED → EXECUTION | `PATCH /service-orders/:id` | `{ status: "EXECUTION" }` | mechanic, admin | Decrements `stockQuantity` and zeroes `reservedQuantity` of OS items |
-| EXECUTION → FINISHED | `PATCH /service-orders/:id` | `{ status: "FINISHED" }` | mechanic, admin | Records `finishedAt` |
-| FINISHED → DELIVERED | `PATCH /service-orders/:id` | `{ status: "DELIVERED" }` | mechanic, admin | Records `deliveredAt` |
+| DIAGNOSIS → WAITING_APPROVAL | `PATCH /service-orders/:id` | `{ status: "WAITING_APPROVAL" }` | mechanic, admin | Calcula e persiste `budgetTotal`; dispara notificação best-effort ao cliente via `INotificationService` (MVP: mock `console.log`) |
+| WAITING_APPROVAL → APPROVED | `PATCH /service-orders/:id/budget` | `{ status: "APPROVED", code: "..." }` | público (código 4 dígitos, rate-limited) | Reservas de itens já feitas no add-item |
+| WAITING_APPROVAL → REJECTED | `PATCH /service-orders/:id/budget` | `{ status: "REJECTED", code: "..." }` | público (código 4 dígitos, rate-limited) | Libera `reservedQuantity` de todos os itens da OS |
+| APPROVED → EXECUTION | `PATCH /service-orders/:id` | `{ status: "EXECUTION" }` | mechanic, admin | Decrementa `stockQuantity` e zera `reservedQuantity` dos itens da OS |
+| EXECUTION → FINISHED | `PATCH /service-orders/:id` | `{ status: "FINISHED" }` | mechanic, admin | Grava `finishedAt` |
+| FINISHED → DELIVERED | `PATCH /service-orders/:id` | `{ status: "DELIVERED" }` | mechanic, admin | Grava `deliveredAt` |
 
-Individual OS services are updated via `PATCH /service-orders/:id/services/:serviceId` with `{ status: "IN_PROGRESS" | "COMPLETED" }` (records `startedAt`/`finishedAt`).
+Serviços individuais da OS são atualizados via `PATCH /service-orders/:id/services/:serviceId` com `{ status: "IN_PROGRESS" | "COMPLETED" }` (grava `startedAt`/`finishedAt`).
 
-**Approval code:** first 4 digits of the customer's CPF or CNPJ. Not actively sent in the MVP — the customer checks the OS status through the public endpoint and uses the code they already know.
+**Código de aprovação:** primeiros 4 dígitos do CPF ou CNPJ do cliente. Não é enviado ativamente no MVP — o cliente consulta o status da OS pelo endpoint público e usa o código que já conhece.
 
-**Stock reservation:**
-- `add-item-to-OS` → increments `reservedQuantity`
-- `remove-item-from-OS` → decrements `reservedQuantity`
-- transition `EXECUTION` → decrements `stockQuantity`, zeroes `reservedQuantity`
-- transition `REJECTED` → decrements `reservedQuantity` (releases reservation)
+**Reserva de estoque:**
+- `add-item-to-OS` → incrementa `reservedQuantity`
+- `remove-item-from-OS` → decrementa `reservedQuantity`
+- transição `EXECUTION` → decrementa `stockQuantity`, zera `reservedQuantity`
+- transição `REJECTED` → decrementa `reservedQuantity` (libera reserva)
 
 ---
 
 ## 6. API — Endpoints
 
 ### Auth
-| Method | Route | Access | Description |
+| Método | Rota | Acesso | Descrição |
 |---|---|---|---|
-| POST | /auth/login | public | Authenticate and return JWT |
-| POST | /auth/register | admin | Create a new user |
+| POST | /auth/login | público | Autentica e retorna JWT |
+| POST | /auth/register | admin | Cria um novo usuário |
 
 ### Customers
-| Method | Route | Access | Description |
+| Método | Rota | Acesso | Descrição |
 |---|---|---|---|
-| GET | /customers | authenticated | List customers |
-| POST | /customers | attendant, admin | Create customer |
-| GET | /customers/:id | authenticated | Get by ID |
-| GET | /customers/tax/:taxId | authenticated | Find by CPF/CNPJ |
-| PUT | /customers/:id | attendant, admin | Update customer |
+| GET | /customers | autenticado | Lista clientes |
+| POST | /customers | attendant, admin | Cria cliente |
+| GET | /customers/:id | autenticado | Busca por ID |
+| GET | /customers/tax/:taxId | autenticado | Busca por CPF/CNPJ |
+| PUT | /customers/:id | attendant, admin | Atualiza cliente |
 | DELETE | /customers/:id | attendant, admin | Soft delete |
 
 ### Vehicles
-| Method | Route | Access | Description |
+| Método | Rota | Acesso | Descrição |
 |---|---|---|---|
-| GET | /vehicles | authenticated | List (filter: `?customerId=`) |
-| POST | /vehicles | attendant, admin | Create vehicle |
-| GET | /vehicles/:id | authenticated | Get by ID |
-| PUT | /vehicles/:id | attendant, admin | Update vehicle |
-| DELETE | /vehicles/:id | attendant, admin | Remove vehicle |
+| GET | /vehicles | autenticado | Lista (filtro: `?customerId=`) |
+| POST | /vehicles | attendant, admin | Cria veículo |
+| GET | /vehicles/:id | autenticado | Busca por ID |
+| PUT | /vehicles/:id | attendant, admin | Atualiza veículo |
+| DELETE | /vehicles/:id | attendant, admin | Remove veículo |
 
-### Services (catalog)
-| Method | Route | Access | Description |
+### Services (catálogo)
+| Método | Rota | Acesso | Descrição |
 |---|---|---|---|
-| GET | /services | authenticated | List catalog services |
-| POST | /services | admin | Create service |
-| GET | /services/:id | authenticated | Get by ID |
-| PUT | /services/:id | admin | Update service |
-| DELETE | /services/:id | admin | Remove service |
+| GET | /services | autenticado | Lista serviços do catálogo |
+| POST | /services | admin | Cria serviço |
+| GET | /services/:id | autenticado | Busca por ID |
+| PUT | /services/:id | admin | Atualiza serviço |
+| DELETE | /services/:id | admin | Remove serviço |
 
-### Items (inventory)
-| Method | Route | Access | Description |
+### Items (estoque)
+| Método | Rota | Acesso | Descrição |
 |---|---|---|---|
-| GET | /items | authenticated | List items |
-| POST | /items | admin | Create item |
-| GET | /items/:id | authenticated | Get by ID |
-| PUT | /items/:id | admin | Update item |
+| GET | /items | autenticado | Lista itens |
+| POST | /items | admin | Cria item |
+| GET | /items/:id | autenticado | Busca por ID |
+| PUT | /items/:id | admin | Atualiza item |
 | DELETE | /items/:id | admin | Remove item |
 
 ### Service Orders
-| Method | Route | Access | Description |
+| Método | Rota | Acesso | Descrição |
 |---|---|---|---|
-| GET | /service-orders | authenticated | List OS (filters: status, customerId, from, to) |
-| POST | /service-orders | attendant, admin | Create OS |
-| GET | /service-orders/:id | authenticated | Get OS detail |
-| GET | /service-orders/stats/avg-execution | authenticated (attendant, admin) | Average execution time grouped by service |
-| GET | /service-orders/:id/status | public | OS status and `budgetTotal` |
-| POST | /service-orders/:id/services | mechanic, admin | Add service to OS |
-| DELETE | /service-orders/:id/services/:serviceId | mechanic, admin | Remove service from OS |
-| POST | /service-orders/:id/items | mechanic, admin | Add item to OS |
-| DELETE | /service-orders/:id/items/:itemId | mechanic, admin | Remove item from OS |
-| PATCH | /service-orders/:id | mechanic, admin | Internal OS state transition driven by `{ status }` in body |
-| PATCH | /service-orders/:id/budget | public, rate-limited | Customer budget decision driven by `{ status: "APPROVED" \| "REJECTED", code }` in body |
-| PATCH | /service-orders/:id/services/:serviceId | mechanic, admin | Per-service transition driven by `{ status: "IN_PROGRESS" \| "COMPLETED" }` in body |
+| GET | /service-orders | autenticado | Lista OS (filtros: status, customerId, from, to) |
+| POST | /service-orders | attendant, admin | Cria OS |
+| GET | /service-orders/:id | autenticado | Detalhe da OS |
+| GET | /service-orders/stats/avg-execution | autenticado (attendant, admin) | Tempo médio de execução agrupado por serviço |
+| GET | /service-orders/:id/status | público | Status da OS e `budgetTotal` |
+| POST | /service-orders/:id/services | mechanic, admin | Adiciona serviço à OS |
+| DELETE | /service-orders/:id/services/:serviceId | mechanic, admin | Remove serviço da OS |
+| POST | /service-orders/:id/items | mechanic, admin | Adiciona item à OS |
+| DELETE | /service-orders/:id/items/:itemId | mechanic, admin | Remove item da OS |
+| PATCH | /service-orders/:id | mechanic, admin | Transição interna comandada por `{ status }` no body |
+| PATCH | /service-orders/:id/budget | público, rate-limited | Decisão de orçamento via `{ status: "APPROVED" \| "REJECTED", code }` no body |
+| PATCH | /service-orders/:id/services/:serviceId | mechanic, admin | Transição por serviço via `{ status: "IN_PROGRESS" \| "COMPLETED" }` no body |
 
 ---
 
-## 7. Security
+## 7. Segurança
 
-### Authentication and authorization
-- JWT with 24h expiration; secret via env var `JWT_SECRET`
-- RBAC with 3 roles: `attendant`, `mechanic`, `admin`
-- `authMiddleware` validates the token on every authenticated route
-- `requireRole(...roles)` enforces per-action permissions
+### Autenticação e autorização
+- JWT com expiração de 24h; segredo via env var `JWT_SECRET`
+- RBAC com 3 papéis: `attendant`, `mechanic`, `admin`
+- `authMiddleware` valida o token em toda rota autenticada
+- `requireRole(...roles)` aplica permissões por ação
 
 ### Rate limiting
-- `POST /auth/login`: 10 req / 15 min per IP
-- `PATCH /service-orders/:id/budget` (public): 5 req / hour per IP + OS ID combination
+- `POST /auth/login`: 10 req / 15 min por IP
+- `PATCH /service-orders/:id/budget` (público): 5 req / hora por combinação IP + ID da OS
 
-### Sensitive data validation
-- CPF: 11 digits + validation of both check digits (mod 11)
-- CNPJ: 14 digits + validation of both check digits (mod 11)
-- Plate: legacy format (`ABC-1234`) and Mercosul (`ABC1D23`)
-- All validation lives as pure functions in `domain/validators.ts`
+### Validação de dados sensíveis
+- CPF: 11 dígitos + validação dos 2 dígitos verificadores (mod 11)
+- CNPJ: 14 dígitos + validação dos 2 dígitos verificadores (mod 11)
+- Placa: formato antigo (`ABC-1234`) e Mercosul (`ABC1D23`)
+- Toda validação fica como função pura em `domain/validators.ts`
 
-### OWASP best practices
-- Passwords: bcrypt with 12 rounds; never returned in responses
-- CPF/CNPJ: stored as digits only; never returned in OS responses
-- Queries: parameterized via Mongoose — no string interpolation
+### Boas práticas OWASP
+- Senhas: bcrypt com 12 rounds; nunca devolvidas nas responses
+- CPF/CNPJ: armazenados só como dígitos; nunca devolvidos nas responses de OS
+- Queries: parametrizadas via Mongoose — sem interpolação de string
 - CORS: allowlist via env var `CORS_ORIGIN`
-- Security headers: `helmet` enabled
+- Headers de segurança: `helmet` habilitado
 
-### Default admin seed
-- Created on first startup via `infrastructure/persistence/seed.ts`
+### Seed do admin padrão
+- Criado no primeiro startup via `infrastructure/persistence/seed.ts`
 - Email: `ADMIN_EMAIL` (env var) — fallback: `admin@master.com`
-- Password: `ADMIN_PASSWORD` (env var) — **must not rely on a fallback in production**
+- Senha: `ADMIN_PASSWORD` (env var) — **não confie em fallback em produção**
 
 ---
 
-## 8. Tests
+## 8. Testes
 
-### Strategy
-- **Unit** (`tests/unit/`): use-case layer; repositories mocked via port interfaces; no real database
-- **Integration** (`tests/integration/`): HTTP layer through Supertest against `mongodb-memory-server`; no external infra
+### Estratégia
+- **Unitários** (`tests/unit/`): camada de use case; repositórios mockados via interfaces de port; sem banco real
+- **Integração** (`tests/integration/`): camada HTTP via Supertest contra `mongodb-memory-server`; sem infra externa
 
-### Conventions
-- Test descriptions follow the **GIVEN / WHEN / THEN** pattern
-- Shared fixtures in `tests/unit/fixtures/` (domain objects + mock factory functions)
+### Convenções
+- Descrições de teste seguem o padrão **GIVEN / WHEN / THEN**
+- Fixtures compartilhadas em `tests/unit/fixtures/` (objetos de domínio + factories de mock)
 
-### Coverage
-- Target: >= 80% on critical domains (use cases, state machine, validators)
-- Configured in `jest.config.ts` via `coverageThreshold`
+### Cobertura
+- Meta: ≥ 80% nos domínios críticos (use cases, máquina de estados, validators)
+- Configurada em `jest.config.ts` via `coverageThreshold`
 
-### Run
+### Executar
 ```bash
-npm test                  # all tests
-npm run test:coverage     # with coverage report
+npm test                  # todos os testes
+npm run test:coverage     # com relatório de cobertura
 ```
 
 ---
 
-## 9. Infrastructure
+## 9. Infraestrutura
 
-### Environment variables
+### Variáveis de ambiente
 
-| Variable | Description | Example |
+| Variável | Descrição | Exemplo |
 |---|---|---|
-| `MONGO_URI` | MongoDB connection URI | `mongodb://mongo:27017/repair-shop` |
-| `JWT_SECRET` | Secret used to sign tokens | long random string |
-| `JWT_EXPIRES_IN` | Token expiration | `24h` |
-| `CORS_ORIGIN` | Allowed CORS origin | `http://localhost:3000` |
-| `PORT` | Application port | `3000` |
-| `ADMIN_EMAIL` | Default admin email | `admin@master.com` |
-| `ADMIN_PASSWORD` | Default admin password | — do not use a default in production — |
+| `MONGO_URI` | URI de conexão com o MongoDB | `mongodb://mongo:27017/repair-shop` |
+| `JWT_SECRET` | Segredo usado para assinar tokens | string longa e aleatória |
+| `JWT_EXPIRES_IN` | Expiração do token | `24h` |
+| `CORS_ORIGIN` | Origem CORS permitida | `http://localhost:3000` |
+| `PORT` | Porta da aplicação | `3000` |
+| `ADMIN_EMAIL` | Email do admin padrão | `admin@master.com` |
+| `ADMIN_PASSWORD` | Senha do admin padrão | — não use default em produção — |
 
 ### Docker
 ```bash
-# Bring up the full environment (app + MongoDB)
+# Sobe o ambiente completo (app + MongoDB)
 docker-compose up --build
 
-# Build the image standalone
+# Build da imagem isolada
 docker build -t car-repair-shop-api .
 ```
 
-**Dockerfile:** multi-stage — `builder` stage compiles TypeScript; `runtime` stage copies only `dist/` and installs production dependencies.
+**Dockerfile:** multi-stage — estágio `builder` compila o TypeScript; estágio `runtime` copia só `dist/` e instala as dependências de produção.
 
 ### Swagger UI
-Available at `/docs` when the application is running.
+Disponível em `/docs` quando a aplicação está rodando.
 
 ---
 
-## 10. Gaps and Next Steps
+## 10. Gaps e Próximos Passos
 
-Items identified in the Phase 1 review. All were addressed on branch `feat/phase-1-adjustments`.
+Itens identificados na revisão da Fase 1. Todos foram tratados em branches dedicadas.
 
 | # | Item | Status |
 |---|---|---|
-| 1 | **Correct role for add-service/add-item** — `mechanic` per Event Storming | Done |
-| 2 | **Average execution time endpoint** — `GET /service-orders/stats/avg-execution` | Done |
-| 3 | **SonarQube** — `sonar-project.properties` and analysis script added | Done |
-| 4 | **Vulnerability report** — `npm audit` executed and documented | Done |
-| 5 | **Tests: GIVEN/WHEN/THEN** — unit test descriptions rewritten | Done |
-| 6 | **DRY refactor** — `findOSOrThrow` and `verifyCustomerCode` extracted into `application/utils/` | Done |
-| 7 | **Test fixtures** — `tests/unit/fixtures/` created with shared factories | Done |
-| 8 | **Admin password via env var** — `ADMIN_PASSWORD` required; seed skipped if absent | Done |
-| 9 | **helmet** — HTTP security headers enabled | Done |
-| 10 | **Customer notification on `DIAGNOSIS → WAITING_APPROVAL`** — `INotificationService` port + `ConsoleNotificationService` mock adapter; best-effort, never rolls back the transition | Done (mock; ready for a real adapter post-MVP) |
+| 1 | **Notificação ao cliente em `DIAGNOSIS → WAITING_APPROVAL`** — port `INotificationService` + adapter mock `ConsoleNotificationService`; best-effort, nunca faz rollback da transição | Concluído (mock; pronto para um adapter real pós-MVP) |
