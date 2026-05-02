@@ -28,8 +28,8 @@ Run the folders in numbered order. Each request persists what subsequent ones ne
 |---|--------|--------------|
 | 00 | Setup | Admin login, attendant/mechanic registration (idempotent: accepts 201 or 409), login for both roles |
 | 01 | Catalog (admin) | Creates a service (Oil Change, R$ 120) and an item (5W30 Oil, R$ 40, stock 10) |
-| 02 | Customer and Vehicle (attendant) | Creates a customer with CPF (`52998224725`, first 4 digits = approval code `5299`) and a vehicle `ABC-1234` |
-| 03 | OS Happy Path | Full lifecycle: create OS → diagnosis → add service + item (qty 2) → finish diagnosis (`budgetTotal = 200`) → public status read → approve with code `5299` → execution → delivery |
+| 02 | Customer and Vehicle (attendant) | Creates a customer with CPF (`96627075300`, first 4 digits = approval code `9662`) and a vehicle `ABC-1234` (idempotent: 409 reuses the existing record) |
+| 03 | OS Happy Path | Full lifecycle: create OS → diagnosis → add service + item (qty 2) → finish diagnosis (`budgetTotal = 200`) → public status read → approve with code `9662` → execution → delivery |
 | 04 | Rejection | Second OS rejected after the budget — verifies the item returns to stock |
 | 05 | Stats and Listings | `avg-execution`, filters by `status` and `customerId`, detail by ID |
 | 06 | Error Scenarios | 401 (wrong password, no token), 403 (wrong role), 400 (invalid CPF/plate, wrong code, invalid transition), 404 |

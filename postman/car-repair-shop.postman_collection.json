@@ -237,7 +237,7 @@
       "name": "01 - Catalog (admin)",
       "item": [
         {
-          "name": "Create Service (Oil Change)",
+          "name": "Create Service (Oil Change Postman)",
           "event": [
             {
               "listen": "test",
@@ -266,7 +266,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Oil Change\",\n  \"price\": 120,\n  \"estimatedMinutes\": 30\n}"
+              "raw": "{\n  \"name\": \"Oil Change (Postman)\",\n  \"price\": 120,\n  \"estimatedMinutes\": 30\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/services",
@@ -452,10 +452,29 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.environment.set('customerId', body.id);",
-                  "pm.test('taxType CPF', () => pm.expect(body.taxType).to.eql('CPF'));"
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.environment.set('customerId', body.id);",
+                  "  pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "  pm.test('taxType CPF', () => pm.expect(body.taxType).to.eql('CPF'));",
+                  "} else if (pm.response.code === 409) {",
+                  "  pm.test('customer already existed (409) - reusing via tax id', (done) => {",
+                  "    pm.sendRequest({",
+                  "      url: pm.environment.get('baseUrl') + '/customers/tax/' + pm.environment.get('customerTaxId'),",
+                  "      method: 'GET',",
+                  "      header: { Authorization: 'Bearer ' + pm.environment.get('attendantToken') }",
+                  "    }, (err, res) => {",
+                  "      pm.expect(err).to.be.null;",
+                  "      pm.expect(res.code, 'lookup by tax id').to.eql(200);",
+                  "      const body = res.json();",
+                  "      pm.environment.set('customerId', body.id);",
+                  "      pm.expect(body.taxType).to.eql('CPF');",
+                  "      done();",
+                  "    });",
+                  "  });",
+                  "} else {",
+                  "  pm.test('status 201 or 409', () => pm.expect([201,409]).to.include(pm.response.code));",
+                  "}"
                 ]
               }
             }
@@ -577,9 +596,28 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 201', () => pm.response.to.have.status(201));",
-                  "const body = pm.response.json();",
-                  "pm.environment.set('vehicleId', body.id);"
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.environment.set('vehicleId', body.id);",
+                  "  pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "} else if (pm.response.code === 409) {",
+                  "  pm.test('vehicle already existed (409) - reusing via plate', (done) => {",
+                  "    pm.sendRequest({",
+                  "      url: pm.environment.get('baseUrl') + '/vehicles?customerId=' + pm.environment.get('customerId'),",
+                  "      method: 'GET',",
+                  "      header: { Authorization: 'Bearer ' + pm.environment.get('attendantToken') }",
+                  "    }, (err, res) => {",
+                  "      pm.expect(err).to.be.null;",
+                  "      pm.expect(res.code, 'list vehicles by customer').to.eql(200);",
+                  "      const v = res.json().find(x => (x.plate || '').toUpperCase() === 'ABC-1234');",
+                  "      pm.expect(v, 'vehicle with plate ABC-1234').to.be.an('object');",
+                  "      pm.environment.set('vehicleId', v.id);",
+                  "      done();",
+                  "    });",
+                  "  });",
+                  "} else {",
+                  "  pm.test('status 201 or 409', () => pm.expect([201,409]).to.include(pm.response.code));",
+                  "}"
                 ]
               }
             }
@@ -2173,8 +2211,25 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 201', () => pm.response.to.have.status(201));",
-                  "pm.environment.set('tempCustomerId', pm.response.json().id);"
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('tempCustomerId', pm.response.json().id);",
+                  "  pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "} else if (pm.response.code === 409) {",
+                  "  pm.test('temp customer already existed (409) - reusing via tax id', (done) => {",
+                  "    pm.sendRequest({",
+                  "      url: pm.environment.get('baseUrl') + '/customers/tax/63927761508',",
+                  "      method: 'GET',",
+                  "      header: { Authorization: 'Bearer ' + pm.environment.get('adminToken') }",
+                  "    }, (err, res) => {",
+                  "      pm.expect(err).to.be.null;",
+                  "      pm.expect(res.code, 'lookup by tax id').to.eql(200);",
+                  "      pm.environment.set('tempCustomerId', res.json().id);",
+                  "      done();",
+                  "    });",
+                  "  });",
+                  "} else {",
+                  "  pm.test('status 201 or 409', () => pm.expect([201,409]).to.include(pm.response.code));",
+                  "}"
                 ]
               }
             }
@@ -2193,7 +2248,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Maintenance Demo\",\n  \"taxId\": \"11144477735\",\n  \"email\": \"demo+maint@example.com\",\n  \"phone\": \"11999999999\",\n  \"taxType\": \"CPF\"\n}"
+              "raw": "{\n  \"name\": \"Maintenance Demo\",\n  \"taxId\": \"63927761508\",\n  \"email\": \"demo+maint@example.com\",\n  \"phone\": \"11999999999\",\n  \"taxType\": \"CPF\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/customers",
@@ -2215,8 +2270,27 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 201', () => pm.response.to.have.status(201));",
-                  "pm.environment.set('tempVehicleId', pm.response.json().id);"
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('tempVehicleId', pm.response.json().id);",
+                  "  pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "} else if (pm.response.code === 409) {",
+                  "  pm.test('temp vehicle already existed (409) - reusing via plate', (done) => {",
+                  "    pm.sendRequest({",
+                  "      url: pm.environment.get('baseUrl') + '/vehicles?customerId=' + pm.environment.get('tempCustomerId'),",
+                  "      method: 'GET',",
+                  "      header: { Authorization: 'Bearer ' + pm.environment.get('attendantToken') }",
+                  "    }, (err, res) => {",
+                  "      pm.expect(err).to.be.null;",
+                  "      pm.expect(res.code, 'list vehicles by customer').to.eql(200);",
+                  "      const v = res.json().find(x => (x.plate || '').toUpperCase() === 'MNT-9999');",
+                  "      pm.expect(v, 'vehicle with plate MNT-9999').to.be.an('object');",
+                  "      pm.environment.set('tempVehicleId', v.id);",
+                  "      done();",
+                  "    });",
+                  "  });",
+                  "} else {",
+                  "  pm.test('status 201 or 409', () => pm.expect([201,409]).to.include(pm.response.code));",
+                  "}"
                 ]
               }
             }

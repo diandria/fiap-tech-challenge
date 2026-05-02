@@ -15,27 +15,22 @@ const options: swaggerJsdoc.Options = {
       version: '1.0.0',
       description: `REST API for managing service orders, customers, vehicles, services, and inventory for a car repair shop.
 
-## Getting started
+## Authentication
 
-A default admin user is created automatically on first startup:
+On first startup the API seeds a default admin user using the \`ADMIN_EMAIL\` and \`ADMIN_PASSWORD\` environment variables. Refer to your deployment configuration for the active credentials.
 
-| Field    | Value             |
-|----------|-------------------|
-| email    | \`admin@master.com\` |
-| password | \`admin\`           |
-
-### How to authenticate
-
-1. Expand **POST /auth/login** below, click **Try it out**, and send the credentials above.
+1. Call **POST /auth/login** with valid credentials.
 2. Copy the \`token\` from the response.
-3. Click the **Authorize** button (🔒 top-right), paste the token — **without** the \`Bearer \` prefix — and click **Authorize**.
+3. Click **Authorize** (top-right), paste the token (without the \`Bearer \` prefix) and confirm.
 
-All protected endpoints will now include the JWT automatically.
+Protected endpoints will then send the JWT automatically.
 
-> Public endpoints (no token required):
-> - \`GET /service-orders/{id}/status\` — check OS status and budget total.
-> - \`PATCH /service-orders/{id}/budget\` with body \`{"status":"APPROVED","code":"5299"}\` or \`{"status":"REJECTED","code":"5299"}\` — customer-facing budget approval/rejection (rate-limited; \`code\` = first 4 digits of CPF/CNPJ).
-> All other OS transitions go through \`PATCH /service-orders/{id}\` with the target \`status\` in the body and require a JWT with role \`mechanic\` or \`admin\`.`,
+## Public endpoints (no token required)
+
+- \`GET /service-orders/{id}/status\` — check OS status and budget total.
+- \`PATCH /service-orders/{id}/budget\` — customer-facing budget approval or rejection. Rate-limited; the \`code\` field corresponds to the first 4 digits of the customer's CPF/CNPJ.
+
+All other OS transitions go through \`PATCH /service-orders/{id}\` with the target \`status\` in the body and require a JWT with role \`mechanic\` or \`admin\`.`,
     },
     components: {
       securitySchemes: {

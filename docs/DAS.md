@@ -21,6 +21,124 @@ MVP de backend para uma oficina mecânica de médio porte. Substitui anotações
 - Controlar estoque de peças com reserva por OS em andamento.
 - Disponibilizar API documentada (Swagger UI) e cobertura de testes mensurável.
 
+### 1.1 Requisitos Funcionais
+
+Derivados dos use cases em `src/application/use-cases/` e dos endpoints expostos.
+
+#### Autenticação e usuários
+
+| ID | Requisito | Ator |
+|---|---|---|
+| RF-01 | Autenticar usuário por e-mail e senha, retornando um JWT | Todos os papéis internos |
+| RF-02 | Cadastrar novo usuário interno informando papel (`attendant`, `mechanic`, `admin`) | `admin` |
+
+#### Clientes e veículos
+
+| ID | Requisito | Ator |
+|---|---|---|
+| RF-03 | Cadastrar cliente (PF/PJ) com CPF ou CNPJ, e-mail, telefone | `attendant`, `admin` |
+| RF-04 | Consultar cliente por ID e por CPF/CNPJ | `attendant`, `admin` |
+| RF-05 | Listar clientes ativos | `attendant`, `admin` |
+| RF-06 | Atualizar dados cadastrais do cliente | `attendant`, `admin` |
+| RF-07 | Remover cliente (soft delete, preservando histórico de OSs) | `attendant`, `admin` |
+| RF-08 | Cadastrar veículo vinculado a um cliente | `attendant`, `admin` |
+| RF-09 | Consultar veículo por ID e listar veículos de um cliente | `attendant`, `admin` |
+| RF-10 | Atualizar e remover veículo | `attendant`, `admin` |
+
+#### Catálogo (serviços e peças)
+
+| ID | Requisito | Ator |
+|---|---|---|
+| RF-11 | CRUD de serviços do catálogo (nome, preço, tempo estimado) | `admin` |
+| RF-12 | CRUD de itens do catálogo com controle de estoque (`stockQuantity`, `reservedQuantity`) | `admin` |
+
+#### Ordem de Serviço (OS) — fluxo principal
+
+| ID | Requisito | Ator |
+|---|---|---|
+| RF-13 | Criar OS associada a um cliente e um veículo | `attendant` |
+| RF-14 | Iniciar diagnóstico (`RECEIVED → DIAGNOSIS`) | `mechanic` |
+| RF-15 | Adicionar e remover serviços do catálogo na OS em diagnóstico | `mechanic` |
+| RF-16 | Adicionar e remover itens do catálogo na OS, reservando/devolvendo estoque (`reservedQuantity`) | `mechanic` |
+| RF-17 | Encerrar diagnóstico calculando `budgetTotal = Σ services + Σ (item.price × qty)` (`DIAGNOSIS → WAITING_APPROVAL`) | `mechanic` |
+| RF-18 | Disparar notificação ao cliente quando o orçamento entra em `WAITING_APPROVAL` (port `INotificationService`) | Sistema |
+| RF-19 | Permitir consulta pública do status de uma OS por ID, sem autenticação | Cliente final |
+| RF-20 | Permitir aprovação ou rejeição pública do orçamento mediante código de 4 dígitos derivado do CPF/CNPJ (`WAITING_APPROVAL → APPROVED \| REJECTED`) | Cliente final |
+| RF-21 | Liberar o estoque reservado quando o orçamento é rejeitado | Sistema |
+| RF-22 | Iniciar execução consumindo o estoque reservado (`APPROVED → EXECUTION`, decrementa `stockQuantity` e `reservedQuantity`) | `mechanic` |
+| RF-23 | Marcar serviços individuais como `IN_PROGRESS` e `COMPLETED` | `mechanic` |
+| RF-24 | Encerrar a OS quando todos os serviços estão concluídos (`EXECUTION → FINISHED`) | `mechanic` |
+| RF-25 | Marcar a OS como entregue ao cliente (`FINISHED → DELIVERED`) | `attendant` |
+| RF-26 | Listar OSs com filtros por `status` e `customerId` | `attendant`, `mechanic`, `admin` |
+| RF-27 | Detalhar uma OS por ID | `attendant`, `mechanic`, `admin` |
+| RF-28 | Calcular o tempo médio de execução das OSs concluídas | `admin` |
+
+#### Documentação
+
+| ID | Requisito | Ator |
+|---|---|---|
+| RF-29 | Expor documentação interativa da API (Swagger UI em `/docs`) | Todos |
+
+### 1.2 Requisitos Não-Funcionais
+
+Atributos de qualidade e como são atendidos. Cada item aponta o ponto de implementação.
+
+#### Segurança
+
+| ID | Requisito | Como é atendido |
+|---|---|---|
+| RNF-01 | Senhas armazenadas com hash forte | bcrypt com 12 rounds; nunca retornadas em responses |
+| RNF-02 | Autenticação stateless | JWT com expiração de 24h; segredo via `JWT_SECRET` |
+| RNF-03 | Autorização por papel | RBAC com middleware `requireRole(...)` aplicado por rota |
+| RNF-04 | Headers HTTP seguros | `helmet` com CSP customizada (apenas `unsafe-inline` em `script-src` para o Swagger UI) |
+| RNF-05 | CORS controlado por allowlist | Origens via env `CORS_ORIGIN` |
+| RNF-06 | Mitigação de brute force em login | `express-rate-limit`: 10 req / 15 min por IP em `POST /auth/login` |
+| RNF-07 | Mitigação de brute force no código de aprovação público | `express-rate-limit`: 5 req / hora por combinação IP + OS em `PATCH /service-orders/:id/budget` |
+| RNF-08 | Validação de CPF/CNPJ pelos dígitos verificadores (mod 11) | `domain/validators.ts` |
+| RNF-09 | Prevenção contra injeção em queries | Mongoose com queries parametrizadas; sem interpolação de string |
+| RNF-10 | CPF/CNPJ tratados como dado privado | Armazenados só como dígitos; nunca devolvidos em responses de OS |
+| RNF-11 | Resposta de erro sem vazamento de detalhes internos | `errorMiddleware` mapeia `AppError` → status; demais erros viram 500 genérico |
+
+#### Confiabilidade e consistência
+
+| ID | Requisito | Como é atendido |
+|---|---|---|
+| RNF-12 | Transições de estado da OS auditáveis e proibitivas a saltos inválidos | Máquina de estados explícita nos use cases (`Start*`, `Finish*`, `Approve/RejectBudget`, etc.) |
+| RNF-13 | Consistência de estoque entre reserva e consumo | `Item` mantém `stockQuantity` + `reservedQuantity` no mesmo agregado; transições da OS sabem o que aplicar |
+| RNF-14 | Histórico preservado mesmo após remoção de cliente | Soft delete em `Customer.deletedAt` |
+
+#### Manutenibilidade
+
+| ID | Requisito | Como é atendido |
+|---|---|---|
+| RNF-15 | Domínio independente de framework | Hexagonal: `domain/` e `application/` não importam de `infrastructure/` |
+| RNF-16 | Cobertura de testes ≥ 80% (lines, branches, functions, statements) | `jest.config.ts` com `coverageThreshold`; cobertura atual ~93% |
+| RNF-17 | Zero bugs e zero vulnerabilities no SonarQube | Análise estática via SonarQube Community executada localmente |
+| RNF-18 | Zero vulnerabilidades em dependências | Verificado via `npm audit` (597 pacotes, 0 vulnerabilidades) |
+
+#### Portabilidade e operação
+
+| ID | Requisito | Como é atendido |
+|---|---|---|
+| RNF-19 | Ambiente reprodutível | Docker multi-stage + `docker-compose.yml` (app + MongoDB) |
+| RNF-20 | Configuração externa por variáveis de ambiente | `PORT`, `MONGODB_URI`, `JWT_SECRET`, `CORS_ORIGIN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` |
+| RNF-21 | Bootstrap idempotente do admin padrão | `infrastructure/persistence/seed.ts` cria admin só se `ADMIN_PASSWORD` estiver definido |
+
+#### Interoperabilidade e usabilidade da API
+
+| ID | Requisito | Como é atendido |
+|---|---|---|
+| RNF-22 | Contrato REST/JSON consistente | Bodies/responses em JSON; paths em kebab-case; transições por body (`{ status }`) |
+| RNF-23 | Documentação interativa sempre alinhada ao código | `swagger-jsdoc` lê anotações nas rotas; UI em `/docs` |
+| RNF-24 | Coleção Postman executável de ponta a ponta via Newman | `postman/` com collection + environment idempotentes para Collection Runner |
+
+#### Extensibilidade
+
+| ID | Requisito | Como é atendido |
+|---|---|---|
+| RNF-25 | Notificação ao cliente trocável sem mexer no domínio | Port `INotificationService` com adapter atual `ConsoleNotificationService` (mock) |
+| RNF-26 | Persistência trocável sem mexer no domínio | Repositórios são interfaces (`I*Repository`) implementadas pelos adapters Mongo |
+
 ---
 
 ## 2. Restrições
@@ -333,9 +451,8 @@ npm run sonar             # análise SonarQube (requer servidor local + token no
 | # | Item | Estado | Impacto |
 |---|---|---|---|
 | 1 | Notificação ao cliente é mock (`console.log`) | Conhecido — port pronto para adapter real | Cliente não recebe notificação efetiva; depende de consultar `/status` ativamente |
-| 2 | Senha dos usuários de seed dev é fraca (`dev123`) | Aceito — só dev | Nunca usar em produção; warning é logado pelo seed |
-| 3 | Code de aprovação derivado do CPF/CNPJ | Aceito + rate limit | Adivinhação possível em 4 dígitos; mitigado por 5 req/h por IP+OS |
-| 4 | Hotspot do SonarQube: `'unsafe-inline'` no CSP | Aceito — necessário para Swagger UI | Marcado como Safe na revisão; não afeta a API em si |
+| 2 | Code de aprovação derivado do CPF/CNPJ | Aceito + rate limit | Adivinhação possível em 4 dígitos; mitigado por 5 req/h por IP+OS |
+| 3 | Hotspot do SonarQube: `'unsafe-inline'` no CSP | Aceito — necessário para Swagger UI | Marcado como Safe na revisão; não afeta a API em si |
 
 ---
 
