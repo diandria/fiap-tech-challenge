@@ -3,7 +3,7 @@ set -euo pipefail
 
 [ -f .env ] || cp .env.example .env
 npm install
-docker-compose up -d
+docker-compose up -d --build
 echo "Aguardando MongoDB..."
 sleep 5
 npm run seed:dev
