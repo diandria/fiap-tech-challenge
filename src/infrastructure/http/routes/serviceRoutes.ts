@@ -3,6 +3,7 @@ import { MongoServiceRepository } from '../../persistence/repositories/MongoServ
 import { CreateServiceUseCase } from '../../../application/use-cases/services/CreateServiceUseCase';
 import { GetServiceByIdUseCase } from '../../../application/use-cases/services/GetServiceByIdUseCase';
 import { ListServicesUseCase } from '../../../application/use-cases/services/ListServicesUseCase';
+import { ListServicesAvgTimeUseCase } from '../../../application/use-cases/services/ListServicesAvgTimeUseCase';
 import { UpdateServiceUseCase } from '../../../application/use-cases/services/UpdateServiceUseCase';
 import { DeleteServiceUseCase } from '../../../application/use-cases/services/DeleteServiceUseCase';
 import { authMiddleware } from '../middlewares/authMiddleware';
@@ -14,6 +15,7 @@ export function serviceRoutes(): Router {
   const createService = new CreateServiceUseCase(repo);
   const getService = new GetServiceByIdUseCase(repo);
   const listServices = new ListServicesUseCase(repo);
+  const listServicesAvgTime = new ListServicesAvgTimeUseCase(repo);
   const updateService = new UpdateServiceUseCase(repo);
   const deleteService = new DeleteServiceUseCase(repo);
 
@@ -31,6 +33,38 @@ export function serviceRoutes(): Router {
     try {
       const services = await listServices.execute();
       res.json(services);
+    } catch (err) { next(err); }
+  });
+
+  /**
+   * @openapi
+   * /services/avg-time:
+   *   get:
+   *     summary: List services with their registered average execution time (admin, mechanic, attendant)
+   *     tags: [Services]
+   *     security: [{ bearerAuth: [] }]
+   *     responses:
+   *       200:
+   *         description: Array of services with id, name and estimatedMinutes
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: object
+   *                 properties:
+   *                   id: { type: string }
+   *                   name: { type: string }
+   *                   estimatedMinutes: { type: integer, minimum: 0 }
+   *       401:
+   *         description: Missing or invalid token
+   *       403:
+   *         description: Forbidden role
+   */
+  router.get('/avg-time', authMiddleware, requireRole('admin', 'mechanic', 'attendant'), async (_req, res, next) => {
+    try {
+      const result = await listServicesAvgTime.execute();
+      res.json(result);
     } catch (err) { next(err); }
   });
 

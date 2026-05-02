@@ -135,3 +135,51 @@ describe('Role Authorization — /services', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('GET /services/avg-time', () => {
+  it('GIVEN no Authorization header WHEN GET /services/avg-time THEN returns 401', async () => {
+    const res = await request(app).get('/services/avg-time');
+    expect(res.status).toBe(401);
+  });
+
+  it('GIVEN admin token WHEN GET /services/avg-time THEN returns 200 with id, name, estimatedMinutes only', async () => {
+    await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
+
+    const res = await request(app).get('/services/avg-time').set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toEqual({
+      id: expect.any(String),
+      name: 'Oil Change',
+      estimatedMinutes: 30,
+    });
+    expect(res.body[0]).not.toHaveProperty('price');
+  });
+
+  it('GIVEN mechanic token WHEN GET /services/avg-time THEN returns 200', async () => {
+    const res = await request(app).get('/services/avg-time').set('Authorization', `Bearer ${mechanicToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('GIVEN attendant token WHEN GET /services/avg-time THEN returns 200', async () => {
+    const res = await request(app).get('/services/avg-time').set('Authorization', `Bearer ${attendantToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it('GIVEN multiple services WHEN GET /services/avg-time THEN returns sorted by name ascending', async () => {
+    await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send({ name: 'Wheel Alignment', price: 120, estimatedMinutes: 45 });
+    await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send({ name: 'Oil Change', price: 80, estimatedMinutes: 30 });
+    await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send({ name: 'Brake Inspection', price: 60, estimatedMinutes: 20 });
+
+    const res = await request(app).get('/services/avg-time').set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.map((s: { name: string }) => s.name)).toEqual([
+      'Brake Inspection',
+      'Oil Change',
+      'Wheel Alignment',
+    ]);
+  });
+});

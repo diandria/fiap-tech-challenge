@@ -389,6 +389,7 @@ Expanda qualquer endpoint, clique **Try it out**, preencha os parâmetros e cliq
 - `GET|POST|PUT|DELETE /customers` *(attendant, admin)*
 - `GET|POST|PUT|DELETE /vehicles` *(attendant, admin)*
 - `GET|POST|PUT|DELETE /services` *(GET autenticado, escritas admin)*
+- `GET /services/avg-time` *(admin, mechanic, attendant)* — lista serviços do catálogo com tempo médio cadastrado (`id`, `name`, `estimatedMinutes`)
 - `GET|POST|PUT|DELETE /items` *(autenticado, escritas admin)*
 - `POST /service-orders` — cria OS *(attendant, admin)*
 - `GET /service-orders/:id/status` — lê status *(público)*

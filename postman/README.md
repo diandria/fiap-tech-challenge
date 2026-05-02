@@ -31,7 +31,7 @@ Run the folders in numbered order. Each request persists what subsequent ones ne
 | 02 | Customer and Vehicle (attendant) | Creates a customer with CPF (`96627075300`, first 4 digits = approval code `9662`) and a vehicle `ABC-1234` (idempotent: 409 reuses the existing record) |
 | 03 | OS Happy Path | Full lifecycle: create OS → diagnosis → add service + item (qty 2) → finish diagnosis (`budgetTotal = 200`) → public status read → approve with code `9662` → execution → delivery |
 | 04 | Rejection | Second OS rejected after the budget — verifies the item returns to stock |
-| 05 | Stats and Listings | `avg-execution`, filters by `status` and `customerId`, detail by ID |
+| 05 | Stats and Listings | `avg-execution`, services catalog avg-time (`/services/avg-time`), filters by `status` and `customerId`, detail by ID |
 | 06 | Error Scenarios | 401 (wrong password, no token), 403 (wrong role), 400 (invalid CPF/plate, wrong code, invalid transition), 404 |
 | 07 | OS Item/Service Removal (mechanic) | Creates a third OS, demos `DELETE /service-orders/:id/services/:serviceId` and `DELETE /service-orders/:id/items/:itemId` (releases stock) |
 | 08 | Maintenance (PUT/DELETE entities) | Creates temporary customer/vehicle/service/item, exercises every PUT and DELETE for catalog and customer/vehicle resources |

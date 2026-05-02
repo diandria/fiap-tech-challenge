@@ -51,6 +51,7 @@ Derivados dos use cases em `src/application/use-cases/` e dos endpoints expostos
 |---|---|---|
 | RF-11 | CRUD de serviços do catálogo (nome, preço, tempo estimado) | `admin` |
 | RF-12 | CRUD de itens do catálogo com controle de estoque (`stockQuantity`, `reservedQuantity`) | `admin` |
+| RF-30 | Listar serviços do catálogo com tempo médio cadastrado (`id`, `name`, `estimatedMinutes`) | `admin`, `mechanic`, `attendant` |
 
 #### Ordem de Serviço (OS) — fluxo principal
 

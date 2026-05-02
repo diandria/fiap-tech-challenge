@@ -1494,6 +1494,29 @@
           "response": []
         },
         {
+          "name": "List Services with Average Time",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/services/avg-time",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "services",
+                "avg-time"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "List OS (no filters)",
           "request": {
             "method": "GET",
