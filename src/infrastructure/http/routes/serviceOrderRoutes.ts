@@ -23,7 +23,7 @@ import { FinishServiceUseCase } from '../../../use-cases/service-orders/FinishSe
 import { FinishOSUseCase } from '../../../use-cases/service-orders/FinishOSUseCase';
 import { DeliverOSUseCase } from '../../../use-cases/service-orders/DeliverOSUseCase';
 import { GetAvgExecutionTimeUseCase } from '../../../use-cases/service-orders/GetAvgExecutionTimeUseCase';
-import { ConsoleNotificationService } from '../../notifications/ConsoleNotificationService';
+import { ConsoleNotificationService } from '../../../adapters/services/ConsoleNotificationService';
 import { OSStatus } from '../../../entities/ServiceOrder';
 import { ValidationError } from '../../../entities/errors/AppError';
 
