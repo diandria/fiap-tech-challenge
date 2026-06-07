@@ -1,4 +1,4 @@
-import { StartExecutionUseCase } from '../../../../src/application/use-cases/service-orders/StartExecutionUseCase';
+import { StartExecutionUseCase } from '../../../../src/use-cases/service-orders/StartExecutionUseCase';
 import { IServiceOrderRepository } from '../../../../src/use-cases/ports/IServiceOrderRepository';
 import { IItemRepository } from '../../../../src/use-cases/ports/IItemRepository';
 import { makeOSRepo, approvedOS } from '../../fixtures/serviceOrder';

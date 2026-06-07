@@ -1,4 +1,4 @@
-import { CreateItemUseCase } from '../../../../src/application/use-cases/items/CreateItemUseCase';
+import { CreateItemUseCase } from '../../../../src/use-cases/items/CreateItemUseCase';
 import { makeItemRepo, stockedItem } from '../../fixtures/item';
 
 describe('CreateItemUseCase', () => {

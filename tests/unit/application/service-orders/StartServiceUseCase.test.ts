@@ -1,4 +1,4 @@
-import { StartServiceUseCase } from '../../../../src/application/use-cases/service-orders/StartServiceUseCase';
+import { StartServiceUseCase } from '../../../../src/use-cases/service-orders/StartServiceUseCase';
 import { makeOSRepo, executionOS } from '../../fixtures/serviceOrder';
 
 const executionWithTwoServices = {

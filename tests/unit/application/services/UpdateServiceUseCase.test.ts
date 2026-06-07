@@ -1,4 +1,4 @@
-import { UpdateServiceUseCase } from '../../../../src/application/use-cases/services/UpdateServiceUseCase';
+import { UpdateServiceUseCase } from '../../../../src/use-cases/services/UpdateServiceUseCase';
 import { makeServiceRepo, baseService } from '../../fixtures/service';
 
 describe('UpdateServiceUseCase', () => {

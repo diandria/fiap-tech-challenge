@@ -1,4 +1,4 @@
-import { DeliverOSUseCase } from '../../../../src/application/use-cases/service-orders/DeliverOSUseCase';
+import { DeliverOSUseCase } from '../../../../src/use-cases/service-orders/DeliverOSUseCase';
 import { makeOSRepo, finishedOS } from '../../fixtures/serviceOrder';
 
 describe('DeliverOSUseCase', () => {

@@ -1,4 +1,4 @@
-import { LoginUseCase } from '../../../../src/application/use-cases/auth/LoginUseCase';
+import { LoginUseCase } from '../../../../src/use-cases/auth/LoginUseCase';
 import { IUserRepository } from '../../../../src/use-cases/ports/IUserRepository';
 import bcrypt from 'bcryptjs';
 

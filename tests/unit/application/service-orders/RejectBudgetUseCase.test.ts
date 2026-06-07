@@ -1,4 +1,4 @@
-import { RejectBudgetUseCase } from '../../../../src/application/use-cases/service-orders/RejectBudgetUseCase';
+import { RejectBudgetUseCase } from '../../../../src/use-cases/service-orders/RejectBudgetUseCase';
 import { IItemRepository } from '../../../../src/use-cases/ports/IItemRepository';
 import { makeOSRepo, waitingApprovalOS } from '../../fixtures/serviceOrder';
 import { makeCustomerRepo, cnpjCustomer } from '../../fixtures/customer';

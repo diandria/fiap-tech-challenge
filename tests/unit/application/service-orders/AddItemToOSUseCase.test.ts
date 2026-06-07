@@ -1,4 +1,4 @@
-import { AddItemToOSUseCase } from '../../../../src/application/use-cases/service-orders/AddItemToOSUseCase';
+import { AddItemToOSUseCase } from '../../../../src/use-cases/service-orders/AddItemToOSUseCase';
 import { makeOSRepo, baseOS } from '../../fixtures/serviceOrder';
 import { makeItemRepo, stockedItem, depletedItem } from '../../fixtures/item';
 

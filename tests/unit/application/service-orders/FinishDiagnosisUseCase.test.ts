@@ -1,4 +1,4 @@
-import { FinishDiagnosisUseCase } from '../../../../src/application/use-cases/service-orders/FinishDiagnosisUseCase';
+import { FinishDiagnosisUseCase } from '../../../../src/use-cases/service-orders/FinishDiagnosisUseCase';
 import { IServiceRepository } from '../../../../src/use-cases/ports/IServiceRepository';
 import { INotificationService } from '../../../../src/use-cases/ports/INotificationService';
 import { makeOSRepo, baseOS } from '../../fixtures/serviceOrder';

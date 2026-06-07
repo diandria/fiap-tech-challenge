@@ -1,4 +1,4 @@
-import { GetVehicleByIdUseCase } from '../../../../src/application/use-cases/vehicles/GetVehicleByIdUseCase';
+import { GetVehicleByIdUseCase } from '../../../../src/use-cases/vehicles/GetVehicleByIdUseCase';
 import { IVehicleRepository } from '../../../../src/use-cases/ports/IVehicleRepository';
 import { Vehicle } from '../../../../src/entities/Vehicle';
 

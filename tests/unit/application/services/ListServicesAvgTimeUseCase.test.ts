@@ -1,4 +1,4 @@
-import { ListServicesAvgTimeUseCase } from '../../../../src/application/use-cases/services/ListServicesAvgTimeUseCase';
+import { ListServicesAvgTimeUseCase } from '../../../../src/use-cases/services/ListServicesAvgTimeUseCase';
 import { IServiceRepository } from '../../../../src/use-cases/ports/IServiceRepository';
 import { Service } from '../../../../src/entities/Service';
 

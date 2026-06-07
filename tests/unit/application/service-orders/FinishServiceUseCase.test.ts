@@ -1,4 +1,4 @@
-import { FinishServiceUseCase } from '../../../../src/application/use-cases/service-orders/FinishServiceUseCase';
+import { FinishServiceUseCase } from '../../../../src/use-cases/service-orders/FinishServiceUseCase';
 import { makeOSRepo, executionOS } from '../../fixtures/serviceOrder';
 
 const startedAt = new Date();

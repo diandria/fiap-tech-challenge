@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { MongoItemRepository } from '../../persistence/repositories/MongoItemRepository';
-import { CreateItemUseCase } from '../../../application/use-cases/items/CreateItemUseCase';
-import { GetItemByIdUseCase } from '../../../application/use-cases/items/GetItemByIdUseCase';
-import { ListItemsUseCase } from '../../../application/use-cases/items/ListItemsUseCase';
-import { UpdateItemUseCase } from '../../../application/use-cases/items/UpdateItemUseCase';
-import { DeleteItemUseCase } from '../../../application/use-cases/items/DeleteItemUseCase';
+import { CreateItemUseCase } from '../../../use-cases/items/CreateItemUseCase';
+import { GetItemByIdUseCase } from '../../../use-cases/items/GetItemByIdUseCase';
+import { ListItemsUseCase } from '../../../use-cases/items/ListItemsUseCase';
+import { UpdateItemUseCase } from '../../../use-cases/items/UpdateItemUseCase';
+import { DeleteItemUseCase } from '../../../use-cases/items/DeleteItemUseCase';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { requireRole } from '../middlewares/roleMiddleware';
 

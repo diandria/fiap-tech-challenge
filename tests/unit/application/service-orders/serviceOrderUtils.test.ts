@@ -1,4 +1,4 @@
-import { findOSOrThrow, verifyCustomerCode } from '../../../../src/application/utils/serviceOrderUtils';
+import { findOSOrThrow, verifyCustomerCode } from '../../../../src/use-cases/utils/serviceOrderUtils';
 import { makeOSRepo, baseOS } from '../../fixtures/serviceOrder';
 import { cpfCustomer, cnpjCustomer } from '../../fixtures/customer';
 import { NotFoundError, ValidationError } from '../../../../src/entities/errors/AppError';

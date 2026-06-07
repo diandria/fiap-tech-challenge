@@ -1,4 +1,4 @@
-import { CreateCustomerUseCase } from '../../../../src/application/use-cases/customers/CreateCustomerUseCase';
+import { CreateCustomerUseCase } from '../../../../src/use-cases/customers/CreateCustomerUseCase';
 import { makeCustomerRepo, cpfCustomer, cnpjCustomer } from '../../fixtures/customer';
 
 const validInput = {

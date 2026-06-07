@@ -1,4 +1,4 @@
-import { ApproveBudgetUseCase } from '../../../../src/application/use-cases/service-orders/ApproveBudgetUseCase';
+import { ApproveBudgetUseCase } from '../../../../src/use-cases/service-orders/ApproveBudgetUseCase';
 import { makeOSRepo, waitingApprovalOS } from '../../fixtures/serviceOrder';
 import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 

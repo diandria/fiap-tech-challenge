@@ -1,4 +1,4 @@
-import { GetItemByIdUseCase } from '../../../../src/application/use-cases/items/GetItemByIdUseCase';
+import { GetItemByIdUseCase } from '../../../../src/use-cases/items/GetItemByIdUseCase';
 import { makeItemRepo, stockedItem } from '../../fixtures/item';
 
 describe('GetItemByIdUseCase', () => {

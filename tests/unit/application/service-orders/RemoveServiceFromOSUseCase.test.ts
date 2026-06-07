@@ -1,4 +1,4 @@
-import { RemoveServiceFromOSUseCase } from '../../../../src/application/use-cases/service-orders/RemoveServiceFromOSUseCase';
+import { RemoveServiceFromOSUseCase } from '../../../../src/use-cases/service-orders/RemoveServiceFromOSUseCase';
 import { makeOSRepo, baseOS } from '../../fixtures/serviceOrder';
 
 const osWithService = { ...baseOS, services: [{ serviceId: 's-1' }] };

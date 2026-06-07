@@ -1,4 +1,4 @@
-import { ListServicesUseCase } from '../../../../src/application/use-cases/services/ListServicesUseCase';
+import { ListServicesUseCase } from '../../../../src/use-cases/services/ListServicesUseCase';
 import { makeServiceRepo, baseService } from '../../fixtures/service';
 
 describe('ListServicesUseCase', () => {

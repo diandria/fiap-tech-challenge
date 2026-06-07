@@ -1,4 +1,4 @@
-import { CreateVehicleUseCase } from '../../../../src/application/use-cases/vehicles/CreateVehicleUseCase';
+import { CreateVehicleUseCase } from '../../../../src/use-cases/vehicles/CreateVehicleUseCase';
 import { IVehicleRepository } from '../../../../src/use-cases/ports/IVehicleRepository';
 import { Vehicle } from '../../../../src/entities/Vehicle';
 

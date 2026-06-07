@@ -1,4 +1,4 @@
-import { StartDiagnosisUseCase } from '../../../../src/application/use-cases/service-orders/StartDiagnosisUseCase';
+import { StartDiagnosisUseCase } from '../../../../src/use-cases/service-orders/StartDiagnosisUseCase';
 import { makeOSRepo, receivedOS, finishedOS } from '../../fixtures/serviceOrder';
 
 describe('StartDiagnosisUseCase', () => {

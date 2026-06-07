@@ -1,4 +1,4 @@
-import { DeleteItemUseCase } from '../../../../src/application/use-cases/items/DeleteItemUseCase';
+import { DeleteItemUseCase } from '../../../../src/use-cases/items/DeleteItemUseCase';
 import { makeItemRepo, freeItem, reservedItem } from '../../fixtures/item';
 
 describe('DeleteItemUseCase', () => {
