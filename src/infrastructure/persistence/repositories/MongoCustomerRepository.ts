@@ -1,6 +1,6 @@
 import { ICustomerRepository } from '../../../use-cases/ports/ICustomerRepository';
 import { Customer } from '../../../entities/Customer';
-import { CustomerModel } from '../models/CustomerModel';
+import { CustomerModel } from '../../../frameworks/database/models/CustomerModel';
 
 const notDeleted = { deletedAt: null };
 

@@ -1,6 +1,6 @@
 import { IServiceOrderRepository, ListServiceOrdersFilter, AvgExecutionResult } from '../../../use-cases/ports/IServiceOrderRepository';
 import { ServiceOrder } from '../../../entities/ServiceOrder';
-import { ServiceOrderModel } from '../models/ServiceOrderModel';
+import { ServiceOrderModel } from '../../../frameworks/database/models/ServiceOrderModel';
 
 export class MongoServiceOrderRepository implements IServiceOrderRepository {
   private toEntity(doc: any): ServiceOrder {
