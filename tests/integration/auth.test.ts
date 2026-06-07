@@ -30,7 +30,7 @@ describe('Auth Integration', () => {
 
     it('GIVEN a valid admin token WHEN POST /auth/register with new credentials THEN returns 201 AND omits passwordHash', async () => {
       // First create an admin directly via the repo to bootstrap
-      const { MongoUserRepository } = await import('../../src/infrastructure/persistence/repositories/MongoUserRepository');
+      const { MongoUserRepository } = await import('../../src/adapters/gateways/MongoUserRepository');
       const { RegisterUseCase } = await import('../../src/use-cases/auth/RegisterUseCase');
       const repo = new MongoUserRepository();
       const register = new RegisterUseCase(repo);
@@ -53,7 +53,7 @@ describe('Auth Integration', () => {
     });
 
     it('GIVEN an existing email WHEN POST /auth/register with the same email THEN returns 409', async () => {
-      const { MongoUserRepository } = await import('../../src/infrastructure/persistence/repositories/MongoUserRepository');
+      const { MongoUserRepository } = await import('../../src/adapters/gateways/MongoUserRepository');
       const { RegisterUseCase } = await import('../../src/use-cases/auth/RegisterUseCase');
       const repo = new MongoUserRepository();
       const register = new RegisterUseCase(repo);
@@ -80,7 +80,7 @@ describe('Auth Integration', () => {
 
   describe('POST /auth/login', () => {
     beforeEach(async () => {
-      const { MongoUserRepository } = await import('../../src/infrastructure/persistence/repositories/MongoUserRepository');
+      const { MongoUserRepository } = await import('../../src/adapters/gateways/MongoUserRepository');
       const { RegisterUseCase } = await import('../../src/use-cases/auth/RegisterUseCase');
       const repo = new MongoUserRepository();
       const register = new RegisterUseCase(repo);

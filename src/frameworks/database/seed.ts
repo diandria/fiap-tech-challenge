@@ -1,4 +1,4 @@
-import { MongoUserRepository } from '../../infrastructure/persistence/repositories/MongoUserRepository';
+import { MongoUserRepository } from '../../adapters/gateways/MongoUserRepository';
 import { RegisterUseCase } from '../../use-cases/auth/RegisterUseCase';
 
 export async function seedDefaultAdmin(): Promise<void> {

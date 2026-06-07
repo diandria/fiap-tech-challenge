@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { MongoVehicleRepository } from '../../persistence/repositories/MongoVehicleRepository';
+import { MongoVehicleRepository } from '../../../adapters/gateways/MongoVehicleRepository';
 import { CreateVehicleUseCase } from '../../../use-cases/vehicles/CreateVehicleUseCase';
 import { GetVehicleByIdUseCase } from '../../../use-cases/vehicles/GetVehicleByIdUseCase';
 import { ListCustomerVehiclesUseCase } from '../../../use-cases/vehicles/ListCustomerVehiclesUseCase';

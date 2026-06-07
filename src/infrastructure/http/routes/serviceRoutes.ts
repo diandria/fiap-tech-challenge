@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { MongoServiceRepository } from '../../persistence/repositories/MongoServiceRepository';
+import { MongoServiceRepository } from '../../../adapters/gateways/MongoServiceRepository';
 import { CreateServiceUseCase } from '../../../use-cases/services/CreateServiceUseCase';
 import { GetServiceByIdUseCase } from '../../../use-cases/services/GetServiceByIdUseCase';
 import { ListServicesUseCase } from '../../../use-cases/services/ListServicesUseCase';
