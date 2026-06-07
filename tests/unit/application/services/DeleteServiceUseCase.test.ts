@@ -1,4 +1,4 @@
-import { DeleteServiceUseCase } from '../../../../src/application/use-cases/services/DeleteServiceUseCase';
+import { DeleteServiceUseCase } from '../../../../src/use-cases/services/DeleteServiceUseCase';
 import { makeServiceRepo, baseService } from '../../fixtures/service';
 
 describe('DeleteServiceUseCase', () => {

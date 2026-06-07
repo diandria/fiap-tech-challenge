@@ -1,4 +1,4 @@
-import { RemoveItemFromOSUseCase } from '../../../../src/application/use-cases/service-orders/RemoveItemFromOSUseCase';
+import { RemoveItemFromOSUseCase } from '../../../../src/use-cases/service-orders/RemoveItemFromOSUseCase';
 import { makeOSRepo, baseOS } from '../../fixtures/serviceOrder';
 import { makeItemRepo, reservedItem } from '../../fixtures/item';
 

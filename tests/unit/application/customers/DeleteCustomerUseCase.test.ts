@@ -1,4 +1,4 @@
-import { DeleteCustomerUseCase } from '../../../../src/application/use-cases/customers/DeleteCustomerUseCase';
+import { DeleteCustomerUseCase } from '../../../../src/use-cases/customers/DeleteCustomerUseCase';
 import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 
 describe('DeleteCustomerUseCase', () => {

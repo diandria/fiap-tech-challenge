@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { MongoServiceRepository } from '../../persistence/repositories/MongoServiceRepository';
-import { CreateServiceUseCase } from '../../../application/use-cases/services/CreateServiceUseCase';
-import { GetServiceByIdUseCase } from '../../../application/use-cases/services/GetServiceByIdUseCase';
-import { ListServicesUseCase } from '../../../application/use-cases/services/ListServicesUseCase';
-import { ListServicesAvgTimeUseCase } from '../../../application/use-cases/services/ListServicesAvgTimeUseCase';
-import { UpdateServiceUseCase } from '../../../application/use-cases/services/UpdateServiceUseCase';
-import { DeleteServiceUseCase } from '../../../application/use-cases/services/DeleteServiceUseCase';
+import { CreateServiceUseCase } from '../../../use-cases/services/CreateServiceUseCase';
+import { GetServiceByIdUseCase } from '../../../use-cases/services/GetServiceByIdUseCase';
+import { ListServicesUseCase } from '../../../use-cases/services/ListServicesUseCase';
+import { ListServicesAvgTimeUseCase } from '../../../use-cases/services/ListServicesAvgTimeUseCase';
+import { UpdateServiceUseCase } from '../../../use-cases/services/UpdateServiceUseCase';
+import { DeleteServiceUseCase } from '../../../use-cases/services/DeleteServiceUseCase';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { requireRole } from '../middlewares/roleMiddleware';
 

@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { MongoCustomerRepository } from '../../persistence/repositories/MongoCustomerRepository';
-import { CreateCustomerUseCase } from '../../../application/use-cases/customers/CreateCustomerUseCase';
-import { GetCustomerByIdUseCase } from '../../../application/use-cases/customers/GetCustomerByIdUseCase';
-import { ListCustomersUseCase } from '../../../application/use-cases/customers/ListCustomersUseCase';
-import { UpdateCustomerUseCase } from '../../../application/use-cases/customers/UpdateCustomerUseCase';
-import { DeleteCustomerUseCase } from '../../../application/use-cases/customers/DeleteCustomerUseCase';
-import { GetCustomerByTaxIdUseCase } from '../../../application/use-cases/customers/GetCustomerByTaxIdUseCase';
+import { CreateCustomerUseCase } from '../../../use-cases/customers/CreateCustomerUseCase';
+import { GetCustomerByIdUseCase } from '../../../use-cases/customers/GetCustomerByIdUseCase';
+import { ListCustomersUseCase } from '../../../use-cases/customers/ListCustomersUseCase';
+import { UpdateCustomerUseCase } from '../../../use-cases/customers/UpdateCustomerUseCase';
+import { DeleteCustomerUseCase } from '../../../use-cases/customers/DeleteCustomerUseCase';
+import { GetCustomerByTaxIdUseCase } from '../../../use-cases/customers/GetCustomerByTaxIdUseCase';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { requireRole } from '../middlewares/roleMiddleware';
 

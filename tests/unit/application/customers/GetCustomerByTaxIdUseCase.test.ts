@@ -1,4 +1,4 @@
-import { GetCustomerByTaxIdUseCase } from '../../../../src/application/use-cases/customers/GetCustomerByTaxIdUseCase';
+import { GetCustomerByTaxIdUseCase } from '../../../../src/use-cases/customers/GetCustomerByTaxIdUseCase';
 import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 
 describe('GetCustomerByTaxIdUseCase', () => {

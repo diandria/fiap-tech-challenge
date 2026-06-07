@@ -1,4 +1,4 @@
-import { AddServiceToOSUseCase } from '../../../../src/application/use-cases/service-orders/AddServiceToOSUseCase';
+import { AddServiceToOSUseCase } from '../../../../src/use-cases/service-orders/AddServiceToOSUseCase';
 import { makeOSRepo, baseOS } from '../../fixtures/serviceOrder';
 import { makeServiceRepo, baseService } from '../../fixtures/service';
 

@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { MongoVehicleRepository } from '../../persistence/repositories/MongoVehicleRepository';
-import { CreateVehicleUseCase } from '../../../application/use-cases/vehicles/CreateVehicleUseCase';
-import { GetVehicleByIdUseCase } from '../../../application/use-cases/vehicles/GetVehicleByIdUseCase';
-import { ListCustomerVehiclesUseCase } from '../../../application/use-cases/vehicles/ListCustomerVehiclesUseCase';
-import { UpdateVehicleUseCase } from '../../../application/use-cases/vehicles/UpdateVehicleUseCase';
-import { DeleteVehicleUseCase } from '../../../application/use-cases/vehicles/DeleteVehicleUseCase';
+import { CreateVehicleUseCase } from '../../../use-cases/vehicles/CreateVehicleUseCase';
+import { GetVehicleByIdUseCase } from '../../../use-cases/vehicles/GetVehicleByIdUseCase';
+import { ListCustomerVehiclesUseCase } from '../../../use-cases/vehicles/ListCustomerVehiclesUseCase';
+import { UpdateVehicleUseCase } from '../../../use-cases/vehicles/UpdateVehicleUseCase';
+import { DeleteVehicleUseCase } from '../../../use-cases/vehicles/DeleteVehicleUseCase';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { requireRole } from '../middlewares/roleMiddleware';
 

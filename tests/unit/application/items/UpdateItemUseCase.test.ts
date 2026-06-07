@@ -1,4 +1,4 @@
-import { UpdateItemUseCase } from '../../../../src/application/use-cases/items/UpdateItemUseCase';
+import { UpdateItemUseCase } from '../../../../src/use-cases/items/UpdateItemUseCase';
 import { makeItemRepo, stockedItem } from '../../fixtures/item';
 
 describe('UpdateItemUseCase', () => {

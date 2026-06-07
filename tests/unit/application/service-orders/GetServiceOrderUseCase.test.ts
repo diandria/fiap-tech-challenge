@@ -1,4 +1,4 @@
-import { GetServiceOrderUseCase } from '../../../../src/application/use-cases/service-orders/GetServiceOrderUseCase';
+import { GetServiceOrderUseCase } from '../../../../src/use-cases/service-orders/GetServiceOrderUseCase';
 import { makeOSRepo, receivedOS } from '../../fixtures/serviceOrder';
 
 describe('GetServiceOrderUseCase', () => {

@@ -1,4 +1,4 @@
-import { DeleteVehicleUseCase } from '../../../../src/application/use-cases/vehicles/DeleteVehicleUseCase';
+import { DeleteVehicleUseCase } from '../../../../src/use-cases/vehicles/DeleteVehicleUseCase';
 import { IVehicleRepository } from '../../../../src/use-cases/ports/IVehicleRepository';
 
 const makeVehicleRepo = (deleted: boolean): IVehicleRepository => ({

@@ -3,7 +3,7 @@ import { Application } from 'express';
 import { createApp } from '../../src/app';
 import { connectTestDB, disconnectTestDB, clearTestDB } from '../helpers/testSetup';
 import { MongoUserRepository } from '../../src/infrastructure/persistence/repositories/MongoUserRepository';
-import { RegisterUseCase } from '../../src/application/use-cases/auth/RegisterUseCase';
+import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
 
 let app: Application;
 let adminToken: string;

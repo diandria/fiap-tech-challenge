@@ -1,4 +1,4 @@
-import { GetServiceByIdUseCase } from '../../../../src/application/use-cases/services/GetServiceByIdUseCase';
+import { GetServiceByIdUseCase } from '../../../../src/use-cases/services/GetServiceByIdUseCase';
 import { makeServiceRepo, baseService } from '../../fixtures/service';
 
 describe('GetServiceByIdUseCase', () => {

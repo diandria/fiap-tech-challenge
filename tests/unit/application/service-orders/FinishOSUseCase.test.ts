@@ -1,4 +1,4 @@
-import { FinishOSUseCase } from '../../../../src/application/use-cases/service-orders/FinishOSUseCase';
+import { FinishOSUseCase } from '../../../../src/use-cases/service-orders/FinishOSUseCase';
 import { makeOSRepo, executionOS } from '../../fixtures/serviceOrder';
 
 describe('FinishOSUseCase', () => {
