@@ -1,6 +1,6 @@
-import { IUserRepository, CreateUserData } from '../../../use-cases/ports/IUserRepository';
-import { User } from '../../../entities/User';
-import { UserModel } from '../../../frameworks/database/models/UserModel';
+import { IUserRepository, CreateUserData } from '../../use-cases/ports/IUserRepository';
+import { User } from '../../entities/User';
+import { UserModel } from '../../frameworks/database/models/UserModel';
 
 export class MongoUserRepository implements IUserRepository {
   private toEntity(doc: any): User {

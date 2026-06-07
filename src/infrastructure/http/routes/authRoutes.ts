@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { MongoUserRepository } from '../../persistence/repositories/MongoUserRepository';
+import { MongoUserRepository } from '../../../adapters/gateways/MongoUserRepository';
 import { LoginUseCase } from '../../../use-cases/auth/LoginUseCase';
 import { RegisterUseCase } from '../../../use-cases/auth/RegisterUseCase';
 import { authMiddleware } from '../middlewares/authMiddleware';

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { MongoItemRepository } from '../../persistence/repositories/MongoItemRepository';
+import { MongoItemRepository } from '../../../adapters/gateways/MongoItemRepository';
 import { CreateItemUseCase } from '../../../use-cases/items/CreateItemUseCase';
 import { GetItemByIdUseCase } from '../../../use-cases/items/GetItemByIdUseCase';
 import { ListItemsUseCase } from '../../../use-cases/items/ListItemsUseCase';

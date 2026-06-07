@@ -1,9 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
-import { MongoServiceOrderRepository } from '../../persistence/repositories/MongoServiceOrderRepository';
-import { MongoCustomerRepository } from '../../persistence/repositories/MongoCustomerRepository';
-import { MongoServiceRepository } from '../../persistence/repositories/MongoServiceRepository';
-import { MongoItemRepository } from '../../persistence/repositories/MongoItemRepository';
+import { MongoServiceOrderRepository } from '../../../adapters/gateways/MongoServiceOrderRepository';
+import { MongoCustomerRepository } from '../../../adapters/gateways/MongoCustomerRepository';
+import { MongoServiceRepository } from '../../../adapters/gateways/MongoServiceRepository';
+import { MongoItemRepository } from '../../../adapters/gateways/MongoItemRepository';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { requireRole } from '../middlewares/roleMiddleware';
 import { CreateServiceOrderUseCase } from '../../../use-cases/service-orders/CreateServiceOrderUseCase';
@@ -23,7 +23,7 @@ import { FinishServiceUseCase } from '../../../use-cases/service-orders/FinishSe
 import { FinishOSUseCase } from '../../../use-cases/service-orders/FinishOSUseCase';
 import { DeliverOSUseCase } from '../../../use-cases/service-orders/DeliverOSUseCase';
 import { GetAvgExecutionTimeUseCase } from '../../../use-cases/service-orders/GetAvgExecutionTimeUseCase';
-import { ConsoleNotificationService } from '../../notifications/ConsoleNotificationService';
+import { ConsoleNotificationService } from '../../../adapters/services/ConsoleNotificationService';
 import { OSStatus } from '../../../entities/ServiceOrder';
 import { ValidationError } from '../../../entities/errors/AppError';
 

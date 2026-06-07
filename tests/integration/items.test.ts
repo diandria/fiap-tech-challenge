@@ -2,9 +2,9 @@ import request from 'supertest';
 import { Application } from 'express';
 import { createApp } from '../../src/app';
 import { connectTestDB, disconnectTestDB, clearTestDB } from '../helpers/testSetup';
-import { MongoUserRepository } from '../../src/infrastructure/persistence/repositories/MongoUserRepository';
+import { MongoUserRepository } from '../../src/adapters/gateways/MongoUserRepository';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
-import { MongoItemRepository } from '../../src/infrastructure/persistence/repositories/MongoItemRepository';
+import { MongoItemRepository } from '../../src/adapters/gateways/MongoItemRepository';
 
 let app: Application;
 let adminToken: string;

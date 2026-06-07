@@ -1,6 +1,6 @@
-import { IVehicleRepository } from '../../../use-cases/ports/IVehicleRepository';
-import { Vehicle } from '../../../entities/Vehicle';
-import { VehicleModel } from '../../../frameworks/database/models/VehicleModel';
+import { IVehicleRepository } from '../../use-cases/ports/IVehicleRepository';
+import { Vehicle } from '../../entities/Vehicle';
+import { VehicleModel } from '../../frameworks/database/models/VehicleModel';
 
 export class MongoVehicleRepository implements IVehicleRepository {
   private toEntity(doc: any): Vehicle {

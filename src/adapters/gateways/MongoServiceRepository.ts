@@ -1,6 +1,6 @@
-import { IServiceRepository } from '../../../use-cases/ports/IServiceRepository';
-import { Service } from '../../../entities/Service';
-import { ServiceModel } from '../../../frameworks/database/models/ServiceModel';
+import { IServiceRepository } from '../../use-cases/ports/IServiceRepository';
+import { Service } from '../../entities/Service';
+import { ServiceModel } from '../../frameworks/database/models/ServiceModel';
 
 export class MongoServiceRepository implements IServiceRepository {
   private toEntity(doc: any): Service {

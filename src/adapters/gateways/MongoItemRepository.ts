@@ -1,6 +1,6 @@
-import { IItemRepository } from '../../../use-cases/ports/IItemRepository';
-import { Item } from '../../../entities/Item';
-import { ItemModel } from '../../../frameworks/database/models/ItemModel';
+import { IItemRepository } from '../../use-cases/ports/IItemRepository';
+import { Item } from '../../entities/Item';
+import { ItemModel } from '../../frameworks/database/models/ItemModel';
 
 export class MongoItemRepository implements IItemRepository {
   private toEntity(doc: any): Item {

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { MongoCustomerRepository } from '../../persistence/repositories/MongoCustomerRepository';
+import { MongoCustomerRepository } from '../../../adapters/gateways/MongoCustomerRepository';
 import { CreateCustomerUseCase } from '../../../use-cases/customers/CreateCustomerUseCase';
 import { GetCustomerByIdUseCase } from '../../../use-cases/customers/GetCustomerByIdUseCase';
 import { ListCustomersUseCase } from '../../../use-cases/customers/ListCustomersUseCase';
