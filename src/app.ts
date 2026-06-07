@@ -7,7 +7,7 @@ import { vehicleRoutes } from './infrastructure/http/routes/vehicleRoutes';
 import { serviceRoutes } from './infrastructure/http/routes/serviceRoutes';
 import { itemRoutes } from './infrastructure/http/routes/itemRoutes';
 import { serviceOrderRoutes } from './infrastructure/http/routes/serviceOrderRoutes';
-import { setupSwagger } from './infrastructure/swagger/setup';
+import { setupSwagger } from './frameworks/http/swagger/setup';
 
 export function createApp(): Application {
   const app = express();
