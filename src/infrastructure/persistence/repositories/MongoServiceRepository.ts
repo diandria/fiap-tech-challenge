@@ -1,5 +1,5 @@
-import { IServiceRepository } from '../../../domain/ports/IServiceRepository';
-import { Service } from '../../../domain/entities/Service';
+import { IServiceRepository } from '../../../use-cases/ports/IServiceRepository';
+import { Service } from '../../../entities/Service';
 import { ServiceModel } from '../models/ServiceModel';
 
 export class MongoServiceRepository implements IServiceRepository {

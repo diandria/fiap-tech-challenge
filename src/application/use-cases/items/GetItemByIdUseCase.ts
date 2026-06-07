@@ -1,6 +1,6 @@
-import { IItemRepository } from '../../../domain/ports/IItemRepository';
-import { Item, getAvailableQuantity } from '../../../domain/entities/Item';
-import { NotFoundError } from '../../../domain/errors/AppError';
+import { IItemRepository } from '../../../use-cases/ports/IItemRepository';
+import { Item, getAvailableQuantity } from '../../../entities/Item';
+import { NotFoundError } from '../../../entities/errors/AppError';
 
 export interface ItemWithAvailable extends Item {
   availableQuantity: number;

@@ -1,6 +1,6 @@
-import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepository';
-import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
-import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
+import { IServiceOrderRepository } from '../../../use-cases/ports/IServiceOrderRepository';
+import { ServiceOrder } from '../../../entities/ServiceOrder';
+import { NotFoundError, ValidationError } from '../../../entities/errors/AppError';
 import { findOSOrThrow } from '../../utils/serviceOrderUtils';
 
 export class RemoveServiceFromOSUseCase {

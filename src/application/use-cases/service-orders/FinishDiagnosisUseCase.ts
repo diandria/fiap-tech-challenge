@@ -1,10 +1,10 @@
-import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepository';
-import { IServiceRepository } from '../../../domain/ports/IServiceRepository';
-import { IItemRepository } from '../../../domain/ports/IItemRepository';
-import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
-import { INotificationService } from '../../../domain/ports/INotificationService';
-import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
-import { assertTransition } from '../../../domain/serviceOrderStateMachine';
+import { IServiceOrderRepository } from '../../../use-cases/ports/IServiceOrderRepository';
+import { IServiceRepository } from '../../../use-cases/ports/IServiceRepository';
+import { IItemRepository } from '../../../use-cases/ports/IItemRepository';
+import { ICustomerRepository } from '../../../use-cases/ports/ICustomerRepository';
+import { INotificationService } from '../../../use-cases/ports/INotificationService';
+import { ServiceOrder } from '../../../entities/ServiceOrder';
+import { assertTransition } from '../../../entities/serviceOrderStateMachine';
 import { findOSOrThrow } from '../../utils/serviceOrderUtils';
 
 export class FinishDiagnosisUseCase {

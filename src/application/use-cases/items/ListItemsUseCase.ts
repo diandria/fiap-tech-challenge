@@ -1,5 +1,5 @@
-import { IItemRepository } from '../../../domain/ports/IItemRepository';
-import { getAvailableQuantity } from '../../../domain/entities/Item';
+import { IItemRepository } from '../../../use-cases/ports/IItemRepository';
+import { getAvailableQuantity } from '../../../entities/Item';
 import { ItemWithAvailable } from './GetItemByIdUseCase';
 
 export class ListItemsUseCase {

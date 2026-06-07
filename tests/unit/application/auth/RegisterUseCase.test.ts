@@ -1,5 +1,5 @@
 import { RegisterUseCase } from '../../../../src/application/use-cases/auth/RegisterUseCase';
-import { IUserRepository } from '../../../../src/domain/ports/IUserRepository';
+import { IUserRepository } from '../../../../src/use-cases/ports/IUserRepository';
 
 const makeRepo = (existing: any = null): IUserRepository => ({
   findByEmail: jest.fn().mockResolvedValue(existing),

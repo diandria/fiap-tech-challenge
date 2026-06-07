@@ -1,6 +1,6 @@
 import { CreateVehicleUseCase } from '../../../../src/application/use-cases/vehicles/CreateVehicleUseCase';
-import { IVehicleRepository } from '../../../../src/domain/ports/IVehicleRepository';
-import { Vehicle } from '../../../../src/domain/entities/Vehicle';
+import { IVehicleRepository } from '../../../../src/use-cases/ports/IVehicleRepository';
+import { Vehicle } from '../../../../src/entities/Vehicle';
 
 const validInput = {
   customerId: 'c-1',

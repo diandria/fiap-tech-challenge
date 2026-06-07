@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { OSStatus } from '../../../domain/entities/ServiceOrder';
+import { OSStatus } from '../../../entities/ServiceOrder';
 
 interface ServiceOrderDocument extends Document {
   customerId: string;

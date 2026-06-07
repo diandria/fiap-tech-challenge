@@ -1,4 +1,4 @@
-import { OSStatus } from './entities/ServiceOrder';
+import { OSStatus } from './ServiceOrder';
 import { ValidationError } from './errors/AppError';
 
 const VALID_TRANSITIONS: Record<OSStatus, OSStatus[]> = {

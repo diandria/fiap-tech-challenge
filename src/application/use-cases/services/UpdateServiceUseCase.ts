@@ -1,6 +1,6 @@
-import { IServiceRepository } from '../../../domain/ports/IServiceRepository';
-import { Service } from '../../../domain/entities/Service';
-import { NotFoundError } from '../../../domain/errors/AppError';
+import { IServiceRepository } from '../../../use-cases/ports/IServiceRepository';
+import { Service } from '../../../entities/Service';
+import { NotFoundError } from '../../../entities/errors/AppError';
 
 export class UpdateServiceUseCase {
   constructor(private readonly repo: IServiceRepository) {}

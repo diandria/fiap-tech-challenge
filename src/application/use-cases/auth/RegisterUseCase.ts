@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
-import { IUserRepository } from '../../../domain/ports/IUserRepository';
-import { UserRole } from '../../../domain/entities/User';
-import { ConflictError } from '../../../domain/errors/AppError';
+import { IUserRepository } from '../../../use-cases/ports/IUserRepository';
+import { UserRole } from '../../../entities/User';
+import { ConflictError } from '../../../entities/errors/AppError';
 
 interface RegisterInput {
   email: string;

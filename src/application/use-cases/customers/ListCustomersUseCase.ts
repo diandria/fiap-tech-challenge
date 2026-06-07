@@ -1,5 +1,5 @@
-import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
-import { Customer } from '../../../domain/entities/Customer';
+import { ICustomerRepository } from '../../../use-cases/ports/ICustomerRepository';
+import { Customer } from '../../../entities/Customer';
 
 export class ListCustomersUseCase {
   constructor(private readonly repo: ICustomerRepository) {}

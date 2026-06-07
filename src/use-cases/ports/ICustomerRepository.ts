@@ -1,4 +1,4 @@
-import { Customer } from '../entities/Customer';
+import { Customer } from '../../entities/Customer';
 
 type ManagedFields = 'id' | 'createdAt' | 'updatedAt';
 

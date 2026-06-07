@@ -1,4 +1,4 @@
-import { ServiceOrder, OSStatus } from '../entities/ServiceOrder';
+import { ServiceOrder, OSStatus } from '../../entities/ServiceOrder';
 
 export interface ListServiceOrdersFilter {
   status?: OSStatus;

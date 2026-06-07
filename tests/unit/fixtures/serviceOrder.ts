@@ -1,5 +1,5 @@
-import { ServiceOrder } from '../../../src/domain/entities/ServiceOrder';
-import { IServiceOrderRepository } from '../../../src/domain/ports/IServiceOrderRepository';
+import { ServiceOrder } from '../../../src/entities/ServiceOrder';
+import { IServiceOrderRepository } from '../../../src/use-cases/ports/IServiceOrderRepository';
 
 export const baseOS: ServiceOrder = {
   id: 'os-1',

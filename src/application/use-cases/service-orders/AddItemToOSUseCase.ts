@@ -1,8 +1,8 @@
-import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepository';
-import { IItemRepository } from '../../../domain/ports/IItemRepository';
-import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
-import { getAvailableQuantity } from '../../../domain/entities/Item';
-import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
+import { IServiceOrderRepository } from '../../../use-cases/ports/IServiceOrderRepository';
+import { IItemRepository } from '../../../use-cases/ports/IItemRepository';
+import { ServiceOrder } from '../../../entities/ServiceOrder';
+import { getAvailableQuantity } from '../../../entities/Item';
+import { NotFoundError, ValidationError } from '../../../entities/errors/AppError';
 import { findOSOrThrow } from '../../utils/serviceOrderUtils';
 
 export class AddItemToOSUseCase {

@@ -1,7 +1,7 @@
-import { IServiceOrderRepository } from '../../domain/ports/IServiceOrderRepository';
-import { ServiceOrder } from '../../domain/entities/ServiceOrder';
-import { Customer } from '../../domain/entities/Customer';
-import { NotFoundError, ValidationError } from '../../domain/errors/AppError';
+import { IServiceOrderRepository } from '../../use-cases/ports/IServiceOrderRepository';
+import { ServiceOrder } from '../../entities/ServiceOrder';
+import { Customer } from '../../entities/Customer';
+import { NotFoundError, ValidationError } from '../../entities/errors/AppError';
 
 export async function findOSOrThrow(
   repo: IServiceOrderRepository,

@@ -1,6 +1,6 @@
 import { StartExecutionUseCase } from '../../../../src/application/use-cases/service-orders/StartExecutionUseCase';
-import { IServiceOrderRepository } from '../../../../src/domain/ports/IServiceOrderRepository';
-import { IItemRepository } from '../../../../src/domain/ports/IItemRepository';
+import { IServiceOrderRepository } from '../../../../src/use-cases/ports/IServiceOrderRepository';
+import { IItemRepository } from '../../../../src/use-cases/ports/IItemRepository';
 import { makeOSRepo, approvedOS } from '../../fixtures/serviceOrder';
 
 const twoItemApprovedOS = {

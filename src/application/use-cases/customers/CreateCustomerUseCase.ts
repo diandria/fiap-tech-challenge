@@ -1,7 +1,7 @@
-import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
-import { Customer, TaxType } from '../../../domain/entities/Customer';
-import { validateTaxId, validatePhone } from '../../../domain/validators';
-import { ValidationError, ConflictError } from '../../../domain/errors/AppError';
+import { ICustomerRepository } from '../../../use-cases/ports/ICustomerRepository';
+import { Customer, TaxType } from '../../../entities/Customer';
+import { validateTaxId, validatePhone } from '../../../entities/validators';
+import { ValidationError, ConflictError } from '../../../entities/errors/AppError';
 
 interface CreateCustomerInput {
   name: string;

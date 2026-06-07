@@ -1,7 +1,7 @@
-import { IVehicleRepository } from '../../../domain/ports/IVehicleRepository';
-import { Vehicle } from '../../../domain/entities/Vehicle';
-import { validatePlate } from '../../../domain/validators';
-import { ValidationError, ConflictError } from '../../../domain/errors/AppError';
+import { IVehicleRepository } from '../../../use-cases/ports/IVehicleRepository';
+import { Vehicle } from '../../../entities/Vehicle';
+import { validatePlate } from '../../../entities/validators';
+import { ValidationError, ConflictError } from '../../../entities/errors/AppError';
 
 interface CreateVehicleInput {
   customerId: string;

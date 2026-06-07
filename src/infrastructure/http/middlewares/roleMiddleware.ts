@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { UserRole } from '../../../domain/entities/User';
-import { ForbiddenError } from '../../../domain/errors/AppError';
+import { UserRole } from '../../../entities/User';
+import { ForbiddenError } from '../../../entities/errors/AppError';
 
 export function requireRole(...roles: UserRole[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {

@@ -1,5 +1,5 @@
-import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepository';
-import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
+import { IServiceOrderRepository } from '../../../use-cases/ports/IServiceOrderRepository';
+import { ServiceOrder } from '../../../entities/ServiceOrder';
 
 interface CreateServiceOrderInput {
   customerId: string;

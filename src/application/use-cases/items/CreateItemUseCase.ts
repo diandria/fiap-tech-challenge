@@ -1,6 +1,6 @@
-import { IItemRepository } from '../../../domain/ports/IItemRepository';
-import { Item } from '../../../domain/entities/Item';
-import { ValidationError } from '../../../domain/errors/AppError';
+import { IItemRepository } from '../../../use-cases/ports/IItemRepository';
+import { Item } from '../../../entities/Item';
+import { ValidationError } from '../../../entities/errors/AppError';
 
 interface CreateItemInput {
   name: string;
