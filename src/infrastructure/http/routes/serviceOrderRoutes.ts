@@ -4,8 +4,8 @@ import { MongoServiceOrderRepository } from '../../../adapters/gateways/MongoSer
 import { MongoCustomerRepository } from '../../../adapters/gateways/MongoCustomerRepository';
 import { MongoServiceRepository } from '../../../adapters/gateways/MongoServiceRepository';
 import { MongoItemRepository } from '../../../adapters/gateways/MongoItemRepository';
-import { authMiddleware } from '../middlewares/authMiddleware';
-import { requireRole } from '../middlewares/roleMiddleware';
+import { authMiddleware } from '../../../frameworks/http/middlewares/authMiddleware';
+import { requireRole } from '../../../frameworks/http/middlewares/roleMiddleware';
 import { CreateServiceOrderUseCase } from '../../../use-cases/service-orders/CreateServiceOrderUseCase';
 import { GetServiceOrderUseCase } from '../../../use-cases/service-orders/GetServiceOrderUseCase';
 import { ListServiceOrdersUseCase } from '../../../use-cases/service-orders/ListServiceOrdersUseCase';

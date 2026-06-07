@@ -6,8 +6,8 @@ import { ListServicesUseCase } from '../../../use-cases/services/ListServicesUse
 import { ListServicesAvgTimeUseCase } from '../../../use-cases/services/ListServicesAvgTimeUseCase';
 import { UpdateServiceUseCase } from '../../../use-cases/services/UpdateServiceUseCase';
 import { DeleteServiceUseCase } from '../../../use-cases/services/DeleteServiceUseCase';
-import { authMiddleware } from '../middlewares/authMiddleware';
-import { requireRole } from '../middlewares/roleMiddleware';
+import { authMiddleware } from '../../../frameworks/http/middlewares/authMiddleware';
+import { requireRole } from '../../../frameworks/http/middlewares/roleMiddleware';
 
 export function serviceRoutes(): Router {
   const router = Router();

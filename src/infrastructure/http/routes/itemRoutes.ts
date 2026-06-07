@@ -5,8 +5,8 @@ import { GetItemByIdUseCase } from '../../../use-cases/items/GetItemByIdUseCase'
 import { ListItemsUseCase } from '../../../use-cases/items/ListItemsUseCase';
 import { UpdateItemUseCase } from '../../../use-cases/items/UpdateItemUseCase';
 import { DeleteItemUseCase } from '../../../use-cases/items/DeleteItemUseCase';
-import { authMiddleware } from '../middlewares/authMiddleware';
-import { requireRole } from '../middlewares/roleMiddleware';
+import { authMiddleware } from '../../../frameworks/http/middlewares/authMiddleware';
+import { requireRole } from '../../../frameworks/http/middlewares/roleMiddleware';
 
 export function itemRoutes(): Router {
   const router = Router();

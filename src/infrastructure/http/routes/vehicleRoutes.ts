@@ -5,8 +5,8 @@ import { GetVehicleByIdUseCase } from '../../../use-cases/vehicles/GetVehicleByI
 import { ListCustomerVehiclesUseCase } from '../../../use-cases/vehicles/ListCustomerVehiclesUseCase';
 import { UpdateVehicleUseCase } from '../../../use-cases/vehicles/UpdateVehicleUseCase';
 import { DeleteVehicleUseCase } from '../../../use-cases/vehicles/DeleteVehicleUseCase';
-import { authMiddleware } from '../middlewares/authMiddleware';
-import { requireRole } from '../middlewares/roleMiddleware';
+import { authMiddleware } from '../../../frameworks/http/middlewares/authMiddleware';
+import { requireRole } from '../../../frameworks/http/middlewares/roleMiddleware';
 
 export function vehicleRoutes(): Router {
   const router = Router();
