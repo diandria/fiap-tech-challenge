@@ -1,9 +1,9 @@
 import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepository';
 import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
 import { IItemRepository } from '../../../domain/ports/IItemRepository';
-import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
-import { NotFoundError } from '../../../domain/errors/AppError';
-import { assertTransition } from '../../../domain/serviceOrderStateMachine';
+import { ServiceOrder } from '../../../entities/ServiceOrder';
+import { NotFoundError } from '../../../entities/errors/AppError';
+import { assertTransition } from '../../../entities/serviceOrderStateMachine';
 import { findOSOrThrow, verifyCustomerCode } from '../../utils/serviceOrderUtils';
 
 export class RejectBudgetUseCase {

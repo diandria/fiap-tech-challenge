@@ -1,5 +1,5 @@
-import { Customer } from '../../domain/entities/Customer';
-import { ServiceOrder } from '../../domain/entities/ServiceOrder';
+import { Customer } from '../../entities/Customer';
+import { ServiceOrder } from '../../entities/ServiceOrder';
 import { INotificationService } from '../../domain/ports/INotificationService';
 
 export class ConsoleNotificationService implements INotificationService {

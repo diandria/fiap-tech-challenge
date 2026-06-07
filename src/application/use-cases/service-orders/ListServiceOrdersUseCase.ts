@@ -1,5 +1,5 @@
 import { IServiceOrderRepository, ListServiceOrdersFilter } from '../../../domain/ports/IServiceOrderRepository';
-import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
+import { ServiceOrder } from '../../../entities/ServiceOrder';
 
 export class ListServiceOrdersUseCase {
   constructor(private readonly repo: IServiceOrderRepository) {}

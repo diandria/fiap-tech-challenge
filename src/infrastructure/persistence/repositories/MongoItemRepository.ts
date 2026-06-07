@@ -1,5 +1,5 @@
 import { IItemRepository } from '../../../domain/ports/IItemRepository';
-import { Item } from '../../../domain/entities/Item';
+import { Item } from '../../../entities/Item';
 import { ItemModel } from '../models/ItemModel';
 
 export class MongoItemRepository implements IItemRepository {

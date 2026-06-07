@@ -1,5 +1,5 @@
 import { IServiceRepository } from '../../../domain/ports/IServiceRepository';
-import { Service } from '../../../domain/entities/Service';
+import { Service } from '../../../entities/Service';
 
 export class CreateServiceUseCase {
   constructor(private readonly repo: IServiceRepository) {}

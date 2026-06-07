@@ -1,6 +1,6 @@
 import { IVehicleRepository } from '../../../domain/ports/IVehicleRepository';
-import { Vehicle } from '../../../domain/entities/Vehicle';
-import { NotFoundError } from '../../../domain/errors/AppError';
+import { Vehicle } from '../../../entities/Vehicle';
+import { NotFoundError } from '../../../entities/errors/AppError';
 
 export class GetVehicleByIdUseCase {
   constructor(private readonly repo: IVehicleRepository) {}

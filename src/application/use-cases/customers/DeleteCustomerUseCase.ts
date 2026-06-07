@@ -1,5 +1,5 @@
 import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
-import { NotFoundError } from '../../../domain/errors/AppError';
+import { NotFoundError } from '../../../entities/errors/AppError';
 
 export class DeleteCustomerUseCase {
   constructor(private readonly repo: ICustomerRepository) {}

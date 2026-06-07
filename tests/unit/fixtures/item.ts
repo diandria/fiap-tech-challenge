@@ -1,4 +1,4 @@
-import { Item } from '../../../src/domain/entities/Item';
+import { Item } from '../../../src/entities/Item';
 import { IItemRepository } from '../../../src/domain/ports/IItemRepository';
 
 export const stockedItem: Item = {

@@ -1,4 +1,4 @@
-import { Service } from '../../../src/domain/entities/Service';
+import { Service } from '../../../src/entities/Service';
 import { IServiceRepository } from '../../../src/domain/ports/IServiceRepository';
 
 export const baseService: Service = {

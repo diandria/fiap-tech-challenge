@@ -1,5 +1,5 @@
 import { IVehicleRepository } from '../../../domain/ports/IVehicleRepository';
-import { NotFoundError } from '../../../domain/errors/AppError';
+import { NotFoundError } from '../../../entities/errors/AppError';
 
 export class DeleteVehicleUseCase {
   constructor(private readonly repo: IVehicleRepository) {}

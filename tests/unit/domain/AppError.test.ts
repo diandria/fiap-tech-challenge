@@ -4,7 +4,7 @@ import {
   UnauthorizedError,
   ForbiddenError,
   ConflictError,
-} from '../../../src/domain/errors/AppError';
+} from '../../../src/entities/errors/AppError';
 
 describe('AppError subclasses', () => {
   it('ForbiddenError uses default message when none provided', () => {

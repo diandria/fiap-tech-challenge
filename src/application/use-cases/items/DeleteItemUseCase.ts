@@ -1,5 +1,5 @@
 import { IItemRepository } from '../../../domain/ports/IItemRepository';
-import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
+import { NotFoundError, ValidationError } from '../../../entities/errors/AppError';
 
 export class DeleteItemUseCase {
   constructor(private readonly repo: IItemRepository) {}

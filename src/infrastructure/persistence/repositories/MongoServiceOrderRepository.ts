@@ -1,5 +1,5 @@
 import { IServiceOrderRepository, ListServiceOrdersFilter, AvgExecutionResult } from '../../../domain/ports/IServiceOrderRepository';
-import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
+import { ServiceOrder } from '../../../entities/ServiceOrder';
 import { ServiceOrderModel } from '../models/ServiceOrderModel';
 
 export class MongoServiceOrderRepository implements IServiceOrderRepository {

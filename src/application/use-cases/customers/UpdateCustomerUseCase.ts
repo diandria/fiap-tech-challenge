@@ -1,7 +1,7 @@
 import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
-import { Customer } from '../../../domain/entities/Customer';
-import { validatePhone } from '../../../domain/validators';
-import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
+import { Customer } from '../../../entities/Customer';
+import { validatePhone } from '../../../entities/validators';
+import { NotFoundError, ValidationError } from '../../../entities/errors/AppError';
 
 export class UpdateCustomerUseCase {
   constructor(private readonly repo: ICustomerRepository) {}

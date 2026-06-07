@@ -1,5 +1,5 @@
 import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
-import { Customer } from '../../../domain/entities/Customer';
+import { Customer } from '../../../entities/Customer';
 import { CustomerModel } from '../models/CustomerModel';
 
 const notDeleted = { deletedAt: null };

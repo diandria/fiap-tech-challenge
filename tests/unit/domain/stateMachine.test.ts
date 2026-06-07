@@ -1,5 +1,5 @@
-import { canTransition, assertTransition } from '../../../src/domain/serviceOrderStateMachine';
-import { OSStatus } from '../../../src/domain/entities/ServiceOrder';
+import { canTransition, assertTransition } from '../../../src/entities/serviceOrderStateMachine';
+import { OSStatus } from '../../../src/entities/ServiceOrder';
 
 describe('canTransition', () => {
   const allowed: [OSStatus, OSStatus][] = [

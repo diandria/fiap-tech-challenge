@@ -24,8 +24,8 @@ import { FinishOSUseCase } from '../../../application/use-cases/service-orders/F
 import { DeliverOSUseCase } from '../../../application/use-cases/service-orders/DeliverOSUseCase';
 import { GetAvgExecutionTimeUseCase } from '../../../application/use-cases/service-orders/GetAvgExecutionTimeUseCase';
 import { ConsoleNotificationService } from '../../notifications/ConsoleNotificationService';
-import { OSStatus } from '../../../domain/entities/ServiceOrder';
-import { ValidationError } from '../../../domain/errors/AppError';
+import { OSStatus } from '../../../entities/ServiceOrder';
+import { ValidationError } from '../../../entities/errors/AppError';
 
 const budgetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,

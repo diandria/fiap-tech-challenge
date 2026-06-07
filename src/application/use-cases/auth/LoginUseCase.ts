@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { IUserRepository } from '../../../domain/ports/IUserRepository';
-import { UnauthorizedError } from '../../../domain/errors/AppError';
+import { UnauthorizedError } from '../../../entities/errors/AppError';
 
 interface LoginInput {
   email: string;

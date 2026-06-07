@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { TaxType } from '../../../domain/entities/Customer';
+import { TaxType } from '../../../entities/Customer';
 
 interface CustomerDocument extends Document {
   name: string;

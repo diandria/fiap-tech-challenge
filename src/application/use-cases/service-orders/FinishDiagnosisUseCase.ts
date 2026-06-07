@@ -3,8 +3,8 @@ import { IServiceRepository } from '../../../domain/ports/IServiceRepository';
 import { IItemRepository } from '../../../domain/ports/IItemRepository';
 import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
 import { INotificationService } from '../../../domain/ports/INotificationService';
-import { ServiceOrder } from '../../../domain/entities/ServiceOrder';
-import { assertTransition } from '../../../domain/serviceOrderStateMachine';
+import { ServiceOrder } from '../../../entities/ServiceOrder';
+import { assertTransition } from '../../../entities/serviceOrderStateMachine';
 import { findOSOrThrow } from '../../utils/serviceOrderUtils';
 
 export class FinishDiagnosisUseCase {

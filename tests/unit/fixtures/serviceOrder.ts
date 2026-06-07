@@ -1,4 +1,4 @@
-import { ServiceOrder } from '../../../src/domain/entities/ServiceOrder';
+import { ServiceOrder } from '../../../src/entities/ServiceOrder';
 import { IServiceOrderRepository } from '../../../src/domain/ports/IServiceOrderRepository';
 
 export const baseOS: ServiceOrder = {

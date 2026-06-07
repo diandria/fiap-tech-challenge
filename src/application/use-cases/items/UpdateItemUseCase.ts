@@ -1,6 +1,6 @@
 import { IItemRepository } from '../../../domain/ports/IItemRepository';
-import { Item, getAvailableQuantity } from '../../../domain/entities/Item';
-import { NotFoundError, ValidationError } from '../../../domain/errors/AppError';
+import { Item, getAvailableQuantity } from '../../../entities/Item';
+import { NotFoundError, ValidationError } from '../../../entities/errors/AppError';
 import { ItemWithAvailable } from './GetItemByIdUseCase';
 
 export class UpdateItemUseCase {

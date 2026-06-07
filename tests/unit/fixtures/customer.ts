@@ -1,4 +1,4 @@
-import { Customer } from '../../../src/domain/entities/Customer';
+import { Customer } from '../../../src/entities/Customer';
 import { ICustomerRepository } from '../../../src/domain/ports/ICustomerRepository';
 
 // CPF 52998224725 → first 4 digits: "5299"

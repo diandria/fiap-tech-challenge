@@ -1,7 +1,7 @@
 import { findOSOrThrow, verifyCustomerCode } from '../../../../src/application/utils/serviceOrderUtils';
 import { makeOSRepo, baseOS } from '../../fixtures/serviceOrder';
 import { cpfCustomer, cnpjCustomer } from '../../fixtures/customer';
-import { NotFoundError, ValidationError } from '../../../../src/domain/errors/AppError';
+import { NotFoundError, ValidationError } from '../../../../src/entities/errors/AppError';
 
 describe('findOSOrThrow', () => {
   it('GIVEN existing OS WHEN called THEN returns the service order', async () => {

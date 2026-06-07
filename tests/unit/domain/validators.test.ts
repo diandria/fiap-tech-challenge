@@ -1,4 +1,4 @@
-import { validateCPF, validateCNPJ, validatePlate, validateTaxId, validatePhone } from '../../../src/domain/validators';
+import { validateCPF, validateCNPJ, validatePlate, validateTaxId, validatePhone } from '../../../src/entities/validators';
 
 
 describe('validateCPF', () => {

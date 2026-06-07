@@ -1,6 +1,6 @@
 import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
-import { Customer } from '../../../domain/entities/Customer';
-import { NotFoundError } from '../../../domain/errors/AppError';
+import { Customer } from '../../../entities/Customer';
+import { NotFoundError } from '../../../entities/errors/AppError';
 
 export class GetCustomerByIdUseCase {
   constructor(private readonly repo: ICustomerRepository) {}

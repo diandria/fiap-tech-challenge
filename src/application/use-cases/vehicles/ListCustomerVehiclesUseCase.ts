@@ -1,5 +1,5 @@
 import { IVehicleRepository } from '../../../domain/ports/IVehicleRepository';
-import { Vehicle } from '../../../domain/entities/Vehicle';
+import { Vehicle } from '../../../entities/Vehicle';
 
 export class ListCustomerVehiclesUseCase {
   constructor(private readonly repo: IVehicleRepository) {}
