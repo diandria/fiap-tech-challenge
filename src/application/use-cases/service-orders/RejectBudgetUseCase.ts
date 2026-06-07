@@ -1,6 +1,6 @@
-import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepository';
-import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
-import { IItemRepository } from '../../../domain/ports/IItemRepository';
+import { IServiceOrderRepository } from '../../../use-cases/ports/IServiceOrderRepository';
+import { ICustomerRepository } from '../../../use-cases/ports/ICustomerRepository';
+import { IItemRepository } from '../../../use-cases/ports/IItemRepository';
 import { ServiceOrder } from '../../../entities/ServiceOrder';
 import { NotFoundError } from '../../../entities/errors/AppError';
 import { assertTransition } from '../../../entities/serviceOrderStateMachine';

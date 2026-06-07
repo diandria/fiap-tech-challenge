@@ -1,5 +1,5 @@
 import { GetAvgExecutionTimeUseCase } from '../../../../src/application/use-cases/service-orders/GetAvgExecutionTimeUseCase';
-import { IServiceOrderRepository, AvgExecutionResult } from '../../../../src/domain/ports/IServiceOrderRepository';
+import { IServiceOrderRepository, AvgExecutionResult } from '../../../../src/use-cases/ports/IServiceOrderRepository';
 
 const mockResults: AvgExecutionResult[] = [
   { serviceId: 's-1', avgMinutes: 45.5, count: 4 },

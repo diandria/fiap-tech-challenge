@@ -1,4 +1,4 @@
-import { IServiceRepository } from '../../../domain/ports/IServiceRepository';
+import { IServiceRepository } from '../../../use-cases/ports/IServiceRepository';
 
 export interface ServiceAvgTimeDTO {
   id: string;

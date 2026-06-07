@@ -1,4 +1,4 @@
-import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
+import { ICustomerRepository } from '../../../use-cases/ports/ICustomerRepository';
 import { Customer } from '../../../entities/Customer';
 import { validatePhone } from '../../../entities/validators';
 import { NotFoundError, ValidationError } from '../../../entities/errors/AppError';

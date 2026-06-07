@@ -1,5 +1,5 @@
 import { ListServicesAvgTimeUseCase } from '../../../../src/application/use-cases/services/ListServicesAvgTimeUseCase';
-import { IServiceRepository } from '../../../../src/domain/ports/IServiceRepository';
+import { IServiceRepository } from '../../../../src/use-cases/ports/IServiceRepository';
 import { Service } from '../../../../src/entities/Service';
 
 const makeRepo = (services: Service[]): IServiceRepository => ({

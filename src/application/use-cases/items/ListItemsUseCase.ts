@@ -1,4 +1,4 @@
-import { IItemRepository } from '../../../domain/ports/IItemRepository';
+import { IItemRepository } from '../../../use-cases/ports/IItemRepository';
 import { getAvailableQuantity } from '../../../entities/Item';
 import { ItemWithAvailable } from './GetItemByIdUseCase';
 

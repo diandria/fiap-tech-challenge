@@ -1,4 +1,4 @@
-import { IItemRepository } from '../../../domain/ports/IItemRepository';
+import { IItemRepository } from '../../../use-cases/ports/IItemRepository';
 import { Item } from '../../../entities/Item';
 import { ItemModel } from '../models/ItemModel';
 

@@ -1,4 +1,4 @@
-import { IServiceRepository } from '../../../domain/ports/IServiceRepository';
+import { IServiceRepository } from '../../../use-cases/ports/IServiceRepository';
 import { NotFoundError } from '../../../entities/errors/AppError';
 
 export class DeleteServiceUseCase {

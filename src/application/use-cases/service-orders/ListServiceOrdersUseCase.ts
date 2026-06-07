@@ -1,4 +1,4 @@
-import { IServiceOrderRepository, ListServiceOrdersFilter } from '../../../domain/ports/IServiceOrderRepository';
+import { IServiceOrderRepository, ListServiceOrdersFilter } from '../../../use-cases/ports/IServiceOrderRepository';
 import { ServiceOrder } from '../../../entities/ServiceOrder';
 
 export class ListServiceOrdersUseCase {

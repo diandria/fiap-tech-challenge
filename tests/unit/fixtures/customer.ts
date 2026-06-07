@@ -1,5 +1,5 @@
 import { Customer } from '../../../src/entities/Customer';
-import { ICustomerRepository } from '../../../src/domain/ports/ICustomerRepository';
+import { ICustomerRepository } from '../../../src/use-cases/ports/ICustomerRepository';
 
 // CPF 52998224725 → first 4 digits: "5299"
 export const cpfCustomer: Customer = {

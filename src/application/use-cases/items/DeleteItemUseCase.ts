@@ -1,4 +1,4 @@
-import { IItemRepository } from '../../../domain/ports/IItemRepository';
+import { IItemRepository } from '../../../use-cases/ports/IItemRepository';
 import { NotFoundError, ValidationError } from '../../../entities/errors/AppError';
 
 export class DeleteItemUseCase {

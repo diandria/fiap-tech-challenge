@@ -1,5 +1,5 @@
 import { Item } from '../../../src/entities/Item';
-import { IItemRepository } from '../../../src/domain/ports/IItemRepository';
+import { IItemRepository } from '../../../src/use-cases/ports/IItemRepository';
 
 export const stockedItem: Item = {
   id: 'i-1',

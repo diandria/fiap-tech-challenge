@@ -1,4 +1,4 @@
-import { IItemRepository } from '../../../domain/ports/IItemRepository';
+import { IItemRepository } from '../../../use-cases/ports/IItemRepository';
 import { Item, getAvailableQuantity } from '../../../entities/Item';
 import { NotFoundError, ValidationError } from '../../../entities/errors/AppError';
 import { ItemWithAvailable } from './GetItemByIdUseCase';

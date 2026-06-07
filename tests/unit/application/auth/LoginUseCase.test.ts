@@ -1,5 +1,5 @@
 import { LoginUseCase } from '../../../../src/application/use-cases/auth/LoginUseCase';
-import { IUserRepository } from '../../../../src/domain/ports/IUserRepository';
+import { IUserRepository } from '../../../../src/use-cases/ports/IUserRepository';
 import bcrypt from 'bcryptjs';
 
 const hash = bcrypt.hashSync('secret123', 1);

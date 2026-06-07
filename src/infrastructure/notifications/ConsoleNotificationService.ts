@@ -1,6 +1,6 @@
 import { Customer } from '../../entities/Customer';
 import { ServiceOrder } from '../../entities/ServiceOrder';
-import { INotificationService } from '../../domain/ports/INotificationService';
+import { INotificationService } from '../../use-cases/ports/INotificationService';
 
 export class ConsoleNotificationService implements INotificationService {
   async notifyBudgetReady(customer: Customer, os: ServiceOrder): Promise<void> {

@@ -1,4 +1,4 @@
-import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
+import { ICustomerRepository } from '../../../use-cases/ports/ICustomerRepository';
 import { NotFoundError } from '../../../entities/errors/AppError';
 
 export class DeleteCustomerUseCase {

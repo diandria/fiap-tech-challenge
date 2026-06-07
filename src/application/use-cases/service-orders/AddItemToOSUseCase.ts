@@ -1,5 +1,5 @@
-import { IServiceOrderRepository } from '../../../domain/ports/IServiceOrderRepository';
-import { IItemRepository } from '../../../domain/ports/IItemRepository';
+import { IServiceOrderRepository } from '../../../use-cases/ports/IServiceOrderRepository';
+import { IItemRepository } from '../../../use-cases/ports/IItemRepository';
 import { ServiceOrder } from '../../../entities/ServiceOrder';
 import { getAvailableQuantity } from '../../../entities/Item';
 import { NotFoundError, ValidationError } from '../../../entities/errors/AppError';

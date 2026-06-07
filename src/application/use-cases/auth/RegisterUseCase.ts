@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { IUserRepository } from '../../../domain/ports/IUserRepository';
+import { IUserRepository } from '../../../use-cases/ports/IUserRepository';
 import { UserRole } from '../../../entities/User';
 import { ConflictError } from '../../../entities/errors/AppError';
 

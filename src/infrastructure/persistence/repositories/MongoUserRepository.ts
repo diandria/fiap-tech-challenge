@@ -1,4 +1,4 @@
-import { IUserRepository, CreateUserData } from '../../../domain/ports/IUserRepository';
+import { IUserRepository, CreateUserData } from '../../../use-cases/ports/IUserRepository';
 import { User } from '../../../entities/User';
 import { UserModel } from '../models/UserModel';
 

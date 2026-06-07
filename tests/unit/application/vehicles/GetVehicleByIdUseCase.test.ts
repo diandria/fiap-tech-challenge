@@ -1,5 +1,5 @@
 import { GetVehicleByIdUseCase } from '../../../../src/application/use-cases/vehicles/GetVehicleByIdUseCase';
-import { IVehicleRepository } from '../../../../src/domain/ports/IVehicleRepository';
+import { IVehicleRepository } from '../../../../src/use-cases/ports/IVehicleRepository';
 import { Vehicle } from '../../../../src/entities/Vehicle';
 
 const vehicle: Vehicle = { id: 'v-1', customerId: 'c-1', plate: 'ABC-1234', brand: 'Toyota', model: 'Corolla', year: 2020 };

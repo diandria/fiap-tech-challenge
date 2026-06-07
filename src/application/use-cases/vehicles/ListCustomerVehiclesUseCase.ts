@@ -1,4 +1,4 @@
-import { IVehicleRepository } from '../../../domain/ports/IVehicleRepository';
+import { IVehicleRepository } from '../../../use-cases/ports/IVehicleRepository';
 import { Vehicle } from '../../../entities/Vehicle';
 
 export class ListCustomerVehiclesUseCase {

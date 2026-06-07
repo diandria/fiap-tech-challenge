@@ -1,5 +1,5 @@
 import { CreateVehicleUseCase } from '../../../../src/application/use-cases/vehicles/CreateVehicleUseCase';
-import { IVehicleRepository } from '../../../../src/domain/ports/IVehicleRepository';
+import { IVehicleRepository } from '../../../../src/use-cases/ports/IVehicleRepository';
 import { Vehicle } from '../../../../src/entities/Vehicle';
 
 const validInput = {

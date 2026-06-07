@@ -1,5 +1,5 @@
 import { DeleteVehicleUseCase } from '../../../../src/application/use-cases/vehicles/DeleteVehicleUseCase';
-import { IVehicleRepository } from '../../../../src/domain/ports/IVehicleRepository';
+import { IVehicleRepository } from '../../../../src/use-cases/ports/IVehicleRepository';
 
 const makeVehicleRepo = (deleted: boolean): IVehicleRepository => ({
   findAll: jest.fn(), findById: jest.fn(), findByPlate: jest.fn(),

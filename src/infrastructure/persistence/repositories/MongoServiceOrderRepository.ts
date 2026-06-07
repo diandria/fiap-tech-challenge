@@ -1,4 +1,4 @@
-import { IServiceOrderRepository, ListServiceOrdersFilter, AvgExecutionResult } from '../../../domain/ports/IServiceOrderRepository';
+import { IServiceOrderRepository, ListServiceOrdersFilter, AvgExecutionResult } from '../../../use-cases/ports/IServiceOrderRepository';
 import { ServiceOrder } from '../../../entities/ServiceOrder';
 import { ServiceOrderModel } from '../models/ServiceOrderModel';
 

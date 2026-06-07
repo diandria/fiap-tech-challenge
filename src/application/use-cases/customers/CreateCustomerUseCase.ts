@@ -1,4 +1,4 @@
-import { ICustomerRepository } from '../../../domain/ports/ICustomerRepository';
+import { ICustomerRepository } from '../../../use-cases/ports/ICustomerRepository';
 import { Customer, TaxType } from '../../../entities/Customer';
 import { validateTaxId, validatePhone } from '../../../entities/validators';
 import { ValidationError, ConflictError } from '../../../entities/errors/AppError';

@@ -1,5 +1,5 @@
 import { ListCustomerVehiclesUseCase } from '../../../../src/application/use-cases/vehicles/ListCustomerVehiclesUseCase';
-import { IVehicleRepository } from '../../../../src/domain/ports/IVehicleRepository';
+import { IVehicleRepository } from '../../../../src/use-cases/ports/IVehicleRepository';
 import { Vehicle } from '../../../../src/entities/Vehicle';
 
 const vehicles: Vehicle[] = [

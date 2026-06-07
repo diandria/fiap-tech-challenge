@@ -1,4 +1,4 @@
-import { IServiceOrderRepository, AvgExecutionResult } from '../../../domain/ports/IServiceOrderRepository';
+import { IServiceOrderRepository, AvgExecutionResult } from '../../../use-cases/ports/IServiceOrderRepository';
 
 export class GetAvgExecutionTimeUseCase {
   constructor(private readonly osRepo: IServiceOrderRepository) {}
