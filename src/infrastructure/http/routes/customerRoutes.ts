@@ -6,8 +6,8 @@ import { ListCustomersUseCase } from '../../../use-cases/customers/ListCustomers
 import { UpdateCustomerUseCase } from '../../../use-cases/customers/UpdateCustomerUseCase';
 import { DeleteCustomerUseCase } from '../../../use-cases/customers/DeleteCustomerUseCase';
 import { GetCustomerByTaxIdUseCase } from '../../../use-cases/customers/GetCustomerByTaxIdUseCase';
-import { authMiddleware } from '../middlewares/authMiddleware';
-import { requireRole } from '../middlewares/roleMiddleware';
+import { authMiddleware } from '../../../frameworks/http/middlewares/authMiddleware';
+import { requireRole } from '../../../frameworks/http/middlewares/roleMiddleware';
 
 export function customerRoutes(): Router {
   const router = Router();

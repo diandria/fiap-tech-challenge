@@ -3,8 +3,8 @@ import rateLimit from 'express-rate-limit';
 import { MongoUserRepository } from '../../../adapters/gateways/MongoUserRepository';
 import { LoginUseCase } from '../../../use-cases/auth/LoginUseCase';
 import { RegisterUseCase } from '../../../use-cases/auth/RegisterUseCase';
-import { authMiddleware } from '../middlewares/authMiddleware';
-import { requireRole } from '../middlewares/roleMiddleware';
+import { authMiddleware } from '../../../frameworks/http/middlewares/authMiddleware';
+import { requireRole } from '../../../frameworks/http/middlewares/roleMiddleware';
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

@@ -1,6 +1,6 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
-import { errorMiddleware } from './infrastructure/http/middlewares/errorMiddleware';
+import { errorMiddleware } from './frameworks/http/middlewares/errorMiddleware';
 import { authRoutes } from './infrastructure/http/routes/authRoutes';
 import { customerRoutes } from './infrastructure/http/routes/customerRoutes';
 import { vehicleRoutes } from './infrastructure/http/routes/vehicleRoutes';
