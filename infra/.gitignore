@@ -1,0 +1,21 @@
+# State local — contém referências a recursos criados; nunca commitar
+*.tfstate
+*.tfstate.backup
+
+# Diretório de plugins baixados pelo terraform init
+.terraform/
+.terraform.lock.hcl
+
+# Logs de crash gerados pelo Terraform em panics
+crash.log
+crash.*.log
+
+# Arquivos de variáveis — podem conter credenciais
+*.tfvars
+*.tfvars.json
+
+# Arquivos de override locais — não devem ser compartilhados
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
