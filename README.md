@@ -392,6 +392,7 @@ Expanda qualquer endpoint, clique **Try it out**, preencha os parâmetros e cliq
 - `GET /services/avg-time` *(admin, mechanic, attendant)* — lista serviços do catálogo com tempo médio cadastrado (`id`, `name`, `estimatedMinutes`)
 - `GET|POST|PUT|DELETE /items` *(autenticado, escritas admin)*
 - `POST /service-orders` — cria OS com serviços e peças opcionais *(attendant, admin)*
+- `GET /service-orders` — lista OS ativas (exclui `FINISHED` e `DELIVERED` por padrão, ordenadas por prioridade operacional: `EXECUTION` › `WAITING_APPROVAL` › `DIAGNOSIS` › `RECEIVED`, mais antigas primeiro no mesmo status); `?status` desabilita a exclusão automática *(autenticado)*
 - `GET /service-orders/:id/status` — lê status *(público)*
 - `PATCH /service-orders/:id` body `{ status }` — transições internas da OS *(mechanic, admin)*
 - `PATCH /service-orders/:id/budget` body `{ status: APPROVED | REJECTED, code }` — decisão do cliente *(público, rate-limited)*
