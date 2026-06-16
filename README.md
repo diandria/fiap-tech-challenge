@@ -1,6 +1,40 @@
 # Car Repair Shop API
 
-API REST para gerenciar ordens de serviço, clientes, veículos, serviços e estoque de uma oficina mecânica. Desenvolvida como MVP do FIAP Tech Challenge.
+REST API for managing a car repair shop. Implements Clean Architecture, containerized with Docker and orchestrated on Kubernetes via Terraform, with a full CI/CD pipeline using GitHub Actions.
+
+## Phase 2
+
+### Architecture
+
+Full architecture diagram: [docs/c4.md](docs/c4.md)
+
+- **Application components:** 4 Clean Architecture layers — Entities, Use Cases, Interface Adapters, Frameworks & Drivers. See [docs/components.md](docs/components.md).
+- **Business rules:** state machine, stock management, notifications. See [docs/business-rules.md](docs/business-rules.md).
+- **Provisioned infrastructure:** Minikube with namespace `oficina`, Deployment + StatefulSet + HPA + PDB + Services + ConfigMap + Secret. See [docs/deploy-flow.md](docs/deploy-flow.md).
+- **Deploy flow:** CI on GitHub-hosted runner (build/lint/test) + CD on self-hosted runner (docker build + terraform apply). See [docs/deploy-flow.md](docs/deploy-flow.md).
+
+### Deploying to Kubernetes (Minikube)
+
+```bash
+# Start Minikube
+minikube start --cpus=2 --memory=4096
+
+# Populate k8s/secret.yaml with real credentials before applying
+# Apply all manifests via Terraform
+cd infra && terraform init && terraform apply
+
+# Access the application
+minikube service oficina-service -n oficina --url
+```
+
+### API
+
+- **Swagger UI:** `http://localhost:3000/api-docs` (local) or `http://<minikube-ip>:30080/api-docs` (Kubernetes)
+- **Postman Collection:** [docs/postman/car-repair-shop.postman_collection.json](docs/postman/car-repair-shop.postman_collection.json)
+
+### Demo video
+
+[link YouTube/Vimeo] <!-- replace with the actual link before submission; max 15 minutes -->
 
 ---
 
