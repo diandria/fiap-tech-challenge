@@ -60,7 +60,7 @@ Both use cases wrap the notification call in a `try/catch` and log errors withou
 
 ## Customer Approval Code
 
-When a customer approves the budget, they must supply a confirmation code stored on the `Customer` entity. The code is verified by `ApproveBudgetUseCase` before the OS moves to `APPROVED`. An invalid code throws `ValidationError`.
+When a customer approves the budget, they must supply a confirmation code. The code is not stored as a dedicated field; it is derived at runtime as the first 4 characters of `customer.taxId` by `verifyCustomerCode` in `use-cases/utils/serviceOrderUtils.ts`. `ApproveBudgetUseCase` calls that helper before moving the OS to `APPROVED`. An invalid code throws `ValidationError`.
 
 ## Service Timing
 
