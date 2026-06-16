@@ -2,11 +2,13 @@ import { ListServiceOrdersUseCase } from '../../../../src/use-cases/service-orde
 import { makeOSRepo, receivedOS } from '../../fixtures/serviceOrder';
 
 describe('ListServiceOrdersUseCase', () => {
-  it('GIVEN no filters WHEN execute called THEN returns all service orders', async () => {
+  it('GIVEN no filters WHEN execute called THEN excludes FINISHED and DELIVERED by default', async () => {
     const repo = makeOSRepo(receivedOS);
     const useCase = new ListServiceOrdersUseCase(repo);
     const result = await useCase.execute();
-    expect(repo.findAll).toHaveBeenCalledWith(undefined);
+    expect(repo.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ excludeStatuses: ['FINISHED', 'DELIVERED'] }),
+    );
     expect(result).toHaveLength(1);
   });
 
