@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: oficina-pdb
+  namespace: oficina
+  labels:
+    app.kubernetes.io/part-of: fiap-tech-challenge
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oficina-app
