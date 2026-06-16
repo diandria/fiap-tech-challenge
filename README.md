@@ -21,7 +21,8 @@ API REST para gerenciar ordens de serviço, clientes, veículos, serviços e est
 13. [SonarQube (opcional)](#sonarqube-opcional)
 14. [Variáveis de ambiente](#variáveis-de-ambiente)
 15. [Parar a aplicação](#parar-a-aplicação)
-16. [API Reference (Swagger)](#api-reference-swagger)
+16. [Infraestrutura local (Kubernetes + Terraform)](#infraestrutura-local-kubernetes--terraform)
+17. [API Reference (Swagger)](#api-reference-swagger)
 
 ---
 
@@ -332,6 +333,83 @@ docker-compose --profile sonar down
 # Remover também os volumes (dados perdidos!)
 docker-compose --profile sonar down -v
 ```
+
+---
+
+## Infraestrutura local (Kubernetes + Terraform)
+
+Alternativa ao Docker Compose para rodar o ambiente em Kubernetes local via Minikube. O diretório `/infra` contém um módulo Terraform que aplica todos os manifests de `/k8s/` na ordem correta com um único comando.
+
+### Pré-requisitos
+
+- [Minikube](https://minikube.sigs.k8s.io/docs/start/) instalado e rodando
+- [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.0 instalado
+- [kubectl](https://kubernetes.io/docs/tasks/tools/) instalado
+
+### Subindo o ambiente
+
+```bash
+# 1. Iniciar o Minikube (se ainda não estiver rodando)
+minikube start --cpus=2 --memory=4096
+
+# 2. Habilitar o metrics-server (obrigatório para o HPA funcionar)
+minikube addons enable metrics-server
+
+# 3. Inicializar o Terraform (baixa o provider kubectl — uma única vez)
+cd infra/
+terraform init
+
+# 4. Visualizar o que será criado
+terraform plan
+
+# 5. Aplicar todos os recursos no Minikube
+terraform apply
+cd ..
+
+# 6. Obter a URL de acesso à aplicação
+minikube service oficina-service -n oficina --url
+```
+
+### Verificando o ambiente
+
+```bash
+# Status dos Pods
+kubectl get pods -n oficina
+
+# Todos os recursos do namespace
+kubectl get all -n oficina
+
+# Logs da aplicação em tempo real
+kubectl logs -l app.kubernetes.io/name=oficina-app -n oficina -f
+```
+
+### Destruindo o ambiente
+
+```bash
+cd infra/
+terraform destroy
+cd ..
+```
+
+> **Atenção:** `terraform destroy` remove todos os recursos K8s, mas os PVCs do MongoDB não são deletados automaticamente — são gerenciados pelo Kubernetes como storage persistente. Para remover completamente:
+> ```bash
+> kubectl delete pvc mongo-data-mongo-0 -n oficina
+> ```
+
+### Manifests Kubernetes (`/k8s/`)
+
+| Arquivo | O que faz |
+|---|---|
+| `namespace.yaml` | Cria o namespace `oficina` — isola recursos do namespace `default` |
+| `configmap.yaml` | Variáveis não-sensíveis: `PORT`, `CORS_ORIGIN`, `ADMIN_EMAIL`, configurações SMTP |
+| `secret.yaml` | Variáveis sensíveis: `MONGODB_URI`, `JWT_SECRET`, credenciais MongoDB e admin (placeholders em dev) |
+| `mongo-headless-service.yaml` | Headless Service — DNS estável por Pod para o StatefulSet |
+| `mongo-service.yaml` | ClusterIP — acesso da aplicação ao MongoDB |
+| `mongo-statefulset.yaml` | MongoDB com volume persistente de 5Gi via `volumeClaimTemplates` |
+| `app-deployment.yaml` | Aplicação Node.js com 2 réplicas, rolling update e 3 probes de saúde |
+| `app-service.yaml` | NodePort 30080 — expõe a aplicação ao host Minikube |
+| `app-hpa.yaml` | Escala automaticamente entre 2 e 10 réplicas (CPU > 70%) |
+| `app-pdb.yaml` | Garante mínimo de 1 réplica disponível durante manutenção de nó |
 
 ---
 
