@@ -1,0 +1,43 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to Minikube
+    runs-on: self-hosted
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag from git SHA
+        id: tag
+        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Build image into Minikube Docker daemon
+        run: |
+          eval $(minikube docker-env)
+          docker build -t fiap-tech-challenge:${{ steps.tag.outputs.sha }} .
+
+      - name: Update image tag in Deployment manifest
+        run: |
+          sed -i "s|image: .*fiap-tech-challenge:.*|image: fiap-tech-challenge:${{ steps.tag.outputs.sha }}|" k8s/app-deployment.yaml
+
+      - name: Initialize Terraform
+        working-directory: infra/
+        run: terraform init -input=false
+
+      - name: Apply infrastructure with Terraform
+        working-directory: infra/
+        run: terraform apply -auto-approve -input=false
+
+      - name: Verify database deployment
+        run: kubectl rollout status statefulset/mongo -n oficina --timeout=180s
+
+      - name: Verify application rollout
+        run: kubectl rollout status deployment/oficina-app -n oficina --timeout=120s
