@@ -58,10 +58,10 @@ CD has `concurrency: { group: deploy, cancel-in-progress: true }` — overlappin
 |---|---|---|
 | `namespace.yaml` | Namespace | Isolates all resources under `oficina` |
 | `configmap.yaml` | ConfigMap | Non-secret env vars: `PORT`, `CORS_ORIGIN`, `ADMIN_EMAIL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_FROM` |
-| `secret.yaml` | Secret | Sensitive env vars: `MONGODB_URI`, `JWT_SECRET`, SMTP credentials |
+| `secret.yaml` | Secret | Sensitive env vars: `MONGODB_URI`, `JWT_SECRET`, `ADMIN_PASSWORD`, `MONGO_ROOT_USERNAME`, `MONGO_ROOT_PASSWORD`, SMTP credentials |
 | `app-deployment.yaml` | Deployment | Application pods; `imagePullPolicy: IfNotPresent` (uses Minikube local image) |
 | `app-service.yaml` | Service | NodePort — exposes the API outside the cluster |
-| `app-hpa.yaml` | HorizontalPodAutoscaler | Scales `oficina-app` deployment based on CPU/memory |
+| `app-hpa.yaml` | HorizontalPodAutoscaler | Scales `oficina-app` deployment based on CPU utilization (target: 70%) |
 | `app-pdb.yaml` | PodDisruptionBudget | Guarantees minimum available pods during voluntary disruptions |
 | `mongo-statefulset.yaml` | StatefulSet | Single MongoDB replica; PVC named `mongo-data-mongo-0` |
 | `mongo-service.yaml` | Service | ClusterIP — app-to-MongoDB internal access |
@@ -107,6 +107,8 @@ Provider: `gavinbunney/kubectl ~> 1.14` — applies raw YAML manifests without c
 ## Running Locally
 
 **Prerequisites:** Minikube running, `kubectl` and `terraform` on PATH.
+
+> Before applying, replace all `"change-me-in-production"` placeholders in `k8s/secret.yaml` with real values (`JWT_SECRET`, `MONGODB_URI`, `ADMIN_PASSWORD`, `MONGO_ROOT_USERNAME`, `MONGO_ROOT_PASSWORD`, SMTP credentials).
 
 ```bash
 # Start the cluster
