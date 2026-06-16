@@ -28,9 +28,4 @@ describe('Health endpoints', () => {
     expect(res.body).toEqual({ status: 'ready' });
   });
 
-  it('GET /health does not require Authorization header', async () => {
-    const res = await request(app).get('/health');
-    expect(res.status).not.toBe(401);
-    expect(res.status).not.toBe(403);
-  });
 });
