@@ -364,6 +364,7 @@ terraform plan
 
 # 5. Aplicar todos os recursos no Minikube
 terraform apply
+cd ..
 
 # 6. Obter a URL de acesso à aplicação
 minikube service oficina-service -n oficina --url
@@ -387,11 +388,12 @@ kubectl logs -l app.kubernetes.io/name=oficina-app -n oficina -f
 ```bash
 cd infra/
 terraform destroy
+cd ..
 ```
 
-> **Atenção:** `terraform destroy` remove o Deployment e o StatefulSet, mas os PVCs do MongoDB (`mongo-data-mongo-0`) não são deletados automaticamente — são gerenciados pelo Kubernetes como storage persistente. Para remover completamente:
+> **Atenção:** `terraform destroy` remove todos os recursos K8s, mas os PVCs do MongoDB não são deletados automaticamente — são gerenciados pelo Kubernetes como storage persistente. Para remover completamente:
 > ```bash
-> kubectl delete pvc -l app.kubernetes.io/name=mongo -n oficina
+> kubectl delete pvc mongo-data-mongo-0 -n oficina
 > ```
 
 ### Manifests Kubernetes (`/k8s/`)
@@ -399,8 +401,8 @@ terraform destroy
 | Arquivo | O que faz |
 |---|---|
 | `namespace.yaml` | Cria o namespace `oficina` — isola recursos do namespace `default` |
-| `configmap.yaml` | Variáveis não-sensíveis: `PORT`, `MONGODB_URI`, `CORS_ORIGIN` |
-| `secret.yaml` | Variáveis sensíveis: `JWT_SECRET`, credenciais MongoDB (placeholders em dev) |
+| `configmap.yaml` | Variáveis não-sensíveis: `PORT`, `CORS_ORIGIN`, `ADMIN_EMAIL`, configurações SMTP |
+| `secret.yaml` | Variáveis sensíveis: `MONGODB_URI`, `JWT_SECRET`, credenciais MongoDB e admin (placeholders em dev) |
 | `mongo-headless-service.yaml` | Headless Service — DNS estável por Pod para o StatefulSet |
 | `mongo-service.yaml` | ClusterIP — acesso da aplicação ao MongoDB |
 | `mongo-statefulset.yaml` | MongoDB com volume persistente de 5Gi via `volumeClaimTemplates` |
