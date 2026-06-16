@@ -345,3 +345,186 @@ describe('Full OS lifecycle', () => {
     expect(res.body[0].status).toBe('DIAGNOSIS');
   });
 });
+
+describe('POST /service-orders — creation with services and items', () => {
+  it('GIVEN no services or items WHEN creating an OS THEN returns 201 with RECEIVED status and empty arrays', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+
+    const res = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
+
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe('RECEIVED');
+    expect(res.body.services).toEqual([]);
+    expect(res.body.items).toEqual([]);
+  });
+
+  it('GIVEN a valid serviceId WHEN creating an OS with services array THEN returns 201 with service resolved in body', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+
+    const res = await request(app).post('/service-orders').set(auth)
+      .send({ customerId, vehicleId, services: [serviceId] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.services).toHaveLength(1);
+    expect(res.body.services[0].serviceId).toBe(serviceId);
+    expect(res.body.items).toEqual([]);
+  });
+
+  it('GIVEN a valid itemId with sufficient stock WHEN creating an OS with items array THEN returns 201 and stock is reserved immediately', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+
+    const res = await request(app).post('/service-orders').set(auth)
+      .send({ customerId, vehicleId, items: [{ itemId, quantity: 2 }] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].itemId).toBe(itemId);
+
+    const itemAfter = await request(app).get(`/items/${itemId}`).set(auth);
+    expect(itemAfter.body.reservedQuantity).toBe(2);
+    expect(itemAfter.body.stockQuantity).toBe(10);
+  });
+
+  it('GIVEN a non-existent serviceId WHEN creating an OS THEN returns 404 and OS is not created', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+
+    const res = await request(app).post('/service-orders').set(auth)
+      .send({ customerId, vehicleId, services: ['non-existent-id'] });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('GIVEN a non-existent itemId WHEN creating an OS THEN returns 404 and OS is not created', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+
+    const res = await request(app).post('/service-orders').set(auth)
+      .send({ customerId, vehicleId, items: [{ itemId: 'non-existent-id', quantity: 1 }] });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('GIVEN a requested quantity greater than available stock WHEN creating an OS THEN returns 400', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+
+    const res = await request(app).post('/service-orders').set(auth)
+      .send({ customerId, vehicleId, items: [{ itemId, quantity: 999 }] });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('GIVEN first item valid and second item with no stock WHEN creating an OS THEN returns 400 and first item reservedQuantity is not increased', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+
+    const depletedRes = await request(app).post('/items').set(auth)
+      .send({ name: 'Depleted Part', price: 10, stockQuantity: 0 });
+    const depletedItemId = depletedRes.body.id;
+
+    const itemBefore = await request(app).get(`/items/${itemId}`).set(auth);
+    const reservedBefore = itemBefore.body.reservedQuantity;
+
+    const res = await request(app).post('/service-orders').set(auth).send({
+      customerId,
+      vehicleId,
+      items: [
+        { itemId, quantity: 2 },
+        { itemId: depletedItemId, quantity: 1 },
+      ],
+    });
+
+    expect(res.status).toBe(400);
+
+    const itemAfter = await request(app).get(`/items/${itemId}`).set(auth);
+    expect(itemAfter.body.reservedQuantity).toBe(reservedBefore);
+  });
+});
+
+describe('DELETE /service-orders/:id/services/:serviceId — diagnosis refinement', () => {
+  async function createOSInDiagnosisWithService(): Promise<{ osId: string }> {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
+    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
+    const osId = created.body.id;
+    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
+    await request(app).post(`/service-orders/${osId}/services`).set(mechAuth).send({ serviceId });
+    return { osId };
+  }
+
+  it('GIVEN an OS in DIAGNOSIS with a service WHEN mechanic deletes the service THEN returns 200 with service absent from body', async () => {
+    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
+    const { osId } = await createOSInDiagnosisWithService();
+
+    const res = await request(app).delete(`/service-orders/${osId}/services/${serviceId}`).set(mechAuth);
+
+    expect(res.status).toBe(200);
+    expect(res.body.services).toHaveLength(0);
+  });
+
+  it('GIVEN an OS in RECEIVED status WHEN trying to delete a service THEN returns 400', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
+    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
+    const osId = created.body.id;
+
+    const res = await request(app).delete(`/service-orders/${osId}/services/${serviceId}`).set(mechAuth);
+
+    expect(res.status).toBe(400);
+  });
+
+  it('GIVEN an OS in DIAGNOSIS WHEN deleting a service not present in the OS THEN returns 404', async () => {
+    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
+    const { osId } = await createOSInDiagnosisWithService();
+
+    const res = await request(app).delete(`/service-orders/${osId}/services/non-existent-id`).set(mechAuth);
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('DELETE /service-orders/:id/items/:itemId — diagnosis refinement', () => {
+  async function createOSInDiagnosisWithItem(): Promise<{ osId: string }> {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
+    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
+    const osId = created.body.id;
+    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
+    await request(app).post(`/service-orders/${osId}/items`).set(mechAuth).send({ itemId, quantity: 2 });
+    return { osId };
+  }
+
+  it('GIVEN an OS in DIAGNOSIS with an item WHEN mechanic deletes the item THEN returns 200 with item absent and reserved stock released', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
+    const { osId } = await createOSInDiagnosisWithItem();
+
+    const itemBefore = await request(app).get(`/items/${itemId}`).set(auth);
+    expect(itemBefore.body.reservedQuantity).toBe(2);
+
+    const res = await request(app).delete(`/service-orders/${osId}/items/${itemId}`).set(mechAuth);
+
+    expect(res.status).toBe(200);
+    expect(res.body.items).toHaveLength(0);
+
+    const itemAfter = await request(app).get(`/items/${itemId}`).set(auth);
+    expect(itemAfter.body.reservedQuantity).toBe(0);
+  });
+
+  it('GIVEN an OS in RECEIVED status WHEN trying to delete an item THEN returns 400', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
+    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
+    const osId = created.body.id;
+
+    const res = await request(app).delete(`/service-orders/${osId}/items/${itemId}`).set(mechAuth);
+
+    expect(res.status).toBe(400);
+  });
+
+  it('GIVEN an OS in DIAGNOSIS WHEN deleting an item not present in the OS THEN returns 404', async () => {
+    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
+    const { osId } = await createOSInDiagnosisWithItem();
+
+    const res = await request(app).delete(`/service-orders/${osId}/items/non-existent-id`).set(mechAuth);
+
+    expect(res.status).toBe(404);
+  });
+});
