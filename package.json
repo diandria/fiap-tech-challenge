@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "build": "tsc",
+    "lint": "eslint src",
     "start": "node dist/main.js",
     "dev": "ts-node src/main.ts",
     "seed:dev": "ts-node scripts/seed-dev.ts",
