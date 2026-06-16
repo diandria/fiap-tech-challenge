@@ -5,7 +5,7 @@ import path from 'path';
 
 // __dirname resolves to src/infrastructure/swagger (dev) or dist/infrastructure/swagger (prod).
 // Both contain the same relative path to the route files.
-const routesGlob = path.join(__dirname, '../../../infrastructure/http/routes/*.{ts,js}');
+const routesGlob = path.join(__dirname, '../routes/*.{ts,js}');
 
 const options: swaggerJsdoc.Options = {
   definition: {
