@@ -1,24 +1,10 @@
 import { Router } from 'express';
-import { MongoCustomerRepository } from '../../../adapters/gateways/MongoCustomerRepository';
-import { CreateCustomerUseCase } from '../../../use-cases/customers/CreateCustomerUseCase';
-import { GetCustomerByIdUseCase } from '../../../use-cases/customers/GetCustomerByIdUseCase';
-import { ListCustomersUseCase } from '../../../use-cases/customers/ListCustomersUseCase';
-import { UpdateCustomerUseCase } from '../../../use-cases/customers/UpdateCustomerUseCase';
-import { DeleteCustomerUseCase } from '../../../use-cases/customers/DeleteCustomerUseCase';
-import { GetCustomerByTaxIdUseCase } from '../../../use-cases/customers/GetCustomerByTaxIdUseCase';
-import { authMiddleware } from '../../../frameworks/http/middlewares/authMiddleware';
-import { requireRole } from '../../../frameworks/http/middlewares/roleMiddleware';
+import { CustomerController } from '../../../adapters/controllers/CustomerController';
+import { authMiddleware } from '../middlewares/authMiddleware';
+import { requireRole } from '../middlewares/roleMiddleware';
 
-export function customerRoutes(): Router {
+export function customerRoutes(controller: CustomerController): Router {
   const router = Router();
-  const repo = new MongoCustomerRepository();
-  const createCustomer = new CreateCustomerUseCase(repo);
-  const getCustomerById = new GetCustomerByIdUseCase(repo);
-  const listCustomers = new ListCustomersUseCase(repo);
-  const updateCustomer = new UpdateCustomerUseCase(repo);
-  const deleteCustomer = new DeleteCustomerUseCase(repo);
-  const getCustomerByTaxId = new GetCustomerByTaxIdUseCase(repo);
-
   router.use(authMiddleware);
   router.use(requireRole('attendant', 'admin'));
 
@@ -33,12 +19,7 @@ export function customerRoutes(): Router {
    *       200:
    *         description: Array of customers
    */
-  router.get('/', async (req, res, next) => {
-    try {
-      const customers = await listCustomers.execute();
-      res.json(customers);
-    } catch (err) { next(err); }
-  });
+  router.get('/', (req, res, next) => controller.list(req, res, next));
 
   /**
    * @openapi
@@ -68,12 +49,7 @@ export function customerRoutes(): Router {
    *       409:
    *         description: CPF/CNPJ already registered
    */
-  router.post('/', async (req, res, next) => {
-    try {
-      const customer = await createCustomer.execute(req.body);
-      res.status(201).json(customer);
-    } catch (err) { next(err); }
-  });
+  router.post('/', (req, res, next) => controller.create(req, res, next));
 
   /**
    * @openapi
@@ -94,12 +70,7 @@ export function customerRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.get('/tax/:taxId', async (req, res, next) => {
-    try {
-      const customer = await getCustomerByTaxId.execute(req.params.taxId);
-      res.json(customer);
-    } catch (err) { next(err); }
-  });
+  router.get('/tax/:taxId', (req, res, next) => controller.getByTaxId(req, res, next));
 
   /**
    * @openapi
@@ -119,12 +90,7 @@ export function customerRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.get('/:id', async (req, res, next) => {
-    try {
-      const customer = await getCustomerById.execute(req.params.id);
-      res.json(customer);
-    } catch (err) { next(err); }
-  });
+  router.get('/:id', (req, res, next) => controller.getById(req, res, next));
 
   /**
    * @openapi
@@ -153,12 +119,7 @@ export function customerRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.put('/:id', async (req, res, next) => {
-    try {
-      const customer = await updateCustomer.execute(req.params.id, req.body);
-      res.json(customer);
-    } catch (err) { next(err); }
-  });
+  router.put('/:id', (req, res, next) => controller.update(req, res, next));
 
   /**
    * @openapi
@@ -178,12 +139,7 @@ export function customerRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.delete('/:id', async (req, res, next) => {
-    try {
-      await deleteCustomer.execute(req.params.id);
-      res.sendStatus(204);
-    } catch (err) { next(err); }
-  });
+  router.delete('/:id', (req, res, next) => controller.delete(req, res, next));
 
   return router;
 }

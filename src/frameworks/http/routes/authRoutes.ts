@@ -1,10 +1,8 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { MongoUserRepository } from '../../../adapters/gateways/MongoUserRepository';
-import { LoginUseCase } from '../../../use-cases/auth/LoginUseCase';
-import { RegisterUseCase } from '../../../use-cases/auth/RegisterUseCase';
-import { authMiddleware } from '../../../frameworks/http/middlewares/authMiddleware';
-import { requireRole } from '../../../frameworks/http/middlewares/roleMiddleware';
+import { AuthController } from '../../../adapters/controllers/AuthController';
+import { authMiddleware } from '../middlewares/authMiddleware';
+import { requireRole } from '../middlewares/roleMiddleware';
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -12,11 +10,8 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts, please try again later' },
 });
 
-export function authRoutes(): Router {
+export function authRoutes(controller: AuthController): Router {
   const router = Router();
-  const repo = new MongoUserRepository();
-  const loginUseCase = new LoginUseCase(repo);
-  const registerUseCase = new RegisterUseCase(repo);
 
   /**
    * @openapi
@@ -40,14 +35,7 @@ export function authRoutes(): Router {
    *       401:
    *         description: Invalid credentials
    */
-  router.post('/login', loginLimiter, async (req, res, next) => {
-    try {
-      const result = await loginUseCase.execute(req.body);
-      res.json(result);
-    } catch (err) {
-      next(err);
-    }
-  });
+  router.post('/login', loginLimiter, (req, res, next) => controller.login(req, res, next));
 
   /**
    * @openapi
@@ -74,14 +62,7 @@ export function authRoutes(): Router {
    *       409:
    *         description: Email already in use
    */
-  router.post('/register', authMiddleware, requireRole('admin'), async (req, res, next) => {
-    try {
-      const user = await registerUseCase.execute(req.body);
-      res.status(201).json(user);
-    } catch (err) {
-      next(err);
-    }
-  });
+  router.post('/register', authMiddleware, requireRole('admin'), (req, res, next) => controller.register(req, res, next));
 
   return router;
 }

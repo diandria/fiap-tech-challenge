@@ -1,23 +1,10 @@
 import { Router } from 'express';
-import { MongoServiceRepository } from '../../../adapters/gateways/MongoServiceRepository';
-import { CreateServiceUseCase } from '../../../use-cases/services/CreateServiceUseCase';
-import { GetServiceByIdUseCase } from '../../../use-cases/services/GetServiceByIdUseCase';
-import { ListServicesUseCase } from '../../../use-cases/services/ListServicesUseCase';
-import { ListServicesAvgTimeUseCase } from '../../../use-cases/services/ListServicesAvgTimeUseCase';
-import { UpdateServiceUseCase } from '../../../use-cases/services/UpdateServiceUseCase';
-import { DeleteServiceUseCase } from '../../../use-cases/services/DeleteServiceUseCase';
-import { authMiddleware } from '../../../frameworks/http/middlewares/authMiddleware';
-import { requireRole } from '../../../frameworks/http/middlewares/roleMiddleware';
+import { ServiceController } from '../../../adapters/controllers/ServiceController';
+import { authMiddleware } from '../middlewares/authMiddleware';
+import { requireRole } from '../middlewares/roleMiddleware';
 
-export function serviceRoutes(): Router {
+export function serviceRoutes(controller: ServiceController): Router {
   const router = Router();
-  const repo = new MongoServiceRepository();
-  const createService = new CreateServiceUseCase(repo);
-  const getService = new GetServiceByIdUseCase(repo);
-  const listServices = new ListServicesUseCase(repo);
-  const listServicesAvgTime = new ListServicesAvgTimeUseCase(repo);
-  const updateService = new UpdateServiceUseCase(repo);
-  const deleteService = new DeleteServiceUseCase(repo);
 
   /**
    * @openapi
@@ -29,12 +16,7 @@ export function serviceRoutes(): Router {
    *       200:
    *         description: Array of services
    */
-  router.get('/', async (req, res, next) => {
-    try {
-      const services = await listServices.execute();
-      res.json(services);
-    } catch (err) { next(err); }
-  });
+  router.get('/', (req, res, next) => controller.list(req, res, next));
 
   /**
    * @openapi
@@ -61,12 +43,7 @@ export function serviceRoutes(): Router {
    *       403:
    *         description: Forbidden role
    */
-  router.get('/avg-time', authMiddleware, requireRole('admin', 'mechanic', 'attendant'), async (_req, res, next) => {
-    try {
-      const result = await listServicesAvgTime.execute();
-      res.json(result);
-    } catch (err) { next(err); }
-  });
+  router.get('/avg-time', authMiddleware, requireRole('admin', 'mechanic', 'attendant'), (req, res, next) => controller.listAvgTime(req, res, next));
 
   /**
    * @openapi
@@ -86,12 +63,7 @@ export function serviceRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.get('/:id', authMiddleware, async (req, res, next) => {
-    try {
-      const service = await getService.execute(req.params.id);
-      res.json(service);
-    } catch (err) { next(err); }
-  });
+  router.get('/:id', authMiddleware, (req, res, next) => controller.getById(req, res, next));
 
   /**
    * @openapi
@@ -117,12 +89,7 @@ export function serviceRoutes(): Router {
    *       400:
    *         description: Validation error
    */
-  router.post('/', authMiddleware, requireRole('admin'), async (req, res, next) => {
-    try {
-      const service = await createService.execute(req.body);
-      res.status(201).json(service);
-    } catch (err) { next(err); }
-  });
+  router.post('/', authMiddleware, requireRole('admin'), (req, res, next) => controller.create(req, res, next));
 
   /**
    * @openapi
@@ -153,12 +120,7 @@ export function serviceRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.put('/:id', authMiddleware, requireRole('admin'), async (req, res, next) => {
-    try {
-      const service = await updateService.execute(req.params.id, req.body);
-      res.json(service);
-    } catch (err) { next(err); }
-  });
+  router.put('/:id', authMiddleware, requireRole('admin'), (req, res, next) => controller.update(req, res, next));
 
   /**
    * @openapi
@@ -178,12 +140,7 @@ export function serviceRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.delete('/:id', authMiddleware, requireRole('admin'), async (req, res, next) => {
-    try {
-      await deleteService.execute(req.params.id);
-      res.sendStatus(204);
-    } catch (err) { next(err); }
-  });
+  router.delete('/:id', authMiddleware, requireRole('admin'), (req, res, next) => controller.delete(req, res, next));
 
   return router;
 }

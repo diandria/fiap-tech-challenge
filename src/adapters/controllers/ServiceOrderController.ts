@@ -102,11 +102,12 @@ export class ServiceOrderController {
     try {
       const { id } = req.params;
       const { status: decision, code } = req.body;
+      if (!decision) throw new ValidationError('status is required');
       let data;
-      if (decision === 'APPROVED') {
-        data = await this.approveBudget.execute(id, code);
-      } else {
-        data = await this.rejectBudget.execute(id, code);
+      switch (decision) {
+        case 'APPROVED': data = await this.approveBudget.execute(id, code); break;
+        case 'REJECTED': data = await this.rejectBudget.execute(id, code); break;
+        default: throw new ValidationError(`Unsupported budget status: ${decision}`);
       }
       const { status, body } = ServiceOrderPresenter.ok(data);
       res.status(status).json(body);
@@ -145,17 +146,16 @@ export class ServiceOrderController {
     } catch (err) { next(err); }
   }
 
-  async startServiceOnOS(req: Request, res: Response, next: NextFunction): Promise<void> {
+  async updateServiceStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = await this.startService.execute(req.params.id, req.params.serviceId);
-      const { status, body } = ServiceOrderPresenter.ok(data);
-      res.status(status).json(body);
-    } catch (err) { next(err); }
-  }
-
-  async finishServiceOnOS(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const data = await this.finishService.execute(req.params.id, req.params.serviceId);
+      const s = req.body?.status as 'IN_PROGRESS' | 'COMPLETED' | undefined;
+      if (!s) throw new ValidationError('status is required');
+      let data;
+      switch (s) {
+        case 'IN_PROGRESS': data = await this.startService.execute(req.params.id, req.params.serviceId); break;
+        case 'COMPLETED': data = await this.finishService.execute(req.params.id, req.params.serviceId); break;
+        default: throw new ValidationError(`Unsupported service status: ${s}`);
+      }
       const { status, body } = ServiceOrderPresenter.ok(data);
       res.status(status).json(body);
     } catch (err) { next(err); }

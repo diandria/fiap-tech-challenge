@@ -1,22 +1,10 @@
 import { Router } from 'express';
-import { MongoItemRepository } from '../../../adapters/gateways/MongoItemRepository';
-import { CreateItemUseCase } from '../../../use-cases/items/CreateItemUseCase';
-import { GetItemByIdUseCase } from '../../../use-cases/items/GetItemByIdUseCase';
-import { ListItemsUseCase } from '../../../use-cases/items/ListItemsUseCase';
-import { UpdateItemUseCase } from '../../../use-cases/items/UpdateItemUseCase';
-import { DeleteItemUseCase } from '../../../use-cases/items/DeleteItemUseCase';
-import { authMiddleware } from '../../../frameworks/http/middlewares/authMiddleware';
-import { requireRole } from '../../../frameworks/http/middlewares/roleMiddleware';
+import { ItemController } from '../../../adapters/controllers/ItemController';
+import { authMiddleware } from '../middlewares/authMiddleware';
+import { requireRole } from '../middlewares/roleMiddleware';
 
-export function itemRoutes(): Router {
+export function itemRoutes(controller: ItemController): Router {
   const router = Router();
-  const repo = new MongoItemRepository();
-  const createItem = new CreateItemUseCase(repo);
-  const getItem = new GetItemByIdUseCase(repo);
-  const listItems = new ListItemsUseCase(repo);
-  const updateItem = new UpdateItemUseCase(repo);
-  const deleteItem = new DeleteItemUseCase(repo);
-
   router.use(authMiddleware);
 
   /**
@@ -30,12 +18,7 @@ export function itemRoutes(): Router {
    *       200:
    *         description: Array of items including availableQuantity
    */
-  router.get('/', async (req, res, next) => {
-    try {
-      const items = await listItems.execute();
-      res.json(items);
-    } catch (err) { next(err); }
-  });
+  router.get('/', (req, res, next) => controller.list(req, res, next));
 
   /**
    * @openapi
@@ -55,12 +38,7 @@ export function itemRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.get('/:id', async (req, res, next) => {
-    try {
-      const item = await getItem.execute(req.params.id);
-      res.json(item);
-    } catch (err) { next(err); }
-  });
+  router.get('/:id', (req, res, next) => controller.getById(req, res, next));
 
   /**
    * @openapi
@@ -86,12 +64,7 @@ export function itemRoutes(): Router {
    *       400:
    *         description: Validation error
    */
-  router.post('/', requireRole('admin'), async (req, res, next) => {
-    try {
-      const item = await createItem.execute(req.body);
-      res.status(201).json(item);
-    } catch (err) { next(err); }
-  });
+  router.post('/', requireRole('admin'), (req, res, next) => controller.create(req, res, next));
 
   /**
    * @openapi
@@ -122,12 +95,7 @@ export function itemRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.put('/:id', requireRole('admin'), async (req, res, next) => {
-    try {
-      const item = await updateItem.execute(req.params.id, req.body);
-      res.json(item);
-    } catch (err) { next(err); }
-  });
+  router.put('/:id', requireRole('admin'), (req, res, next) => controller.update(req, res, next));
 
   /**
    * @openapi
@@ -149,12 +117,7 @@ export function itemRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.delete('/:id', requireRole('admin'), async (req, res, next) => {
-    try {
-      await deleteItem.execute(req.params.id);
-      res.sendStatus(204);
-    } catch (err) { next(err); }
-  });
+  router.delete('/:id', requireRole('admin'), (req, res, next) => controller.delete(req, res, next));
 
   return router;
 }

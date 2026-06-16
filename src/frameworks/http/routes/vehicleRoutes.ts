@@ -1,22 +1,10 @@
 import { Router } from 'express';
-import { MongoVehicleRepository } from '../../../adapters/gateways/MongoVehicleRepository';
-import { CreateVehicleUseCase } from '../../../use-cases/vehicles/CreateVehicleUseCase';
-import { GetVehicleByIdUseCase } from '../../../use-cases/vehicles/GetVehicleByIdUseCase';
-import { ListCustomerVehiclesUseCase } from '../../../use-cases/vehicles/ListCustomerVehiclesUseCase';
-import { UpdateVehicleUseCase } from '../../../use-cases/vehicles/UpdateVehicleUseCase';
-import { DeleteVehicleUseCase } from '../../../use-cases/vehicles/DeleteVehicleUseCase';
-import { authMiddleware } from '../../../frameworks/http/middlewares/authMiddleware';
-import { requireRole } from '../../../frameworks/http/middlewares/roleMiddleware';
+import { VehicleController } from '../../../adapters/controllers/VehicleController';
+import { authMiddleware } from '../middlewares/authMiddleware';
+import { requireRole } from '../middlewares/roleMiddleware';
 
-export function vehicleRoutes(): Router {
+export function vehicleRoutes(controller: VehicleController): Router {
   const router = Router();
-  const repo = new MongoVehicleRepository();
-  const createVehicle = new CreateVehicleUseCase(repo);
-  const getVehicle = new GetVehicleByIdUseCase(repo);
-  const listVehicles = new ListCustomerVehiclesUseCase(repo);
-  const updateVehicle = new UpdateVehicleUseCase(repo);
-  const deleteVehicle = new DeleteVehicleUseCase(repo);
-
   router.use(authMiddleware);
   router.use(requireRole('attendant', 'admin'));
 
@@ -35,13 +23,7 @@ export function vehicleRoutes(): Router {
    *       200:
    *         description: Array of vehicles
    */
-  router.get('/', async (req, res, next) => {
-    try {
-      const customerId = req.query.customerId as string | undefined;
-      const vehicles = await listVehicles.execute(customerId);
-      res.json(vehicles);
-    } catch (err) { next(err); }
-  });
+  router.get('/', (req, res, next) => controller.list(req, res, next));
 
   /**
    * @openapi
@@ -71,12 +53,7 @@ export function vehicleRoutes(): Router {
    *       409:
    *         description: Plate already registered
    */
-  router.post('/', async (req, res, next) => {
-    try {
-      const vehicle = await createVehicle.execute(req.body);
-      res.status(201).json(vehicle);
-    } catch (err) { next(err); }
-  });
+  router.post('/', (req, res, next) => controller.create(req, res, next));
 
   /**
    * @openapi
@@ -96,12 +73,7 @@ export function vehicleRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.get('/:id', async (req, res, next) => {
-    try {
-      const vehicle = await getVehicle.execute(req.params.id);
-      res.json(vehicle);
-    } catch (err) { next(err); }
-  });
+  router.get('/:id', (req, res, next) => controller.getById(req, res, next));
 
   /**
    * @openapi
@@ -135,12 +107,7 @@ export function vehicleRoutes(): Router {
    *       409:
    *         description: Plate already registered
    */
-  router.put('/:id', async (req, res, next) => {
-    try {
-      const vehicle = await updateVehicle.execute(req.params.id, req.body);
-      res.json(vehicle);
-    } catch (err) { next(err); }
-  });
+  router.put('/:id', (req, res, next) => controller.update(req, res, next));
 
   /**
    * @openapi
@@ -160,12 +127,7 @@ export function vehicleRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.delete('/:id', async (req, res, next) => {
-    try {
-      await deleteVehicle.execute(req.params.id);
-      res.sendStatus(204);
-    } catch (err) { next(err); }
-  });
+  router.delete('/:id', (req, res, next) => controller.delete(req, res, next));
 
   return router;
 }

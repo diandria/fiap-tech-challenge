@@ -1,31 +1,8 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { MongoServiceOrderRepository } from '../../../adapters/gateways/MongoServiceOrderRepository';
-import { MongoCustomerRepository } from '../../../adapters/gateways/MongoCustomerRepository';
-import { MongoServiceRepository } from '../../../adapters/gateways/MongoServiceRepository';
-import { MongoItemRepository } from '../../../adapters/gateways/MongoItemRepository';
-import { authMiddleware } from '../../../frameworks/http/middlewares/authMiddleware';
-import { requireRole } from '../../../frameworks/http/middlewares/roleMiddleware';
-import { CreateServiceOrderUseCase } from '../../../use-cases/service-orders/CreateServiceOrderUseCase';
-import { GetServiceOrderUseCase } from '../../../use-cases/service-orders/GetServiceOrderUseCase';
-import { ListServiceOrdersUseCase } from '../../../use-cases/service-orders/ListServiceOrdersUseCase';
-import { AddServiceToOSUseCase } from '../../../use-cases/service-orders/AddServiceToOSUseCase';
-import { RemoveServiceFromOSUseCase } from '../../../use-cases/service-orders/RemoveServiceFromOSUseCase';
-import { AddItemToOSUseCase } from '../../../use-cases/service-orders/AddItemToOSUseCase';
-import { RemoveItemFromOSUseCase } from '../../../use-cases/service-orders/RemoveItemFromOSUseCase';
-import { StartDiagnosisUseCase } from '../../../use-cases/service-orders/StartDiagnosisUseCase';
-import { FinishDiagnosisUseCase } from '../../../use-cases/service-orders/FinishDiagnosisUseCase';
-import { ApproveBudgetUseCase } from '../../../use-cases/service-orders/ApproveBudgetUseCase';
-import { RejectBudgetUseCase } from '../../../use-cases/service-orders/RejectBudgetUseCase';
-import { StartExecutionUseCase } from '../../../use-cases/service-orders/StartExecutionUseCase';
-import { StartServiceUseCase } from '../../../use-cases/service-orders/StartServiceUseCase';
-import { FinishServiceUseCase } from '../../../use-cases/service-orders/FinishServiceUseCase';
-import { FinishOSUseCase } from '../../../use-cases/service-orders/FinishOSUseCase';
-import { DeliverOSUseCase } from '../../../use-cases/service-orders/DeliverOSUseCase';
-import { GetAvgExecutionTimeUseCase } from '../../../use-cases/service-orders/GetAvgExecutionTimeUseCase';
-import { ConsoleNotificationService } from '../../../adapters/services/ConsoleNotificationService';
-import { OSStatus } from '../../../entities/ServiceOrder';
-import { ValidationError } from '../../../entities/errors/AppError';
+import { ServiceOrderController } from '../../../adapters/controllers/ServiceOrderController';
+import { authMiddleware } from '../middlewares/authMiddleware';
+import { requireRole } from '../middlewares/roleMiddleware';
 
 const budgetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -34,34 +11,8 @@ const budgetLimiter = rateLimit({
   message: { error: 'Too many attempts, please try again later' },
 });
 
-export function serviceOrderRoutes(): Router {
+export function serviceOrderRoutes(controller: ServiceOrderController): Router {
   const router = Router();
-
-  const osRepo = new MongoServiceOrderRepository();
-  const customerRepo = new MongoCustomerRepository();
-  const serviceRepo = new MongoServiceRepository();
-  const itemRepo = new MongoItemRepository();
-  const notifier = new ConsoleNotificationService();
-
-  const createOS = new CreateServiceOrderUseCase(osRepo);
-  const getOS = new GetServiceOrderUseCase(osRepo);
-  const listOS = new ListServiceOrdersUseCase(osRepo);
-  const addService = new AddServiceToOSUseCase(osRepo, serviceRepo);
-  const removeService = new RemoveServiceFromOSUseCase(osRepo);
-  const addItem = new AddItemToOSUseCase(osRepo, itemRepo);
-  const removeItem = new RemoveItemFromOSUseCase(osRepo, itemRepo);
-  const startDiagnosis = new StartDiagnosisUseCase(osRepo);
-  const finishDiagnosis = new FinishDiagnosisUseCase(osRepo, serviceRepo, itemRepo, customerRepo, notifier);
-  const approveBudget = new ApproveBudgetUseCase(osRepo, customerRepo);
-  const rejectBudget = new RejectBudgetUseCase(osRepo, customerRepo, itemRepo);
-  const startExecution = new StartExecutionUseCase(osRepo, itemRepo);
-  const startService = new StartServiceUseCase(osRepo);
-  const finishService = new FinishServiceUseCase(osRepo);
-  const finishOS = new FinishOSUseCase(osRepo);
-  const deliverOS = new DeliverOSUseCase(osRepo);
-  const getAvgExecution = new GetAvgExecutionTimeUseCase(osRepo);
-
-  // --- Public endpoints (defined before authMiddleware) ---
 
   /**
    * @openapi
@@ -80,12 +31,7 @@ export function serviceOrderRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.get('/:id/status', async (req, res, next) => {
-    try {
-      const os = await getOS.execute(req.params.id);
-      res.json({ id: os.id, status: os.status, budgetTotal: os.budgetTotal });
-    } catch (err) { next(err); }
-  });
+  router.get('/:id/status', (req, res, next) => controller.getStatus(req, res, next));
 
   /**
    * @openapi
@@ -124,30 +70,8 @@ export function serviceOrderRoutes(): Router {
    *       429:
    *         description: Too many attempts
    */
-  router.patch('/:id/budget', budgetLimiter, async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const status = req.body?.status as OSStatus | undefined;
-      if (!status) throw new ValidationError('status is required');
+  router.patch('/:id/budget', budgetLimiter, (req, res, next) => controller.budgetDecision(req, res, next));
 
-      const id = req.params.id;
-      let updated;
-
-      switch (status) {
-        case 'APPROVED':
-          updated = await approveBudget.execute(id, req.body?.code);
-          break;
-        case 'REJECTED':
-          updated = await rejectBudget.execute(id, req.body?.code);
-          break;
-        default:
-          throw new ValidationError(`Unsupported budget status: ${status}`);
-      }
-
-      res.json(updated);
-    } catch (err) { next(err); }
-  });
-
-  // --- Authenticated endpoints ---
   router.use(authMiddleware);
 
   /**
@@ -188,37 +112,7 @@ export function serviceOrderRoutes(): Router {
    *       403:
    *         description: Forbidden (wrong role)
    */
-  router.patch('/:id', requireRole('mechanic', 'admin'), async (req, res, next) => {
-    try {
-      const status = req.body?.status as OSStatus | undefined;
-      if (!status) throw new ValidationError('status is required');
-
-      const id = req.params.id;
-      let updated;
-
-      switch (status) {
-        case 'DIAGNOSIS':
-          updated = await startDiagnosis.execute(id);
-          break;
-        case 'WAITING_APPROVAL':
-          updated = await finishDiagnosis.execute(id);
-          break;
-        case 'EXECUTION':
-          updated = await startExecution.execute(id);
-          break;
-        case 'FINISHED':
-          updated = await finishOS.execute(id);
-          break;
-        case 'DELIVERED':
-          updated = await deliverOS.execute(id);
-          break;
-        default:
-          throw new ValidationError(`Unsupported target status: ${status}`);
-      }
-
-      res.json(updated);
-    } catch (err) { next(err); }
-  });
+  router.patch('/:id', requireRole('mechanic', 'admin'), (req, res, next) => controller.updateStatus(req, res, next));
 
   /**
    * @openapi
@@ -242,12 +136,7 @@ export function serviceOrderRoutes(): Router {
    *                   avgMinutes: { type: number }
    *                   count: { type: integer }
    */
-  router.get('/stats/avg-execution', requireRole('attendant', 'admin'), async (req, res, next) => {
-    try {
-      const result = await getAvgExecution.execute();
-      res.json(result);
-    } catch (err) { next(err); }
-  });
+  router.get('/stats/avg-execution', requireRole('attendant', 'admin'), (req, res, next) => controller.getAvgExecutionTime(req, res, next));
 
   /**
    * @openapi
@@ -276,18 +165,7 @@ export function serviceOrderRoutes(): Router {
    *       200:
    *         description: Array of service orders
    */
-  router.get('/', async (req, res, next) => {
-    try {
-      const { status, customerId, from, to } = req.query as Record<string, string>;
-      const orders = await listOS.execute({
-        status: status as OSStatus | undefined,
-        customerId,
-        from: from ? new Date(from) : undefined,
-        to: to ? new Date(to) : undefined,
-      });
-      res.json(orders);
-    } catch (err) { next(err); }
-  });
+  router.get('/', (req, res, next) => controller.list(req, res, next));
 
   /**
    * @openapi
@@ -313,12 +191,7 @@ export function serviceOrderRoutes(): Router {
    *       403:
    *         description: Forbidden
    */
-  router.post('/', requireRole('attendant', 'admin'), async (req, res, next) => {
-    try {
-      const os = await createOS.execute(req.body);
-      res.status(201).json(os);
-    } catch (err) { next(err); }
-  });
+  router.post('/', requireRole('attendant', 'admin'), (req, res, next) => controller.create(req, res, next));
 
   /**
    * @openapi
@@ -339,14 +212,8 @@ export function serviceOrderRoutes(): Router {
    *       404:
    *         description: Not found
    */
-  router.get('/:id', async (req, res, next) => {
-    try {
-      const os = await getOS.execute(req.params.id);
-      res.json(os);
-    } catch (err) { next(err); }
-  });
+  router.get('/:id', (req, res, next) => controller.getById(req, res, next));
 
-  // Line items
   /**
    * @openapi
    * /service-orders/{id}/services:
@@ -375,12 +242,7 @@ export function serviceOrderRoutes(): Router {
    *       400:
    *         description: Wrong status or already added
    */
-  router.post('/:id/services', requireRole('mechanic', 'admin'), async (req, res, next) => {
-    try {
-      const os = await addService.execute(req.params.id, req.body.serviceId);
-      res.json(os);
-    } catch (err) { next(err); }
-  });
+  router.post('/:id/services', requireRole('mechanic', 'admin'), (req, res, next) => controller.addServiceToOS(req, res, next));
 
   /**
    * @openapi
@@ -420,25 +282,7 @@ export function serviceOrderRoutes(): Router {
    *       404:
    *         description: Service not in order
    */
-  router.patch('/:id/services/:serviceId', requireRole('mechanic', 'admin'), async (req, res, next) => {
-    try {
-      const status = req.body?.status as 'IN_PROGRESS' | 'COMPLETED' | undefined;
-      if (!status) throw new ValidationError('status is required');
-
-      let updated;
-      switch (status) {
-        case 'IN_PROGRESS':
-          updated = await startService.execute(req.params.id, req.params.serviceId);
-          break;
-        case 'COMPLETED':
-          updated = await finishService.execute(req.params.id, req.params.serviceId);
-          break;
-        default:
-          throw new ValidationError(`Unsupported service status: ${status}`);
-      }
-      res.json(updated);
-    } catch (err) { next(err); }
-  });
+  router.patch('/:id/services/:serviceId', requireRole('mechanic', 'admin'), (req, res, next) => controller.updateServiceStatus(req, res, next));
 
   /**
    * @openapi
@@ -465,12 +309,7 @@ export function serviceOrderRoutes(): Router {
    *       404:
    *         description: Service not in order
    */
-  router.delete('/:id/services/:serviceId', requireRole('mechanic', 'admin'), async (req, res, next) => {
-    try {
-      const os = await removeService.execute(req.params.id, req.params.serviceId);
-      res.json(os);
-    } catch (err) { next(err); }
-  });
+  router.delete('/:id/services/:serviceId', requireRole('mechanic', 'admin'), (req, res, next) => controller.removeServiceFromOS(req, res, next));
 
   /**
    * @openapi
@@ -501,12 +340,7 @@ export function serviceOrderRoutes(): Router {
    *       400:
    *         description: Insufficient stock or wrong status
    */
-  router.post('/:id/items', requireRole('mechanic', 'admin'), async (req, res, next) => {
-    try {
-      const os = await addItem.execute(req.params.id, req.body.itemId, req.body.quantity);
-      res.json(os);
-    } catch (err) { next(err); }
-  });
+  router.post('/:id/items', requireRole('mechanic', 'admin'), (req, res, next) => controller.addItemToOS(req, res, next));
 
   /**
    * @openapi
@@ -533,12 +367,7 @@ export function serviceOrderRoutes(): Router {
    *       404:
    *         description: Item not in order
    */
-  router.delete('/:id/items/:itemId', requireRole('mechanic', 'admin'), async (req, res, next) => {
-    try {
-      const os = await removeItem.execute(req.params.id, req.params.itemId);
-      res.json(os);
-    } catch (err) { next(err); }
-  });
+  router.delete('/:id/items/:itemId', requireRole('mechanic', 'admin'), (req, res, next) => controller.removeItemFromOS(req, res, next));
 
   return router;
 }

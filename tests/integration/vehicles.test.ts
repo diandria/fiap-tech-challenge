@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { Application } from 'express';
-import { createApp } from '../../src/app';
-import { connectTestDB, disconnectTestDB, clearTestDB } from '../helpers/testSetup';
+
+import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp } from '../helpers/testSetup';
 import { MongoUserRepository } from '../../src/adapters/gateways/MongoUserRepository';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
 
@@ -38,7 +38,7 @@ async function seedAdmin(): Promise<void> {
 beforeAll(async () => {
   process.env.JWT_SECRET = 'test-secret';
   await connectTestDB();
-  app = createApp();
+  app = createTestApp();
   await seedAdmin();
 });
 
