@@ -9,9 +9,3 @@ variable "kubeconfig_context" {
   type        = string
   default     = "minikube"
 }
-
-variable "namespace" {
-  description = "Namespace Kubernetes onde os recursos serão criados"
-  type        = string
-  default     = "oficina"
-}

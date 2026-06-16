@@ -2,13 +2,13 @@ terraform {
   required_providers {
     kubectl = {
       source  = "gavinbunney/kubectl"
-      version = ">= 1.14.0"
+      version = "~> 1.14"
     }
   }
 }
 
 provider "kubectl" {
-  config_path    = var.kubeconfig_path
+  config_path    = pathexpand(var.kubeconfig_path)
   config_context = var.kubeconfig_context
 }
 
@@ -24,8 +24,9 @@ resource "kubectl_manifest" "configmap" {
 }
 
 resource "kubectl_manifest" "secret" {
-  yaml_body  = file("${path.module}/../k8s/secret.yaml")
-  depends_on = [kubectl_manifest.namespace]
+  yaml_body        = file("${path.module}/../k8s/secret.yaml")
+  sensitive_fields = ["data", "stringData"]
+  depends_on       = [kubectl_manifest.namespace]
 }
 
 # 3. MongoDB — Services dependem apenas do Namespace; StatefulSet depende do Secret e do Headless Service
@@ -54,6 +55,7 @@ resource "kubectl_manifest" "app_deployment" {
     kubectl_manifest.configmap,
     kubectl_manifest.secret,
     kubectl_manifest.mongo_statefulset,
+    kubectl_manifest.mongo_service,
   ]
 }
 
