@@ -8,16 +8,16 @@ metadata:
     app.kubernetes.io/part-of: fiap-tech-challenge
     app.kubernetes.io/component: api
 spec:
-  replicas: 2
   revisionHistoryLimit: 3
+  progressDeadlineSeconds: 120
   selector:
     matchLabels:
       app.kubernetes.io/name: oficina-app
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxUnavailable: 1
-      maxSurge: 1
+      maxUnavailable: 25%
+      maxSurge: 25%
   template:
     metadata:
       labels:
@@ -53,17 +53,18 @@ spec:
             port: 3000
           failureThreshold: 12
           periodSeconds: 5
+          timeoutSeconds: 5
         livenessProbe:
           httpGet:
             path: /health
             port: 3000
-          initialDelaySeconds: 0
           periodSeconds: 10
           failureThreshold: 3
+          timeoutSeconds: 5
         readinessProbe:
           httpGet:
             path: /ready
             port: 3000
-          initialDelaySeconds: 0
           periodSeconds: 5
           failureThreshold: 3
+          timeoutSeconds: 5
