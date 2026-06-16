@@ -20,13 +20,19 @@ spec:
         app.kubernetes.io/part-of: fiap-tech-challenge
         app.kubernetes.io/component: database
     spec:
-      terminationGracePeriodSeconds: 60
+      # 120s matches MongoDB's recommended minimum for clean WiredTiger checkpoint flush
+      terminationGracePeriodSeconds: 120
       containers:
       - name: mongo
         image: mongo:7
+        # Cap WiredTiger cache to 256MB so total process stays within the 512Mi memory limit
+        args: ["--wiredTigerCacheSizeGB", "0.25"]
         ports:
         - containerPort: 27017
         env:
+        # MONGO_INITDB_ROOT_* is only processed on first init (empty /data/db).
+        # After init, rotating these Secret keys does NOT update the MongoDB user — run
+        # db.changeUserPassword() inside the pod to apply credential changes.
         - name: MONGO_INITDB_ROOT_USERNAME
           valueFrom:
             secretKeyRef:
@@ -44,6 +50,28 @@ spec:
           limits:
             cpu: "500m"
             memory: "512Mi"
+        livenessProbe:
+          exec:
+            command:
+            - mongosh
+            - --eval
+            - "db.adminCommand('ping')"
+            - --quiet
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - mongosh
+            - --eval
+            - "db.adminCommand('ping')"
+            - --quiet
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
         volumeMounts:
         - name: mongo-data
           mountPath: /data/db
