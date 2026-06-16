@@ -1,0 +1,7 @@
+# State local — contém referências a recursos criados; nunca commitar
+*.tfstate
+*.tfstate.backup
+
+# Diretório de plugins baixados pelo terraform init
+.terraform/
+.terraform.lock.hcl
