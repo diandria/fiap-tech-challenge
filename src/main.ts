@@ -73,9 +73,6 @@ const PORT = process.env.PORT ?? 3000;
 const MONGODB_URI = process.env.MONGODB_URI ?? 'mongodb://localhost:27017/car-repair-shop';
 
 async function main(): Promise<void> {
-  await connectDB(MONGODB_URI);
-  await seedDefaultAdmin();
-
   const customerRepo = new MongoCustomerRepository();
   const vehicleRepo = new MongoVehicleRepository();
   const serviceRepo = new MongoServiceRepository();
@@ -131,8 +128,12 @@ async function main(): Promise<void> {
     serviceOrders: serviceOrderRoutes(osController),
   });
 
+  // HTTP server starts before DB connects so health probes are reachable during startup
   const server = app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
   process.on('SIGTERM', async () => { server.close(); await disconnectDB(); process.exit(0); });
+
+  await connectDB(MONGODB_URI);
+  await seedDefaultAdmin();
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });

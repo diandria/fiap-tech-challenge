@@ -2,6 +2,7 @@ import express, { Application, Request, Response, NextFunction, Router } from 'e
 import helmet from 'helmet';
 import { errorMiddleware } from './frameworks/http/middlewares/errorMiddleware';
 import { setupSwagger } from './frameworks/http/swagger/setup';
+import { healthRoutes } from './frameworks/http/routes/healthRoutes';
 
 interface AppRoutes {
   auth: Router;
@@ -43,6 +44,8 @@ export function createApp(routes: AppRoutes): Application {
   });
 
   setupSwagger(app);
+
+  app.use('/', healthRoutes());
 
   app.use('/auth', routes.auth);
   app.use('/customers', routes.customers);
