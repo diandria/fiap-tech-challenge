@@ -3,12 +3,15 @@ import { ServiceOrder } from '../../entities/ServiceOrder';
 import { INotificationService } from '../../use-cases/ports/INotificationService';
 
 export class ConsoleNotificationService implements INotificationService {
-  async notifyBudgetReady(customer: Customer, os: ServiceOrder): Promise<void> {
-    const subject = `Orçamento da OS ${os.id} pronto para aprovação`;
-    const body = `Olá ${customer.name}, o orçamento da sua OS ${os.id} está disponível: R$ ${os.budgetTotal}.`;
+  async notifyStatusChanged(customer: Customer, os: ServiceOrder): Promise<void> {
     console.log(
-      `[NOTIFICATION] Email sent to ${customer.email}\n  subject: "${subject}"\n  body: ${body}`,
+      `[Status] OS ${os.id} → ${os.status} | cliente: ${customer.name} (${customer.email})`,
     );
-    return Promise.resolve();
+  }
+
+  async notifyBudgetReady(customer: Customer, os: ServiceOrder): Promise<void> {
+    console.log(
+      `[Budget] OS ${os.id} | orçamento: R$ ${os.budgetTotal?.toFixed(2)} | cliente: ${customer.name} (${customer.email})`,
+    );
   }
 }

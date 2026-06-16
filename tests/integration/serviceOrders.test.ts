@@ -320,13 +320,13 @@ describe('Full OS lifecycle', () => {
       const res = await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
       expect(res.status).toBe(200);
 
-      const notificationLog = logSpy.mock.calls
+      const budgetLog = logSpy.mock.calls
         .map((args) => String(args[0]))
-        .find((line) => line.startsWith('[NOTIFICATION]'));
-      expect(notificationLog).toBeDefined();
-      expect(notificationLog).toContain('Email sent to j@t.com');
-      expect(notificationLog).toContain(osId);
-      expect(notificationLog).toContain('R$ 80');
+        .find((line) => line.startsWith('[Budget]'));
+      expect(budgetLog).toBeDefined();
+      expect(budgetLog).toContain(osId);
+      expect(budgetLog).toContain('R$ 80.00');
+      expect(budgetLog).toContain('j@t.com');
     } finally {
       logSpy.mockRestore();
     }
