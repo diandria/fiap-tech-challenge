@@ -7,7 +7,6 @@ metadata:
     app.kubernetes.io/part-of: fiap-tech-challenge
 data:
   PORT: "3000"
-  MONGODB_URI: "mongodb://mongo-service.oficina.svc.cluster.local:27017/car-repair-shop"
   CORS_ORIGIN: "http://localhost:3000"
   ADMIN_EMAIL: "admin@master.com"
   SMTP_HOST: "smtp.example.com"
