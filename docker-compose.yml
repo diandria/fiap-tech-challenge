@@ -30,7 +30,6 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: "admin"
       MONGO_INITDB_ROOT_PASSWORD: "secret"
-      MONGO_INITDB_DATABASE: "car-repair-shop"
     volumes:
       - mongo_data:/data/db
     restart: unless-stopped
