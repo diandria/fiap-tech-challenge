@@ -22,14 +22,14 @@ export class FinishDiagnosisUseCase {
 
     let total = 0;
 
-    for (const s of os.services) {
-      const service = await this.serviceRepo.findById(s.serviceId);
+    for (const osService of os.services) {
+      const service = await this.serviceRepo.findById(osService.serviceId);
       if (service) total += service.price;
     }
 
-    for (const i of os.items) {
-      const item = await this.itemRepo.findById(i.itemId);
-      if (item) total += item.price * i.quantity;
+    for (const osItem of os.items) {
+      const item = await this.itemRepo.findById(osItem.itemId);
+      if (item) total += item.price * osItem.quantity;
     }
 
     const updated = await this.osRepo.update(osId, {
