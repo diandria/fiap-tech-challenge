@@ -144,6 +144,12 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *   get:
    *     summary: List service orders
    *     tags: [Service Orders]
+   *     description: |
+   *       Lista OS ativas. Por padrão, exclui OS com status `FINISHED` e `DELIVERED` e ordena por
+   *       prioridade operacional: `EXECUTION` › `WAITING_APPROVAL` › `DIAGNOSIS` › `RECEIVED`,
+   *       mais antigas primeiro dentro do mesmo status.
+   *       Quando `?status` explícito é informado, a exclusão automática não se aplica — o sistema
+   *       retorna exatamente as OS do status solicitado, na mesma ordenação de prioridade.
    *     security:
    *       - bearerAuth: []
    *     parameters:
@@ -152,6 +158,7 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *         schema:
    *           type: string
    *           enum: [RECEIVED, DIAGNOSIS, WAITING_APPROVAL, APPROVED, EXECUTION, FINISHED, DELIVERED, REJECTED]
+   *         description: Quando informado, desabilita a exclusão automática de FINISHED e DELIVERED.
    *       - in: query
    *         name: customerId
    *         schema: { type: string }
@@ -163,7 +170,7 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *         schema: { type: string, format: date-time }
    *     responses:
    *       200:
-   *         description: Array of service orders
+   *         description: Array de OS ativas ordenadas por prioridade operacional
    */
   router.get('/', (req, res, next) => controller.list(req, res, next));
 
