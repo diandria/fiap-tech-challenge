@@ -1,15 +1,18 @@
-import express, { Application, Request, Response, NextFunction } from 'express';
+import express, { Application, Request, Response, NextFunction, Router } from 'express';
 import helmet from 'helmet';
 import { errorMiddleware } from './frameworks/http/middlewares/errorMiddleware';
-import { authRoutes } from './infrastructure/http/routes/authRoutes';
-import { customerRoutes } from './infrastructure/http/routes/customerRoutes';
-import { vehicleRoutes } from './infrastructure/http/routes/vehicleRoutes';
-import { serviceRoutes } from './infrastructure/http/routes/serviceRoutes';
-import { itemRoutes } from './infrastructure/http/routes/itemRoutes';
-import { serviceOrderRoutes } from './infrastructure/http/routes/serviceOrderRoutes';
 import { setupSwagger } from './frameworks/http/swagger/setup';
 
-export function createApp(): Application {
+interface AppRoutes {
+  auth: Router;
+  customers: Router;
+  vehicles: Router;
+  services: Router;
+  items: Router;
+  serviceOrders: Router;
+}
+
+export function createApp(routes: AppRoutes): Application {
   const app = express();
 
   app.use(
@@ -41,12 +44,12 @@ export function createApp(): Application {
 
   setupSwagger(app);
 
-  app.use('/auth', authRoutes());
-  app.use('/customers', customerRoutes());
-  app.use('/vehicles', vehicleRoutes());
-  app.use('/services', serviceRoutes());
-  app.use('/items', itemRoutes());
-  app.use('/service-orders', serviceOrderRoutes());
+  app.use('/auth', routes.auth);
+  app.use('/customers', routes.customers);
+  app.use('/vehicles', routes.vehicles);
+  app.use('/services', routes.services);
+  app.use('/items', routes.items);
+  app.use('/service-orders', routes.serviceOrders);
 
   app.use(errorMiddleware);
 

@@ -1,6 +1,6 @@
 import request from 'supertest';
-import { createApp } from '../../src/app';
-import { connectTestDB, disconnectTestDB, clearTestDB } from '../helpers/testSetup';
+
+import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp } from '../helpers/testSetup';
 import { Application } from 'express';
 
 describe('Auth Integration', () => {
@@ -9,7 +9,7 @@ describe('Auth Integration', () => {
   beforeAll(async () => {
     process.env.JWT_SECRET = 'integration-test-secret';
     await connectTestDB();
-    app = createApp();
+    app = createTestApp();
   });
 
   afterAll(async () => {
