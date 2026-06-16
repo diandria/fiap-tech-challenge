@@ -528,3 +528,134 @@ describe('DELETE /service-orders/:id/items/:itemId — diagnosis refinement', ()
     expect(res.status).toBe(404);
   });
 });
+
+describe('GET /service-orders — active listing and priority sort', () => {
+  const attAuth = () => ({ Authorization: `Bearer ${attendantToken}` });
+  const mechAuth = () => ({ Authorization: `Bearer ${mechanicToken}` });
+  const adminAuth = () => ({ Authorization: `Bearer ${adminToken}` });
+
+  async function createOS(): Promise<string> {
+    const res = await request(app)
+      .post('/service-orders')
+      .set(attAuth())
+      .send({ customerId, vehicleId });
+    expect(res.status).toBe(201);
+    return res.body.id;
+  }
+
+  async function advanceToStatus(
+    osId: string,
+    targetStatus: 'DIAGNOSIS' | 'WAITING_APPROVAL' | 'EXECUTION' | 'FINISHED' | 'DELIVERED',
+  ): Promise<void> {
+    expect((await request(app).patch(`/service-orders/${osId}`).set(mechAuth()).send({ status: 'DIAGNOSIS' })).status).toBe(200);
+    if (targetStatus === 'DIAGNOSIS') return;
+
+    expect((await request(app).patch(`/service-orders/${osId}`).set(mechAuth()).send({ status: 'WAITING_APPROVAL' })).status).toBe(200);
+    if (targetStatus === 'WAITING_APPROVAL') return;
+
+    expect((await request(app).patch(`/service-orders/${osId}/budget`).send({ status: 'APPROVED', code: '5299' })).status).toBe(200);
+
+    expect((await request(app).patch(`/service-orders/${osId}`).set(mechAuth()).send({ status: 'EXECUTION' })).status).toBe(200);
+    if (targetStatus === 'EXECUTION') return;
+
+    expect((await request(app).patch(`/service-orders/${osId}`).set(mechAuth()).send({ status: 'FINISHED' })).status).toBe(200);
+    if (targetStatus === 'FINISHED') return;
+
+    expect((await request(app).patch(`/service-orders/${osId}`).set(mechAuth()).send({ status: 'DELIVERED' })).status).toBe(200);
+  }
+
+  it('GIVEN OS in RECEIVED, DIAGNOSIS, WAITING_APPROVAL, EXECUTION WHEN GET /service-orders THEN all four appear in result', async () => {
+    const ids = await Promise.all([createOS(), createOS(), createOS(), createOS()]);
+    await advanceToStatus(ids[1], 'DIAGNOSIS');
+    await advanceToStatus(ids[2], 'WAITING_APPROVAL');
+    await advanceToStatus(ids[3], 'EXECUTION');
+
+    const res = await request(app).get('/service-orders').set(adminAuth());
+
+    expect(res.status).toBe(200);
+    const returnedIds = res.body.map((o: any) => o.id);
+    expect(returnedIds).toContain(ids[0]);
+    expect(returnedIds).toContain(ids[1]);
+    expect(returnedIds).toContain(ids[2]);
+    expect(returnedIds).toContain(ids[3]);
+  });
+
+  it('GIVEN OS in FINISHED WHEN GET /service-orders without filter THEN it does not appear in result', async () => {
+    const osId = await createOS();
+    await advanceToStatus(osId, 'FINISHED');
+
+    const res = await request(app).get('/service-orders').set(adminAuth());
+
+    expect(res.status).toBe(200);
+    const returnedIds = res.body.map((o: any) => o.id);
+    expect(returnedIds).not.toContain(osId);
+  });
+
+  it('GIVEN OS in DELIVERED WHEN GET /service-orders without filter THEN it does not appear in result', async () => {
+    const osId = await createOS();
+    await advanceToStatus(osId, 'DELIVERED');
+
+    const res = await request(app).get('/service-orders').set(adminAuth());
+
+    expect(res.status).toBe(200);
+    const returnedIds = res.body.map((o: any) => o.id);
+    expect(returnedIds).not.toContain(osId);
+  });
+
+  it('GIVEN OS in FINISHED WHEN GET /service-orders?status=FINISHED THEN it appears in result', async () => {
+    const osId = await createOS();
+    await advanceToStatus(osId, 'FINISHED');
+
+    const res = await request(app).get('/service-orders?status=FINISHED').set(adminAuth());
+
+    expect(res.status).toBe(200);
+    const returnedIds = res.body.map((o: any) => o.id);
+    expect(returnedIds).toContain(osId);
+  });
+
+  it('GIVEN OS in EXECUTION, WAITING_APPROVAL, DIAGNOSIS, RECEIVED WHEN GET /service-orders THEN result ordered by priority', async () => {
+    const idReceived = await createOS();
+    const idDiagnosis = await createOS();
+    const idWaiting = await createOS();
+    const idExecution = await createOS();
+
+    await advanceToStatus(idDiagnosis, 'DIAGNOSIS');
+    await advanceToStatus(idWaiting, 'WAITING_APPROVAL');
+    await advanceToStatus(idExecution, 'EXECUTION');
+
+    const res = await request(app).get('/service-orders').set(adminAuth());
+
+    expect(res.status).toBe(200);
+    const statuses: string[] = res.body.map((o: any) => o.status);
+
+    const posExecution = statuses.indexOf('EXECUTION');
+    const posWaiting = statuses.indexOf('WAITING_APPROVAL');
+    const posDiagnosis = statuses.indexOf('DIAGNOSIS');
+    const posReceived = statuses.indexOf('RECEIVED');
+
+    expect(posExecution).toBeGreaterThanOrEqual(0);
+    expect(posWaiting).toBeGreaterThanOrEqual(0);
+    expect(posDiagnosis).toBeGreaterThanOrEqual(0);
+    expect(posReceived).toBeGreaterThanOrEqual(0);
+    expect(posExecution).toBeLessThan(posWaiting);
+    expect(posWaiting).toBeLessThan(posDiagnosis);
+    expect(posDiagnosis).toBeLessThan(posReceived);
+  });
+
+  it('GIVEN two OS in same status WHEN GET /service-orders THEN older createdAt comes first', async () => {
+    const osFirst = await createOS();
+    await new Promise((r) => setTimeout(r, 50));
+    const osSecond = await createOS();
+
+    const res = await request(app).get('/service-orders').set(adminAuth());
+
+    expect(res.status).toBe(200);
+    const returnedIds: string[] = res.body.map((o: any) => o.id);
+    const posFirst = returnedIds.indexOf(osFirst);
+    const posSecond = returnedIds.indexOf(osSecond);
+
+    expect(posFirst).toBeGreaterThanOrEqual(0);
+    expect(posSecond).toBeGreaterThanOrEqual(0);
+    expect(posFirst).toBeLessThan(posSecond);
+  });
+});
