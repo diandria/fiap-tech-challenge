@@ -4,8 +4,8 @@ import { makeServiceRepo, baseService } from '../../fixtures/service';
 import { makeItemRepo, stockedItem, depletedItem } from '../../fixtures/item';
 
 describe('CreateServiceOrderUseCase', () => {
-  describe('baseline sem serviços e itens', () => {
-    it('cria OS com RECEIVED e arrays vazios quando services e items omitidos', async () => {
+  describe('without services and items', () => {
+    it('GIVEN valid customerId and vehicleId WHEN execute called without services or items THEN creates OS with RECEIVED status and empty arrays', async () => {
       const osRepo = makeOSRepo(receivedOS);
       const serviceRepo = makeServiceRepo();
       const itemRepo = makeItemRepo();
@@ -21,8 +21,8 @@ describe('CreateServiceOrderUseCase', () => {
     });
   });
 
-  describe('serviços na abertura (T3)', () => {
-    it('valida existência de cada serviceId e inclui na OS', async () => {
+  describe('services on creation', () => {
+    it('GIVEN valid serviceId WHEN execute called with services array THEN validates existence and includes service in OS', async () => {
       const osRepo = makeOSRepo({ ...receivedOS, services: [{ serviceId: 's-1' }] });
       const serviceRepo = makeServiceRepo(baseService);
       const itemRepo = makeItemRepo();
@@ -40,7 +40,7 @@ describe('CreateServiceOrderUseCase', () => {
       expect(result.services).toHaveLength(1);
     });
 
-    it('lança NotFoundError quando serviceId não existe', async () => {
+    it('GIVEN non-existent serviceId WHEN execute called THEN throws NotFoundError and does not create OS', async () => {
       const osRepo = makeOSRepo(receivedOS);
       const serviceRepo = makeServiceRepo(null);
       const itemRepo = makeItemRepo();
@@ -54,8 +54,8 @@ describe('CreateServiceOrderUseCase', () => {
     });
   });
 
-  describe('itens na abertura (T4)', () => {
-    it('valida existência, verifica disponibilidade e reserva estoque', async () => {
+  describe('items on creation', () => {
+    it('GIVEN valid itemId with sufficient stock WHEN execute called with items array THEN reserves stock and includes item in OS', async () => {
       const osRepo = makeOSRepo({ ...receivedOS, items: [{ itemId: 'i-1', quantity: 2 }] });
       const serviceRepo = makeServiceRepo();
       const itemRepo = makeItemRepo(stockedItem);
@@ -74,7 +74,7 @@ describe('CreateServiceOrderUseCase', () => {
       expect(result.items).toHaveLength(1);
     });
 
-    it('lança NotFoundError quando itemId não existe', async () => {
+    it('GIVEN non-existent itemId WHEN execute called THEN throws NotFoundError and does not create OS', async () => {
       const osRepo = makeOSRepo(receivedOS);
       const serviceRepo = makeServiceRepo();
       const itemRepo = makeItemRepo(null);
@@ -87,7 +87,7 @@ describe('CreateServiceOrderUseCase', () => {
       expect(osRepo.create).not.toHaveBeenCalled();
     });
 
-    it('lança ValidationError quando estoque insuficiente', async () => {
+    it('GIVEN item with no available stock WHEN execute called THEN throws ValidationError and does not create OS', async () => {
       const osRepo = makeOSRepo(receivedOS);
       const serviceRepo = makeServiceRepo();
       const itemRepo = makeItemRepo(depletedItem);
@@ -100,11 +100,11 @@ describe('CreateServiceOrderUseCase', () => {
       expect(osRepo.create).not.toHaveBeenCalled();
     });
 
-    it('faz rollback das reservas anteriores quando item subsequente falha', async () => {
+    it('GIVEN first item valid and second item with no stock WHEN execute called THEN rolls back first item reservation and does not create OS', async () => {
       const osRepo = makeOSRepo(receivedOS);
       const serviceRepo = makeServiceRepo();
 
-      const stockedItemRepo = {
+      const itemRepo = {
         ...makeItemRepo(stockedItem),
         findById: jest.fn()
           .mockResolvedValueOnce(stockedItem)
@@ -112,7 +112,7 @@ describe('CreateServiceOrderUseCase', () => {
           .mockResolvedValue(stockedItem),
       };
 
-      const useCase = new CreateServiceOrderUseCase(osRepo, serviceRepo, stockedItemRepo);
+      const useCase = new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo);
 
       await expect(
         useCase.execute({
@@ -124,15 +124,15 @@ describe('CreateServiceOrderUseCase', () => {
         })
       ).rejects.toThrow('Insufficient stock');
 
-      expect(stockedItemRepo.update).toHaveBeenCalledWith('i-1', expect.objectContaining({
+      expect(itemRepo.update).toHaveBeenCalledWith('i-1', expect.objectContaining({
         reservedQuantity: expect.any(Number),
       }));
       expect(osRepo.create).not.toHaveBeenCalled();
     });
   });
 
-  describe('T5 — dados resolvidos passados ao osRepo.create()', () => {
-    it('passa services e items resolvidos ao osRepo.create quando ambos fornecidos', async () => {
+  describe('resolved data passed to osRepo', () => {
+    it('GIVEN valid services and items WHEN execute called THEN passes resolved arrays to osRepo.create', async () => {
       const osRepo = makeOSRepo(receivedOS);
       const serviceRepo = makeServiceRepo(baseService);
       const itemRepo = makeItemRepo(stockedItem);
