@@ -62,4 +62,15 @@ describe('NotifyStatusChangeUseCase', () => {
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
   });
+
+  it('GIVEN osRepo throws WHEN execute called THEN error is swallowed and method still resolves', async () => {
+    const osRepo = makeOSRepo(baseOS);
+    (osRepo.findById as jest.Mock).mockRejectedValue(new Error('DB connection lost'));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const useCase = new NotifyStatusChangeUseCase(osRepo, makeCustomerRepo(cpfCustomer), makeNotifier());
+
+    await expect(useCase.execute({ osId: 'os-1' })).resolves.toBeUndefined();
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
 });

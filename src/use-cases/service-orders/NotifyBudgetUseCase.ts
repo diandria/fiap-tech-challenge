@@ -10,14 +10,14 @@ export class NotifyBudgetUseCase {
   ) {}
 
   async execute({ osId }: { osId: string }): Promise<void> {
-    const os = await this.osRepo.findById(osId);
-    if (!os) return;
-    const customer = await this.customerRepo.findById(os.customerId);
-    if (!customer) {
-      console.warn(`[NOTIFICATION] Customer not found for OS ${osId}`);
-      return;
-    }
     try {
+      const os = await this.osRepo.findById(osId);
+      if (!os) return;
+      const customer = await this.customerRepo.findById(os.customerId);
+      if (!customer) {
+        console.warn(`[NOTIFICATION] Customer not found for OS ${osId}`);
+        return;
+      }
       await this.notifier.notifyBudgetReady(customer, os);
     } catch (err) {
       console.error(`[NOTIFICATION] Failed to notify customer for OS ${osId}`, err);
