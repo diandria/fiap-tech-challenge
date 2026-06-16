@@ -1,4 +1,6 @@
+# AI context — plans, specs, milestones, tooling config
 /docs/superpowers
+docs/*-milestones.md
 .claude
 node_modules
 dist
