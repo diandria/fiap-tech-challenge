@@ -57,10 +57,10 @@ Derivados dos use cases em `src/application/use-cases/` e dos endpoints expostos
 
 | ID | Requisito | Ator |
 |---|---|---|
-| RF-13 | Criar OS associada a um cliente e um veículo | `attendant` |
+| RF-13 | Criar OS associada a um cliente e um veículo, com lista opcional de serviços e peças informada pelo cliente na abertura; estoque das peças é reservado imediatamente | `attendant` |
 | RF-14 | Iniciar diagnóstico (`RECEIVED → DIAGNOSIS`) | `mechanic` |
-| RF-15 | Adicionar e remover serviços do catálogo na OS em diagnóstico | `mechanic` |
-| RF-16 | Adicionar e remover itens do catálogo na OS, reservando/devolvendo estoque (`reservedQuantity`) | `mechanic` |
+| RF-15 | No diagnóstico, o mecânico refina a lista pré-montada pelo cliente: pode adicionar serviços ausentes e remover serviços que não se aplicarem após avaliação técnica | `mechanic` |
+| RF-16 | No diagnóstico, o mecânico refina a lista pré-montada pelo cliente: pode adicionar peças reservando estoque (`reservedQuantity++`) e remover peças liberando o estoque reservado na abertura (`reservedQuantity--`) | `mechanic` |
 | RF-17 | Encerrar diagnóstico calculando `budgetTotal = Σ services + Σ (item.price × qty)` (`DIAGNOSIS → WAITING_APPROVAL`) | `mechanic` |
 | RF-18 | Disparar notificação ao cliente quando o orçamento entra em `WAITING_APPROVAL` (port `INotificationService`) | Sistema |
 | RF-19 | Permitir consulta pública do status de uma OS por ID, sem autenticação | Cliente final |
@@ -280,7 +280,7 @@ As transições estão divididas em dois endpoints comandados pelo body:
 |---|---|---|---|---|
 | RECEIVED → DIAGNOSIS | `PATCH /service-orders/:id` | `{ status: "DIAGNOSIS" }` | mechanic, admin | — |
 | DIAGNOSIS → WAITING_APPROVAL | `PATCH /service-orders/:id` | `{ status: "WAITING_APPROVAL" }` | mechanic, admin | Calcula e persiste `budgetTotal`; dispara notificação best-effort via `INotificationService` (MVP: mock `console.log`) |
-| WAITING_APPROVAL → APPROVED | `PATCH /service-orders/:id/budget` | `{ status: "APPROVED", code: "..." }` | público (código 4 dígitos, rate-limited) | Reservas de itens já feitas no add-item |
+| WAITING_APPROVAL → APPROVED | `PATCH /service-orders/:id/budget` | `{ status: "APPROVED", code: "..." }` | público (código 4 dígitos, rate-limited) | Reservas de itens já realizadas na abertura da OS e/ou durante o diagnóstico |
 | WAITING_APPROVAL → REJECTED | `PATCH /service-orders/:id/budget` | `{ status: "REJECTED", code: "..." }` | público (código 4 dígitos, rate-limited) | Libera `reservedQuantity` de todos os itens da OS |
 | APPROVED → EXECUTION | `PATCH /service-orders/:id` | `{ status: "EXECUTION" }` | mechanic, admin | Decrementa `stockQuantity` e zera `reservedQuantity` dos itens |
 | EXECUTION → FINISHED | `PATCH /service-orders/:id` | `{ status: "FINISHED" }` | mechanic, admin | Grava `finishedAt` |
@@ -288,20 +288,24 @@ As transições estão divididas em dois endpoints comandados pelo body:
 
 Serviços individuais da OS são atualizados via `PATCH /service-orders/:id/services/:serviceId` com `{ status: "IN_PROGRESS" | "COMPLETED" }` (grava `startedAt`/`finishedAt`).
 
+- `DELETE /service-orders/:id/services/:serviceId` — remove serviço da OS em diagnóstico (mechanic, admin)
+- `DELETE /service-orders/:id/items/:itemId` — remove peça da OS em diagnóstico, libera estoque (mechanic, admin)
+
 ### Fluxo de aprovação pelo cliente
 
 1. Mecânico encerra o diagnóstico (`DIAGNOSIS → WAITING_APPROVAL`).
 2. Sistema calcula `budgetTotal` e dispara `INotificationService` (mock loga em stdout).
 3. Cliente consulta o status pela rota pública `GET /service-orders/:id/status`.
 4. Cliente envia decisão em `PATCH /service-orders/:id/budget` com `{ status, code }`. O `code` são os 4 primeiros dígitos do CPF/CNPJ.
-5. Aprovação reserva os itens; rejeição libera o `reservedQuantity`.
+5. Rejeição libera o `reservedQuantity` de todos os itens da OS; aprovação não altera estoque (reservas já foram feitas).
 
 ### Reserva de estoque
 
-- `add-item-to-OS` → incrementa `reservedQuantity`
-- `remove-item-from-OS` → decrementa `reservedQuantity`
+- `POST /service-orders` com `items[]` → incrementa `reservedQuantity` de cada peça informada
+- `add-item-to-OS` (DIAGNOSIS) → incrementa `reservedQuantity`
+- `remove-item-from-OS` (DIAGNOSIS) → decrementa `reservedQuantity`
 - transição `EXECUTION` → decrementa `stockQuantity`, zera `reservedQuantity`
-- transição `REJECTED` → decrementa `reservedQuantity` (libera reserva)
+- transição `REJECTED` → decrementa `reservedQuantity` (libera reserva de todos os itens)
 
 ---
 
