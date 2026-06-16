@@ -1,20 +1,20 @@
 import 'dotenv/config';
-import { connectDB, disconnectDB } from '../src/infrastructure/persistence/connection';
-import { MongoCustomerRepository } from '../src/infrastructure/persistence/repositories/MongoCustomerRepository';
-import { MongoVehicleRepository } from '../src/infrastructure/persistence/repositories/MongoVehicleRepository';
-import { MongoServiceRepository } from '../src/infrastructure/persistence/repositories/MongoServiceRepository';
-import { MongoItemRepository } from '../src/infrastructure/persistence/repositories/MongoItemRepository';
-import { MongoUserRepository } from '../src/infrastructure/persistence/repositories/MongoUserRepository';
-import { RegisterUseCase } from '../src/application/use-cases/auth/RegisterUseCase';
-import { ConflictError } from '../src/domain/errors/AppError';
-import { UserRole } from '../src/domain/entities/User';
-import { CreateCustomerUseCase } from '../src/application/use-cases/customers/CreateCustomerUseCase';
-import { CreateVehicleUseCase } from '../src/application/use-cases/vehicles/CreateVehicleUseCase';
-import { CreateServiceUseCase } from '../src/application/use-cases/services/CreateServiceUseCase';
-import { CreateItemUseCase } from '../src/application/use-cases/items/CreateItemUseCase';
-import { ListServicesUseCase } from '../src/application/use-cases/services/ListServicesUseCase';
-import { ListItemsUseCase } from '../src/application/use-cases/items/ListItemsUseCase';
-import { TaxType } from '../src/domain/entities/Customer';
+import { connectDB, disconnectDB } from '../src/frameworks/database/connection';
+import { MongoCustomerRepository } from '../src/adapters/gateways/MongoCustomerRepository';
+import { MongoVehicleRepository } from '../src/adapters/gateways/MongoVehicleRepository';
+import { MongoServiceRepository } from '../src/adapters/gateways/MongoServiceRepository';
+import { MongoItemRepository } from '../src/adapters/gateways/MongoItemRepository';
+import { MongoUserRepository } from '../src/adapters/gateways/MongoUserRepository';
+import { RegisterUseCase } from '../src/use-cases/auth/RegisterUseCase';
+import { ConflictError } from '../src/entities/errors/AppError';
+import { UserRole } from '../src/entities/User';
+import { CreateCustomerUseCase } from '../src/use-cases/customers/CreateCustomerUseCase';
+import { CreateVehicleUseCase } from '../src/use-cases/vehicles/CreateVehicleUseCase';
+import { CreateServiceUseCase } from '../src/use-cases/services/CreateServiceUseCase';
+import { CreateItemUseCase } from '../src/use-cases/items/CreateItemUseCase';
+import { ListServicesUseCase } from '../src/use-cases/services/ListServicesUseCase';
+import { ListItemsUseCase } from '../src/use-cases/items/ListItemsUseCase';
+import { TaxType } from '../src/entities/Customer';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/car-repair-shop';
 
