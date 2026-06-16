@@ -43,7 +43,12 @@ export class ServiceOrderController {
 
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = await this.createOS.execute(req.body);
+      const data = await this.createOS.execute({
+        customerId: req.body.customerId,
+        vehicleId: req.body.vehicleId,
+        services: req.body.services,
+        items: req.body.items,
+      });
       const { status, body } = ServiceOrderPresenter.created(data);
       res.status(status).json(body);
     } catch (err) { next(err); }

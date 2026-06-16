@@ -183,13 +183,36 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *             type: object
    *             required: [customerId, vehicleId]
    *             properties:
-   *               customerId: { type: string }
-   *               vehicleId: { type: string }
+   *               customerId:
+   *                 type: string
+   *               vehicleId:
+   *                 type: string
+   *               services:
+   *                 type: array
+   *                 description: Service IDs to include on creation (optional)
+   *                 items:
+   *                   type: string
+   *               items:
+   *                 type: array
+   *                 description: Parts to include on creation with quantity (optional); stock reserved immediately
+   *                 items:
+   *                   type: object
+   *                   required: [itemId, quantity]
+   *                   properties:
+   *                     itemId:
+   *                       type: string
+   *                     quantity:
+   *                       type: integer
+   *                       minimum: 1
    *     responses:
    *       201:
-   *         description: Service order created with RECEIVED status
+   *         description: Service order created with RECEIVED status and resolved services/items
+   *       400:
+   *         description: Insufficient stock for an item
    *       403:
    *         description: Forbidden
+   *       404:
+   *         description: Service or item not found
    */
   router.post('/', requireRole('attendant', 'admin'), (req, res, next) => controller.create(req, res, next));
 
