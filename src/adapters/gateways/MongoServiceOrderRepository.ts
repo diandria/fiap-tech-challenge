@@ -29,6 +29,12 @@ export class MongoServiceOrderRepository implements IServiceOrderRepository {
         ...(filter.to && { $lte: filter.to }),
       };
     }
+    if (filter?.excludeStatuses?.length) {
+      query.status = {
+        ...(query.status !== undefined ? { $eq: query.status } : {}),
+        $nin: filter.excludeStatuses,
+      };
+    }
     const docs = await ServiceOrderModel.find(query).lean();
     return docs.map((d) => this.toEntity(d));
   }

@@ -5,6 +5,7 @@ export interface ListServiceOrdersFilter {
   customerId?: string;
   from?: Date;
   to?: Date;
+  excludeStatuses?: OSStatus[];
 }
 
 export interface AvgExecutionResult {
