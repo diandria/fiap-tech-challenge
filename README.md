@@ -18,10 +18,11 @@ Full architecture diagram: [docs/c4.md](docs/c4.md)
 ```bash
 # Start Minikube
 minikube start --cpus=2 --memory=4096
+minikube addons enable metrics-server   # required for HPA
 
 # Populate k8s/secret.yaml with real credentials before applying
 # Apply all manifests via Terraform
-cd infra && terraform init && terraform apply
+cd infra && terraform init && terraform apply && cd ..
 
 # Access the application
 minikube service oficina-service -n oficina --url
@@ -34,9 +35,11 @@ minikube service oficina-service -n oficina --url
 
 ### Demo video
 
-[link YouTube/Vimeo] <!-- replace with the actual link before submission; max 15 minutes -->
+<!-- TODO: add video link before submission (max 15 minutes) -->
 
 ---
+
+## Phase 1
 
 ## Sumário
 
@@ -62,7 +65,7 @@ minikube service oficina-service -n oficina --url
 
 ## Arquitetura
 
-Monolito hexagonal (ports & adapters). Veja [docs/architecture.md](docs/architecture.md) para o design completo — camadas, modelo de dados, máquina de estados e decisões de infra. Termos do domínio em [docs/ddd/ubiquitous-language.md](docs/ddd/ubiquitous-language.md).
+Monolito hexagonal (ports & adapters). Veja [docs/DAS.md](docs/DAS.md) para o design completo — camadas, modelo de dados, máquina de estados e decisões de infra. Termos do domínio em [docs/ddd/ubiquitous-language.md](docs/ddd/ubiquitous-language.md).
 
 ---
 
