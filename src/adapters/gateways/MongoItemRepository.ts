@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { IItemRepository } from '../../use-cases/ports/IItemRepository';
 import { Item } from '../../entities/Item';
 import { ItemModel } from '../../frameworks/database/models/ItemModel';
@@ -19,6 +20,7 @@ export class MongoItemRepository implements IItemRepository {
   }
 
   async findById(id: string): Promise<Item | null> {
+    if (!mongoose.isValidObjectId(id)) return null;
     const doc = await ItemModel.findById(id).lean();
     return doc ? this.toEntity(doc) : null;
   }

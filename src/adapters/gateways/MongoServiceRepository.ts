@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { IServiceRepository } from '../../use-cases/ports/IServiceRepository';
 import { Service } from '../../entities/Service';
 import { ServiceModel } from '../../frameworks/database/models/ServiceModel';
@@ -18,6 +19,7 @@ export class MongoServiceRepository implements IServiceRepository {
   }
 
   async findById(id: string): Promise<Service | null> {
+    if (!mongoose.isValidObjectId(id)) return null;
     const doc = await ServiceModel.findById(id).lean();
     return doc ? this.toEntity(doc) : null;
   }
