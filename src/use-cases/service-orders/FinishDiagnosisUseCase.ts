@@ -1,19 +1,19 @@
 import { IServiceOrderRepository } from '../ports/IServiceOrderRepository';
 import { IServiceRepository } from '../ports/IServiceRepository';
 import { IItemRepository } from '../ports/IItemRepository';
-import { ICustomerRepository } from '../ports/ICustomerRepository';
-import { INotificationService } from '../ports/INotificationService';
 import { ServiceOrder } from '../../entities/ServiceOrder';
 import { assertTransition } from '../../entities/serviceOrderStateMachine';
 import { findOSOrThrow } from '../utils/serviceOrderUtils';
+import { NotifyStatusChangeUseCase } from './NotifyStatusChangeUseCase';
+import { NotifyBudgetUseCase } from './NotifyBudgetUseCase';
 
 export class FinishDiagnosisUseCase {
   constructor(
     private readonly osRepo: IServiceOrderRepository,
     private readonly serviceRepo: IServiceRepository,
     private readonly itemRepo: IItemRepository,
-    private readonly customerRepo: ICustomerRepository,
-    private readonly notifier: INotificationService,
+    private readonly notifyStatusChange: NotifyStatusChangeUseCase,
+    private readonly notifyBudget: NotifyBudgetUseCase,
   ) {}
 
   async execute(osId: string): Promise<ServiceOrder> {
@@ -37,16 +37,8 @@ export class FinishDiagnosisUseCase {
       budgetTotal: total,
     });
 
-    const customer = await this.customerRepo.findById(updated!.customerId);
-    if (!customer) {
-      console.warn(`[NOTIFICATION] Customer not found for OS ${osId}`);
-    } else {
-      try {
-        await this.notifier.notifyBudgetReady(customer, updated!);
-      } catch (err) {
-        console.error(`[NOTIFICATION] Failed to notify customer for OS ${osId}`, err);
-      }
-    }
+    await this.notifyStatusChange.execute({ osId });
+    await this.notifyBudget.execute({ osId });
 
     return updated!;
   }

@@ -3,11 +3,13 @@ import { IItemRepository } from '../ports/IItemRepository';
 import { ServiceOrder } from '../../entities/ServiceOrder';
 import { NotFoundError, ValidationError } from '../../entities/errors/AppError';
 import { findOSOrThrow } from '../utils/serviceOrderUtils';
+import { NotifyStatusChangeUseCase } from './NotifyStatusChangeUseCase';
 
 export class StartExecutionUseCase {
   constructor(
     private readonly osRepo: IServiceOrderRepository,
     private readonly itemRepo: IItemRepository,
+    private readonly notifyStatusChange: NotifyStatusChangeUseCase,
   ) {}
 
   async execute(osId: string): Promise<ServiceOrder> {
@@ -24,6 +26,7 @@ export class StartExecutionUseCase {
     }
 
     const updated = await this.osRepo.update(osId, { status: 'EXECUTION', startedAt: new Date() });
+    await this.notifyStatusChange.execute({ osId });
     return updated!;
   }
 }

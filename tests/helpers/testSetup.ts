@@ -42,6 +42,8 @@ import { AddServiceToOSUseCase } from '../../src/use-cases/service-orders/AddSer
 import { RemoveServiceFromOSUseCase } from '../../src/use-cases/service-orders/RemoveServiceFromOSUseCase';
 import { AddItemToOSUseCase } from '../../src/use-cases/service-orders/AddItemToOSUseCase';
 import { RemoveItemFromOSUseCase } from '../../src/use-cases/service-orders/RemoveItemFromOSUseCase';
+import { NotifyStatusChangeUseCase } from '../../src/use-cases/service-orders/NotifyStatusChangeUseCase';
+import { NotifyBudgetUseCase } from '../../src/use-cases/service-orders/NotifyBudgetUseCase';
 import { StartDiagnosisUseCase } from '../../src/use-cases/service-orders/StartDiagnosisUseCase';
 import { FinishDiagnosisUseCase } from '../../src/use-cases/service-orders/FinishDiagnosisUseCase';
 import { ApproveBudgetUseCase } from '../../src/use-cases/service-orders/ApproveBudgetUseCase';
@@ -115,18 +117,21 @@ export function createTestApp(): Application {
     new CreateItemUseCase(itemRepo), new GetItemByIdUseCase(itemRepo),
     new ListItemsUseCase(itemRepo), new UpdateItemUseCase(itemRepo), new DeleteItemUseCase(itemRepo),
   );
+  const notifyStatusChange = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier);
+  const notifyBudget = new NotifyBudgetUseCase(osRepo, customerRepo, notifier);
+
   const osController = new ServiceOrderController(
     new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo), new GetServiceOrderUseCase(osRepo),
     new ListServiceOrdersUseCase(osRepo),
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
     new AddItemToOSUseCase(osRepo, itemRepo), new RemoveItemFromOSUseCase(osRepo, itemRepo),
-    new StartDiagnosisUseCase(osRepo),
-    new FinishDiagnosisUseCase(osRepo, serviceRepo, itemRepo, customerRepo, notifier),
-    new ApproveBudgetUseCase(osRepo, customerRepo),
-    new RejectBudgetUseCase(osRepo, customerRepo, itemRepo),
-    new StartExecutionUseCase(osRepo, itemRepo),
+    new StartDiagnosisUseCase(osRepo, notifyStatusChange),
+    new FinishDiagnosisUseCase(osRepo, serviceRepo, itemRepo, notifyStatusChange, notifyBudget),
+    new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange),
+    new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
+    new StartExecutionUseCase(osRepo, itemRepo, notifyStatusChange),
     new StartServiceUseCase(osRepo), new FinishServiceUseCase(osRepo),
-    new FinishOSUseCase(osRepo), new DeliverOSUseCase(osRepo),
+    new FinishOSUseCase(osRepo, notifyStatusChange), new DeliverOSUseCase(osRepo, notifyStatusChange),
     new GetAvgExecutionTimeUseCase(osRepo),
   );
 

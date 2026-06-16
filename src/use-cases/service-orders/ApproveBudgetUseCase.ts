@@ -4,11 +4,13 @@ import { ServiceOrder } from '../../entities/ServiceOrder';
 import { NotFoundError } from '../../entities/errors/AppError';
 import { assertTransition } from '../../entities/serviceOrderStateMachine';
 import { findOSOrThrow, verifyCustomerCode } from '../utils/serviceOrderUtils';
+import { NotifyStatusChangeUseCase } from './NotifyStatusChangeUseCase';
 
 export class ApproveBudgetUseCase {
   constructor(
     private readonly osRepo: IServiceOrderRepository,
     private readonly customerRepo: ICustomerRepository,
+    private readonly notifyStatusChange: NotifyStatusChangeUseCase,
   ) {}
 
   async execute(osId: string, code: string): Promise<ServiceOrder> {
@@ -21,6 +23,7 @@ export class ApproveBudgetUseCase {
     verifyCustomerCode(customer, code);
 
     const updated = await this.osRepo.update(osId, { status: 'APPROVED' });
+    await this.notifyStatusChange.execute({ osId });
     return updated!;
   }
 }

@@ -1,7 +1,12 @@
 import { RejectBudgetUseCase } from '../../../../src/use-cases/service-orders/RejectBudgetUseCase';
+import { NotifyStatusChangeUseCase } from '../../../../src/use-cases/service-orders/NotifyStatusChangeUseCase';
 import { IItemRepository } from '../../../../src/use-cases/ports/IItemRepository';
 import { makeOSRepo, waitingApprovalOS } from '../../fixtures/serviceOrder';
 import { makeCustomerRepo, cnpjCustomer } from '../../fixtures/customer';
+
+const makeNotifyStatusChange = () => ({
+  execute: jest.fn().mockResolvedValue(undefined),
+} as unknown as NotifyStatusChangeUseCase);
 
 // OS with two items to test full reservation release
 const twoItemOS = {
@@ -25,7 +30,7 @@ describe('RejectBudgetUseCase', () => {
   it('GIVEN OS WAITING_APPROVAL and correct code WHEN execute called THEN transitions to REJECTED and releases item reservations', async () => {
     const osRepo = makeOSRepo(twoItemOS);
     const itemRepo = makeSequentialItemRepo();
-    const useCase = new RejectBudgetUseCase(osRepo, makeCustomerRepo(cnpjCustomer), itemRepo);
+    const useCase = new RejectBudgetUseCase(osRepo, makeCustomerRepo(cnpjCustomer), itemRepo, makeNotifyStatusChange());
     const result = await useCase.execute('os-1', '1122');
     expect(result.status).toBe('REJECTED');
     // release: reservedQuantity decremented by quantity for each item
@@ -34,25 +39,32 @@ describe('RejectBudgetUseCase', () => {
     expect(itemRepo.update).toHaveBeenCalledTimes(2);
   });
 
+  it('GIVEN OS transitions to REJECTED WHEN execute called THEN notifyStatusChange is invoked', async () => {
+    const notifyStatusChange = makeNotifyStatusChange();
+    const useCase = new RejectBudgetUseCase(makeOSRepo(twoItemOS), makeCustomerRepo(cnpjCustomer), makeSequentialItemRepo(), notifyStatusChange);
+    await useCase.execute('os-1', '1122');
+    expect(notifyStatusChange.execute).toHaveBeenCalledWith({ osId: 'os-1' });
+  });
+
   it('GIVEN wrong code WHEN execute called THEN throws ValidationError', async () => {
-    const useCase = new RejectBudgetUseCase(makeOSRepo(twoItemOS), makeCustomerRepo(cnpjCustomer), makeSequentialItemRepo());
+    const useCase = new RejectBudgetUseCase(makeOSRepo(twoItemOS), makeCustomerRepo(cnpjCustomer), makeSequentialItemRepo(), makeNotifyStatusChange());
     await expect(useCase.execute('os-1', '9999'))
       .rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('code') });
   });
 
   it('GIVEN OS not in WAITING_APPROVAL WHEN execute called THEN throws ValidationError', async () => {
     const wrongOS = { ...twoItemOS, status: 'EXECUTION' as const };
-    const useCase = new RejectBudgetUseCase(makeOSRepo(wrongOS), makeCustomerRepo(cnpjCustomer), makeSequentialItemRepo());
+    const useCase = new RejectBudgetUseCase(makeOSRepo(wrongOS), makeCustomerRepo(cnpjCustomer), makeSequentialItemRepo(), makeNotifyStatusChange());
     await expect(useCase.execute('os-1', '1122')).rejects.toMatchObject({ statusCode: 400 });
   });
 
   it('GIVEN non-existing OS id WHEN execute called THEN throws NotFoundError', async () => {
-    const useCase = new RejectBudgetUseCase(makeOSRepo(null), makeCustomerRepo(cnpjCustomer), makeSequentialItemRepo());
+    const useCase = new RejectBudgetUseCase(makeOSRepo(null), makeCustomerRepo(cnpjCustomer), makeSequentialItemRepo(), makeNotifyStatusChange());
     await expect(useCase.execute('missing', '1122')).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it('GIVEN non-existing customer WHEN execute called THEN throws NotFoundError', async () => {
-    const useCase = new RejectBudgetUseCase(makeOSRepo(twoItemOS), makeCustomerRepo(null), makeSequentialItemRepo());
+    const useCase = new RejectBudgetUseCase(makeOSRepo(twoItemOS), makeCustomerRepo(null), makeSequentialItemRepo(), makeNotifyStatusChange());
     await expect(useCase.execute('os-1', '1122')).rejects.toMatchObject({ statusCode: 404 });
   });
 
@@ -61,7 +73,7 @@ describe('RejectBudgetUseCase', () => {
       findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
       create: jest.fn(), update: jest.fn(), delete: jest.fn(),
     };
-    const useCase = new RejectBudgetUseCase(makeOSRepo(twoItemOS), makeCustomerRepo(cnpjCustomer), nullItemRepo);
+    const useCase = new RejectBudgetUseCase(makeOSRepo(twoItemOS), makeCustomerRepo(cnpjCustomer), nullItemRepo, makeNotifyStatusChange());
     await expect(useCase.execute('os-1', '1122')).rejects.toMatchObject({ statusCode: 404 });
   });
 });

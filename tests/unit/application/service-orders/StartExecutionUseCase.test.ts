@@ -1,7 +1,12 @@
 import { StartExecutionUseCase } from '../../../../src/use-cases/service-orders/StartExecutionUseCase';
+import { NotifyStatusChangeUseCase } from '../../../../src/use-cases/service-orders/NotifyStatusChangeUseCase';
 import { IServiceOrderRepository } from '../../../../src/use-cases/ports/IServiceOrderRepository';
 import { IItemRepository } from '../../../../src/use-cases/ports/IItemRepository';
 import { makeOSRepo, approvedOS } from '../../fixtures/serviceOrder';
+
+const makeNotifyStatusChange = () => ({
+  execute: jest.fn().mockResolvedValue(undefined),
+} as unknown as NotifyStatusChangeUseCase);
 
 const twoItemApprovedOS = {
   ...approvedOS,
@@ -23,7 +28,7 @@ describe('StartExecutionUseCase', () => {
   it('GIVEN OS in APPROVED status WHEN execute called THEN transitions to EXECUTION and decrements stock', async () => {
     const osRepo = makeOSRepo(twoItemApprovedOS);
     const itemRepo = makeSequentialItemRepo();
-    const useCase = new StartExecutionUseCase(osRepo, itemRepo);
+    const useCase = new StartExecutionUseCase(osRepo, itemRepo, makeNotifyStatusChange());
     const result = await useCase.execute('os-1');
 
     // i-1: stockQuantity (10-2=8), reservedQuantity (4-2=2)
@@ -34,9 +39,17 @@ describe('StartExecutionUseCase', () => {
     expect(result.status).toBe('EXECUTION');
   });
 
+  it('GIVEN OS transitions to EXECUTION WHEN execute called THEN notifyStatusChange is invoked', async () => {
+    const osRepo = makeOSRepo(twoItemApprovedOS);
+    const notifyStatusChange = makeNotifyStatusChange();
+    const useCase = new StartExecutionUseCase(osRepo, makeSequentialItemRepo(), notifyStatusChange);
+    await useCase.execute('os-1');
+    expect(notifyStatusChange.execute).toHaveBeenCalledWith({ osId: 'os-1' });
+  });
+
   it('GIVEN OS not in APPROVED WHEN execute called THEN throws ValidationError', async () => {
     const wrongOS = { ...twoItemApprovedOS, status: 'WAITING_APPROVAL' as const };
-    const useCase = new StartExecutionUseCase(makeOSRepo(wrongOS), makeSequentialItemRepo());
+    const useCase = new StartExecutionUseCase(makeOSRepo(wrongOS), makeSequentialItemRepo(), makeNotifyStatusChange());
     await expect(useCase.execute('os-1')).rejects.toMatchObject({ statusCode: 400 });
   });
 
@@ -46,7 +59,7 @@ describe('StartExecutionUseCase', () => {
       create: jest.fn(), update: jest.fn(),
       getAvgExecutionByService: jest.fn().mockResolvedValue([]),
     };
-    const useCase = new StartExecutionUseCase(osRepo, makeSequentialItemRepo());
+    const useCase = new StartExecutionUseCase(osRepo, makeSequentialItemRepo(), makeNotifyStatusChange());
     await expect(useCase.execute('missing')).rejects.toMatchObject({ statusCode: 404 });
   });
 
@@ -55,7 +68,7 @@ describe('StartExecutionUseCase', () => {
       findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
       create: jest.fn(), update: jest.fn(), delete: jest.fn(),
     };
-    const useCase = new StartExecutionUseCase(makeOSRepo(twoItemApprovedOS), nullItemRepo);
+    const useCase = new StartExecutionUseCase(makeOSRepo(twoItemApprovedOS), nullItemRepo, makeNotifyStatusChange());
     await expect(useCase.execute('os-1')).rejects.toMatchObject({ statusCode: 404 });
   });
 });
