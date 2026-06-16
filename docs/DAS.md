@@ -70,7 +70,7 @@ Derivados dos use cases em `src/application/use-cases/` e dos endpoints expostos
 | RF-23 | Marcar serviços individuais como `IN_PROGRESS` e `COMPLETED` | `mechanic` |
 | RF-24 | Encerrar a OS quando todos os serviços estão concluídos (`EXECUTION → FINISHED`) | `mechanic` |
 | RF-25 | Marcar a OS como entregue ao cliente (`FINISHED → DELIVERED`) | `attendant` |
-| RF-26 | Listar OSs com filtros por `status` e `customerId` | `attendant`, `mechanic`, `admin` |
+| RF-26 | Listar OSs ativas com filtros opcionais (`status`, `customerId`, datas). Por padrão, exclui OS com status `FINISHED` e `DELIVERED` e ordena por prioridade operacional: `EXECUTION` › `WAITING_APPROVAL` › `DIAGNOSIS` › `RECEIVED`, mais antigas primeiro dentro do mesmo status. Quando `status` explícito é informado, a exclusão automática não se aplica — retorna exatamente as OS do status solicitado | `attendant`, `mechanic`, `admin` |
 | RF-27 | Detalhar uma OS por ID | `attendant`, `mechanic`, `admin` |
 | RF-28 | Calcular o tempo médio de execução das OSs concluídas | `admin` |
 
