@@ -50,8 +50,8 @@ Monolito hexagonal (ports & adapters). Veja [docs/architecture.md](docs/architec
 
 | Role        | Permissões                                                                                                                              |
 |-------------|------------------------------------------------------------------------------------------------------------------------------------------|
-| `attendant` | Cadastra clientes e veículos; abre OS                                                                                                    |
-| `mechanic`  | Executa diagnóstico (start/finish); adiciona/remove serviços e itens; inicia/finaliza serviços; executa, finaliza e entrega a OS         |
+| `attendant` | Cadastra clientes e veículos; abre OS informando opcionalmente os serviços e peças solicitados pelo cliente                              |
+| `mechanic`  | Executa diagnóstico (start/finish); refina lista de serviços e itens (adiciona ou remove); inicia e finaliza serviços individuais; executa, finaliza e entrega a OS |
 | `admin`     | Acesso total, incluindo gestão de catálogo e estoque                                                                                     |
 
 Aprovação e rejeição de orçamento usam um endpoint **público** separado (`PATCH /service-orders/:id/budget`) — confirmado com os primeiros 4 dígitos do CPF/CNPJ do cliente.
@@ -391,9 +391,11 @@ Expanda qualquer endpoint, clique **Try it out**, preencha os parâmetros e cliq
 - `GET|POST|PUT|DELETE /services` *(GET autenticado, escritas admin)*
 - `GET /services/avg-time` *(admin, mechanic, attendant)* — lista serviços do catálogo com tempo médio cadastrado (`id`, `name`, `estimatedMinutes`)
 - `GET|POST|PUT|DELETE /items` *(autenticado, escritas admin)*
-- `POST /service-orders` — cria OS *(attendant, admin)*
+- `POST /service-orders` — cria OS com serviços e peças opcionais *(attendant, admin)*
 - `GET /service-orders/:id/status` — lê status *(público)*
 - `PATCH /service-orders/:id` body `{ status }` — transições internas da OS *(mechanic, admin)*
 - `PATCH /service-orders/:id/budget` body `{ status: APPROVED | REJECTED, code }` — decisão do cliente *(público, rate-limited)*
 - `PATCH /service-orders/:id/services/:serviceId` body `{ status: IN_PROGRESS | COMPLETED }` — atualiza um serviço individual *(mechanic, admin)*
 - `POST|DELETE /service-orders/:id/services` e `/items` — gerencia serviços/itens da OS *(mechanic, admin)*
+- `DELETE /service-orders/:id/services/:serviceId` — remove serviço da OS em DIAGNOSIS *(mechanic, admin)*
+- `DELETE /service-orders/:id/items/:itemId` — remove peça da OS em DIAGNOSIS, libera estoque *(mechanic, admin)*

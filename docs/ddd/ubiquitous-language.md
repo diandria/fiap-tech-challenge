@@ -12,8 +12,8 @@ Termos do domínio da oficina mecânica e suas contrapartidas no código. Refer�
 |---|---|---|
 | **Cliente** | Pessoa física ou jurídica que solicita e aprova o serviço | `Customer` — entidade com `taxId` (CPF ou CNPJ) |
 | **Veículo** | Bem do cliente que será atendido na oficina | `Vehicle` — vinculado a um `Customer` por `customerId` |
-| **Ordem de Serviço (OS)** | Registro central que rastreia toda a execução, do recebimento à entrega | `ServiceOrder` — agregado principal do sistema |
-| **Diagnóstico** | Análise técnica do veículo, feita pelo mecânico, para identificar o que precisa ser feito | Fase `DIAGNOSIS` da OS; transições `DIAGNOSIS` e `WAITING_APPROVAL` via `PATCH /service-orders/:id` |
+| **Ordem de Serviço (OS)** | Registro central que rastreia toda a execução, do recebimento à entrega | `ServiceOrder` — agregado principal; `services[]` e `items[]` são populados na abertura pelo atendente (com base no cliente) e refinados pelo mecânico durante o diagnóstico |
+| **Diagnóstico** | Etapa em que o mecânico analisa o veículo com base na lista de serviços e peças informada pelo cliente na abertura da OS. O mecânico refina essa lista — adicionando o que for necessário e removendo o que não se aplicar — e encerra o diagnóstico com o orçamento calculado para aprovação | Fase `DIAGNOSIS` da OS; transições `DIAGNOSIS` e `WAITING_APPROVAL` via `PATCH /service-orders/:id` |
 | **Serviço** | Atividade técnica executada no veículo (ex.: troca de óleo, alinhamento) | `Service` — entidade do catálogo com `name`, `price`, `estimatedMinutes` |
 | **Item** | Peça ou insumo físico utilizado para executar um serviço | `Item` — entidade com controle de estoque (`stockQuantity`, `reservedQuantity`) |
 | **Estoque** | Conjunto de itens disponíveis na oficina; rastreado por quantidades disponíveis e reservadas | Campos `stockQuantity` e `reservedQuantity` na entidade `Item` |
