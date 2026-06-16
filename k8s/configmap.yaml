@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oficina-config
+  namespace: oficina
+  labels:
+    app.kubernetes.io/part-of: fiap-tech-challenge
+data:
+  PORT: "3000"
+  CORS_ORIGIN: "http://localhost:3000"
+  ADMIN_EMAIL: "admin@master.com"
+  SMTP_HOST: "smtp.example.com"
+  SMTP_PORT: "587"
+  SMTP_SECURE: "false"
+  SMTP_FROM: "noreply@oficina.com"
