@@ -10,10 +10,10 @@ export class FinishServiceUseCase {
     const os = await findOSOrThrow(this.osRepo, osId);
     if (os.status !== 'EXECUTION') throw new ValidationError('OS must be in EXECUTION status');
 
-    const svc = os.services.find((s) => s.serviceId === serviceId);
-    if (!svc) throw new NotFoundError('Service in order');
-    if (!svc.startedAt) throw new ValidationError('Service has not been started');
-    if (svc.finishedAt) throw new ValidationError('Service already finished');
+    const service = os.services.find((s) => s.serviceId === serviceId);
+    if (!service) throw new NotFoundError('Service in order');
+    if (!service.startedAt) throw new ValidationError('Service has not been started');
+    if (service.finishedAt) throw new ValidationError('Service already finished');
 
     const services = os.services.map((s) =>
       s.serviceId === serviceId ? { ...s, finishedAt: new Date() } : s,

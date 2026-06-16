@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import { IUserRepository } from '../ports/IUserRepository';
 import { UnauthorizedError } from '../../entities/errors/AppError';
 
+const TOKEN_EXPIRY = '24h';
+
 interface LoginInput {
   email: string;
   password: string;
@@ -23,7 +25,7 @@ export class LoginUseCase {
     if (!valid) throw new UnauthorizedError('Invalid credentials');
 
     const secret = process.env.JWT_SECRET!;
-    const token = jwt.sign({ userId: user.id, role: user.role }, secret, { expiresIn: '24h' });
+    const token = jwt.sign({ userId: user.id, role: user.role }, secret, { expiresIn: TOKEN_EXPIRY });
     return { token };
   }
 }

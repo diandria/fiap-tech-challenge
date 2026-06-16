@@ -28,8 +28,7 @@ export class ServiceController {
   async listAvgTime(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const result = await this.listServicesAvgTime.execute();
-      const { status, body } = ServicePresenter.list(result as any);
-      res.status(status).json(body);
+      res.status(200).json(result);
     } catch (err) { next(err); }
   }
 

@@ -49,9 +49,12 @@ export function validatePlate(plate: string): boolean {
   );
 }
 
+const MIN_PHONE_DIGITS = 10;
+const MAX_PHONE_DIGITS = 11;
+
 export function validatePhone(phone: string): boolean {
   const digits = phone.replace(/\D/g, '');
-  return digits.length >= 10 && digits.length <= 11;
+  return digits.length >= MIN_PHONE_DIGITS && digits.length <= MAX_PHONE_DIGITS;
 }
 
 import { TaxType } from './Customer';
