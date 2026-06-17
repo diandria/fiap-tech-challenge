@@ -9,3 +9,29 @@ variable "kubeconfig_context" {
   type        = string
   default     = "minikube"
 }
+
+variable "jwt_secret" {
+  description = "Segredo para assinar tokens JWT"
+  type        = string
+  sensitive   = true
+}
+
+variable "admin_password" {
+  description = "Senha do usuario administrador da aplicacao"
+  type        = string
+  sensitive   = true
+}
+
+variable "mongo_root_username" {
+  description = "Usuario root do MongoDB"
+  type        = string
+  sensitive   = true
+  default     = "admin"
+}
+
+variable "mongo_root_password" {
+  description = "Senha root do MongoDB"
+  type        = string
+  sensitive   = true
+}
+

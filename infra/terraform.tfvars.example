@@ -1,0 +1,7 @@
+kubeconfig_path    = "~/.kube/config"
+kubeconfig_context = "minikube"
+
+jwt_secret          = "Wp3aMOz4dnu4Jbn5IVyURVJeCh1HgV1Cu0zVlj54kmb"
+admin_password      = "admin123"
+mongo_root_username = "admin"
+mongo_root_password = "admin123"

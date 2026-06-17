@@ -42,6 +42,11 @@ jobs:
       - name: Apply infrastructure with Terraform
         working-directory: infra/
         run: terraform apply -auto-approve -input=false
+        env:
+          TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+          TF_VAR_admin_password: ${{ secrets.ADMIN_PASSWORD }}
+          TF_VAR_mongo_root_username: ${{ secrets.MONGO_ROOT_USERNAME }}
+          TF_VAR_mongo_root_password: ${{ secrets.MONGO_ROOT_PASSWORD }}
 
       - name: Verify database deployment
         run: kubectl rollout status statefulset/mongo -n oficina --timeout=180s

@@ -24,7 +24,12 @@ resource "kubectl_manifest" "configmap" {
 }
 
 resource "kubectl_manifest" "secret" {
-  yaml_body        = file("${path.module}/../k8s/secret.yaml")
+  yaml_body = templatefile("${path.module}/../k8s/secret.yaml.tpl", {
+    jwt_secret          = var.jwt_secret
+    admin_password      = var.admin_password
+    mongo_root_username = var.mongo_root_username
+    mongo_root_password = var.mongo_root_password
+  })
   sensitive_fields = ["data", "stringData"]
   depends_on       = [kubectl_manifest.namespace]
 }
