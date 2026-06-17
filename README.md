@@ -123,20 +123,27 @@ Ambiente de produção local usando os manifests de `/k8s` e o módulo Terraform
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
 - [Terraform >= 1.0](https://developer.hashicorp.com/terraform/install)
 
-### 1. Configurar o Secret do Kubernetes
+### 1. Configurar as variáveis do Terraform
 
-Antes de aplicar qualquer manifest, abra `k8s/secret.yaml` e substitua **todos** os valores `change-me-in-production` por credenciais reais:
+Copie o arquivo de exemplo e preencha com as credenciais reais:
 
-```yaml
-# k8s/secret.yaml (valores em base64 ou stringData)
-JWT_SECRET:          <string longa e aleatória>
-ADMIN_PASSWORD:      <senha do admin>
-MONGODB_URI:         <connection string do MongoDB>
-MONGO_ROOT_USERNAME: <usuário root do MongoDB>
-MONGO_ROOT_PASSWORD: <senha root do MongoDB>
+```bash
+cp infra/terraform.tfvars.example infra/terraform.tfvars
 ```
 
-> O arquivo `k8s/secret.yaml` está no `.gitignore`? Se não estiver, **não commite credenciais reais**.
+Edite `infra/terraform.tfvars`:
+
+```hcl
+kubeconfig_path    = "~/.kube/config"
+kubeconfig_context = "minikube"
+
+jwt_secret          = "<string longa e aleatória>"
+admin_password      = "<senha do admin>"
+mongo_root_username = "admin"
+mongo_root_password = "<senha root do MongoDB>"
+```
+
+> `terraform.tfvars` está no `.gitignore` — nunca commite credenciais reais.
 
 ### 2. Iniciar o Minikube
 
@@ -225,9 +232,9 @@ kubectl delete pvc mongo-data-mongo-0 -n oficina
 | `SONAR_HOST_URL` | URL do SonarQube local | Não |
 | `SONAR_TOKEN` | Token do SonarQube | Não |
 
-### Kubernetes (`k8s/secret.yaml`)
+### Kubernetes (via Terraform)
 
-O Secret contém: `MONGODB_URI`, `JWT_SECRET`, `ADMIN_PASSWORD`, `MONGO_ROOT_USERNAME`, `MONGO_ROOT_PASSWORD` e credenciais SMTP. Todos os valores devem ser preenchidos antes do `terraform apply`.
+Os secrets do Kubernetes são gerenciados pelo Terraform a partir de `infra/terraform.tfvars` (local) ou variáveis `TF_VAR_*` (CI/CD). O Secret contém: `MONGODB_URI`, `JWT_SECRET`, `ADMIN_PASSWORD`, `MONGO_ROOT_USERNAME` e `MONGO_ROOT_PASSWORD`.
 
 ### Trocar senhas
 
@@ -375,3 +382,12 @@ Dispara em push e pull request para `main`. Roda em `ubuntu-latest`.
 Dispara via `workflow_run` quando o CI conclui com sucesso em `main`. Roda em `self-hosted` (máquina com Minikube).
 
 Passos: checkout no SHA exato do CI → `docker build` no daemon do Minikube → patch da tag de imagem no manifest → `terraform apply` → verificação de rollout dos pods.
+
+**GitHub Secrets necessários** (configurar em `Settings → Secrets and variables → Actions`):
+
+| Secret | Descrição |
+|---|---|
+| `JWT_SECRET` | Segredo para assinar tokens JWT |
+| `ADMIN_PASSWORD` | Senha do usuário administrador |
+| `MONGO_ROOT_USERNAME` | Usuário root do MongoDB |
+| `MONGO_ROOT_PASSWORD` | Senha root do MongoDB |
