@@ -75,7 +75,7 @@ jobs:
 
   coverage:
     name: Coverage
-    needs: build
+    needs: [build, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -107,7 +107,7 @@ jobs:
         with:
           name: coverage-report
           path: coverage/
-          retention-days: 1
+          retention-days: 3
           if-no-files-found: error
 
   sonar:
@@ -116,6 +116,8 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download coverage report
         uses: actions/download-artifact@v4
