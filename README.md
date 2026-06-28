@@ -300,7 +300,7 @@ Resultado em `http://localhost:9000/dashboard?id=car-repair-shop-api`.
 
 ## Postman
 
-A pasta `postman/` e `docs/postman/` contêm a coleção com o fluxo completo ponta a ponta.
+A pasta `postman/` contém a coleção com o fluxo completo ponta a ponta.
 
 ```
 # Importar no Postman:

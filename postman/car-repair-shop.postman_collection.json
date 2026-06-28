@@ -2003,7 +2003,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"vehicleId\": \"{{vehicleId}}\",\n  \"description\": \"Removal endpoints demo\"\n}"
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"vehicleId\": \"{{vehicleId}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/service-orders",
