@@ -20,7 +20,6 @@ REST API para gerenciar ordens de serviço de uma oficina mecânica — FIAP Tec
 9. [Testes](#testes)
 10. [Postman](#postman)
 11. [API Reference (Swagger)](#api-reference-swagger)
-12. [Vídeo demonstrativo](#vídeo-demonstrativo)
 
 ---
 
@@ -394,15 +393,3 @@ Veja [`postman/README.md`](postman/README.md) para o fluxo detalhado.
 | `GET /service-orders/:id/status` | Lê status e orçamento da OS |
 | `PATCH /service-orders/:id/budget` | Aprova ou rejeita orçamento (rate-limited) |
 
----
-
-## Vídeo demonstrativo
-
-<!-- TODO: substituir pelo link real antes da entrega (YouTube/Vimeo, máx. 15 min) -->
-[Em breve]
-
-O vídeo demonstra:
-- Deploy da aplicação via pipeline CD
-- Execução do CI/CD no GitHub Actions
-- Consumo das APIs (fluxo completo de OS)
-- Escalabilidade automática via HPA
