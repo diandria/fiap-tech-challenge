@@ -35,6 +35,7 @@ import { GetItemByIdUseCase } from './use-cases/items/GetItemByIdUseCase';
 import { ListItemsUseCase } from './use-cases/items/ListItemsUseCase';
 import { UpdateItemUseCase } from './use-cases/items/UpdateItemUseCase';
 import { DeleteItemUseCase } from './use-cases/items/DeleteItemUseCase';
+import { CalculateBudgetUseCase } from './use-cases/service-orders/CalculateBudgetUseCase';
 import { CreateServiceOrderUseCase } from './use-cases/service-orders/CreateServiceOrderUseCase';
 import { GetServiceOrderUseCase } from './use-cases/service-orders/GetServiceOrderUseCase';
 import { ListServiceOrdersUseCase } from './use-cases/service-orders/ListServiceOrdersUseCase';
@@ -110,7 +111,7 @@ async function main(): Promise<void> {
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
     new AddItemToOSUseCase(osRepo, itemRepo), new RemoveItemFromOSUseCase(osRepo, itemRepo),
     new StartDiagnosisUseCase(osRepo, notifyStatusChange),
-    new FinishDiagnosisUseCase(osRepo, serviceRepo, itemRepo, notifyStatusChange, notifyBudget),
+    new FinishDiagnosisUseCase(osRepo, notifyStatusChange, notifyBudget, new CalculateBudgetUseCase(serviceRepo, itemRepo)),
     new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange),
     new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
     new StartExecutionUseCase(osRepo, itemRepo, notifyStatusChange),

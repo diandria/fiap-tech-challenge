@@ -18,9 +18,11 @@ import { DeliverOSUseCase } from '../../use-cases/service-orders/DeliverOSUseCas
 import { GetAvgExecutionTimeUseCase } from '../../use-cases/service-orders/GetAvgExecutionTimeUseCase';
 import { ServiceOrderPresenter } from '../presenters/ServiceOrderPresenter';
 import { ValidationError } from '../../entities/errors/AppError';
-import { OSStatus } from '../../entities/ServiceOrder';
+import { ServiceOrder, OSStatus } from '../../entities/ServiceOrder';
 
 export class ServiceOrderController {
+  private readonly statusHandlers: Record<string, (id: string) => Promise<ServiceOrder>>;
+
   constructor(
     private readonly createOS: CreateServiceOrderUseCase,
     private readonly getOS: GetServiceOrderUseCase,
@@ -39,7 +41,15 @@ export class ServiceOrderController {
     private readonly finishOS: FinishOSUseCase,
     private readonly deliverOS: DeliverOSUseCase,
     private readonly getAvgExecution: GetAvgExecutionTimeUseCase,
-  ) {}
+  ) {
+    this.statusHandlers = {
+      DIAGNOSIS: (id) => this.startDiagnosis.execute(id),
+      WAITING_APPROVAL: (id) => this.finishDiagnosis.execute(id),
+      EXECUTION: (id) => this.startExecution.execute(id),
+      FINISHED: (id) => this.finishOS.execute(id),
+      DELIVERED: (id) => this.deliverOS.execute(id),
+    };
+  }
 
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -89,15 +99,9 @@ export class ServiceOrderController {
       const { id } = req.params;
       const { status: newStatus } = req.body;
       if (!newStatus) throw new ValidationError('status is required');
-      let data;
-      switch (newStatus) {
-        case 'DIAGNOSIS': data = await this.startDiagnosis.execute(id); break;
-        case 'WAITING_APPROVAL': data = await this.finishDiagnosis.execute(id); break;
-        case 'EXECUTION': data = await this.startExecution.execute(id); break;
-        case 'FINISHED': data = await this.finishOS.execute(id); break;
-        case 'DELIVERED': data = await this.deliverOS.execute(id); break;
-        default: throw new ValidationError(`Unknown status transition: ${newStatus}`);
-      }
+      const handler = this.statusHandlers[newStatus];
+      if (!handler) throw new ValidationError(`Unknown status transition: ${newStatus}`);
+      const data = await handler(id);
       const { status, body } = ServiceOrderPresenter.ok(data);
       res.status(status).json(body);
     } catch (err) { next(err); }

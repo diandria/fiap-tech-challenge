@@ -2,12 +2,12 @@ import { IServiceOrderRepository } from '../ports/IServiceOrderRepository';
 import { ServiceOrder } from '../../entities/ServiceOrder';
 import { assertTransition } from '../../entities/serviceOrderStateMachine';
 import { findOSOrThrow } from '../utils/serviceOrderUtils';
-import { NotifyStatusChangeUseCase } from './NotifyStatusChangeUseCase';
+import { IStatusChangeNotifier } from '../ports/IStatusChangeNotifier';
 
 export class FinishOSUseCase {
   constructor(
     private readonly osRepo: IServiceOrderRepository,
-    private readonly notifyStatusChange: NotifyStatusChangeUseCase,
+    private readonly notifyStatusChange: IStatusChangeNotifier,
   ) {}
 
   async execute(osId: string): Promise<ServiceOrder> {

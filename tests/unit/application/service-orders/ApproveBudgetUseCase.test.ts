@@ -1,11 +1,11 @@
 import { ApproveBudgetUseCase } from '../../../../src/use-cases/service-orders/ApproveBudgetUseCase';
-import { NotifyStatusChangeUseCase } from '../../../../src/use-cases/service-orders/NotifyStatusChangeUseCase';
+import { IStatusChangeNotifier } from '../../../../src/use-cases/ports/IStatusChangeNotifier';
 import { makeOSRepo, waitingApprovalOS } from '../../fixtures/serviceOrder';
 import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 
-const makeNotifyStatusChange = () => ({
+const makeNotifyStatusChange = (): IStatusChangeNotifier => ({
   execute: jest.fn().mockResolvedValue(undefined),
-} as unknown as NotifyStatusChangeUseCase);
+});
 
 describe('ApproveBudgetUseCase', () => {
   it('GIVEN OS WAITING_APPROVAL and correct 4-digit CPF code WHEN execute called THEN transitions to APPROVED', async () => {

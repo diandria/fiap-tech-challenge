@@ -1,8 +1,9 @@
 import { IServiceOrderRepository } from '../ports/IServiceOrderRepository';
 import { ICustomerRepository } from '../ports/ICustomerRepository';
 import { INotificationService } from '../ports/INotificationService';
+import { IBudgetNotifier } from '../ports/IBudgetNotifier';
 
-export class NotifyBudgetUseCase {
+export class NotifyBudgetUseCase implements IBudgetNotifier {
   constructor(
     private readonly osRepo: IServiceOrderRepository,
     private readonly customerRepo: ICustomerRepository,

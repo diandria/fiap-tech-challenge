@@ -1,10 +1,10 @@
 import { DeliverOSUseCase } from '../../../../src/use-cases/service-orders/DeliverOSUseCase';
-import { NotifyStatusChangeUseCase } from '../../../../src/use-cases/service-orders/NotifyStatusChangeUseCase';
+import { IStatusChangeNotifier } from '../../../../src/use-cases/ports/IStatusChangeNotifier';
 import { makeOSRepo, finishedOS } from '../../fixtures/serviceOrder';
 
-const makeNotifyStatusChange = () => ({
+const makeNotifyStatusChange = (): IStatusChangeNotifier => ({
   execute: jest.fn().mockResolvedValue(undefined),
-} as unknown as NotifyStatusChangeUseCase);
+});
 
 describe('DeliverOSUseCase', () => {
   it('GIVEN OS in FINISHED WHEN execute called THEN transitions to DELIVERED and records deliveredAt', async () => {

@@ -5,14 +5,14 @@ import { ServiceOrder } from '../../entities/ServiceOrder';
 import { NotFoundError } from '../../entities/errors/AppError';
 import { assertTransition } from '../../entities/serviceOrderStateMachine';
 import { findOSOrThrow, verifyCustomerCode } from '../utils/serviceOrderUtils';
-import { NotifyStatusChangeUseCase } from './NotifyStatusChangeUseCase';
+import { IStatusChangeNotifier } from '../ports/IStatusChangeNotifier';
 
 export class RejectBudgetUseCase {
   constructor(
     private readonly osRepo: IServiceOrderRepository,
     private readonly customerRepo: ICustomerRepository,
     private readonly itemRepo: IItemRepository,
-    private readonly notifyStatusChange: NotifyStatusChangeUseCase,
+    private readonly notifyStatusChange: IStatusChangeNotifier,
   ) {}
 
   async execute(osId: string, code: string): Promise<ServiceOrder> {

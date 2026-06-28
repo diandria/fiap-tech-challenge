@@ -1,12 +1,12 @@
 import { RejectBudgetUseCase } from '../../../../src/use-cases/service-orders/RejectBudgetUseCase';
-import { NotifyStatusChangeUseCase } from '../../../../src/use-cases/service-orders/NotifyStatusChangeUseCase';
+import { IStatusChangeNotifier } from '../../../../src/use-cases/ports/IStatusChangeNotifier';
 import { IItemRepository } from '../../../../src/use-cases/ports/IItemRepository';
 import { makeOSRepo, waitingApprovalOS } from '../../fixtures/serviceOrder';
 import { makeCustomerRepo, cnpjCustomer } from '../../fixtures/customer';
 
-const makeNotifyStatusChange = () => ({
+const makeNotifyStatusChange = (): IStatusChangeNotifier => ({
   execute: jest.fn().mockResolvedValue(undefined),
-} as unknown as NotifyStatusChangeUseCase);
+});
 
 // OS with two items to test full reservation release
 const twoItemOS = {
