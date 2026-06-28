@@ -5,20 +5,44 @@ Postman collection with the full end-to-end API flow: authentication, master dat
 ## Files
 
 - `car-repair-shop.postman_collection.json` — v2.1.0 collection with all calls organized in numbered folders.
-- `car-repair-shop.postman_environment.json` — environment with `baseUrl`, credentials, and variables persisted between requests (tokens, IDs).
+- `car-repair-shop.postman_environment.json` — environment for **local / Docker Compose** (`baseUrl = http://localhost:3000`).
+- `car-repair-shop-k8s.postman_environment.json` — environment for **Kubernetes / Minikube** (`baseUrl = http://MINIKUBE_IP:30080`). See setup below.
+
+## Environments
+
+| File | Target | `baseUrl` |
+|------|--------|-----------|
+| `car-repair-shop.postman_environment.json` | Local / Docker Compose | `http://localhost:3000` |
+| `car-repair-shop-k8s.postman_environment.json` | Kubernetes / Minikube | `http://<MINIKUBE_IP>:30080` |
+
+All other variables (credentials, persisted IDs) are identical between environments — only `baseUrl` differs.
 
 ## Prerequisites
 
-1. API running locally at `http://localhost:3000` (adjust `baseUrl` in the environment if needed).
+### Local / Docker Compose
+
+1. API running at `http://localhost:3000` via `docker compose up`.
 2. MongoDB running per `.env`.
-3. Admin seed executed. Default environment credentials are:
+3. Admin seed executed. Default credentials:
    - `adminEmail`: `admin@master.com`
    - `adminPassword`: `change-me-in-production`
-   Update them in the environment to match the `ADMIN_PASSWORD` configured in your server's `.env`.
+   Update them to match `ADMIN_PASSWORD` in your `.env`.
+
+### Kubernetes / Minikube
+
+1. Minikube cluster running with manifests applied (`kubectl apply -k k8s/`).
+2. Obtain the NodePort URL:
+   ```bash
+   minikube service oficina-service -n oficina --url
+   # or
+   echo "http://$(minikube ip):30080"
+   ```
+3. In Postman, edit the `car-repair-shop-k8s` environment and replace the `baseUrl` value with the URL from the step above.
+4. The admin seed runs automatically on container start when `SEED_ON_START=true` is set in the cluster ConfigMap/Secret.
 
 ## Import
 
-In Postman: **Import → Upload Files** and select both files. Then pick the **Car Repair Shop — Local** environment from the selector at the top right.
+In Postman: **Import → Upload Files** and select the collection plus the desired environment file. Then pick the matching environment from the selector at the top right.
 
 ## Execution order (flow)
 
@@ -53,7 +77,16 @@ Run the folders in numbered order. Each request persists what subsequent ones ne
 
 ## Run via CLI (Newman)
 
+Local:
 ```bash
 npx newman run postman/car-repair-shop.postman_collection.json \
   -e postman/car-repair-shop.postman_environment.json
+```
+
+Kubernetes (replace `192.168.49.2` with `minikube ip` output):
+```bash
+# Update baseUrl first
+npx newman run postman/car-repair-shop.postman_collection.json \
+  -e postman/car-repair-shop-k8s.postman_environment.json \
+  --env-var "baseUrl=http://$(minikube ip):30080"
 ```
