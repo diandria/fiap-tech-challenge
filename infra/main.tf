@@ -12,69 +12,46 @@ provider "kubectl" {
   config_context = var.kubeconfig_context
 }
 
-# 1. Namespace — deve existir antes de todos os outros recursos
-resource "kubectl_manifest" "namespace" {
-  yaml_body = file("${path.module}/../k8s/namespace.yaml")
+locals {
+  namespace_files = fileset("${path.module}/../k8s/00-namespaces", "*.yaml")
+  config_files    = fileset("${path.module}/../k8s/01-config", "*.yaml")
+  mongo_files     = fileset("${path.module}/../k8s/02-mongo", "*.yaml")
+  app_files       = fileset("${path.module}/../k8s/03-app", "*.yaml")
 }
 
-# 2. Configuração — depende do Namespace
-resource "kubectl_manifest" "configmap" {
-  yaml_body  = file("${path.module}/../k8s/configmap.yaml")
-  depends_on = [kubectl_manifest.namespace]
+resource "kubectl_manifest" "namespaces" {
+  for_each  = local.namespace_files
+  yaml_body = file("${path.module}/../k8s/00-namespaces/${each.value}")
 }
 
 resource "kubectl_manifest" "secret" {
-  yaml_body = templatefile("${path.module}/../k8s/secret.yaml.tpl", {
+  yaml_body = templatefile("${path.module}/templates/secret.yaml.tpl", {
     jwt_secret          = var.jwt_secret
     admin_password      = var.admin_password
     mongo_root_username = var.mongo_root_username
     mongo_root_password = var.mongo_root_password
   })
   sensitive_fields = ["data", "stringData"]
-  depends_on       = [kubectl_manifest.namespace]
+  depends_on       = [kubectl_manifest.namespaces]
 }
 
-# 3. MongoDB — Services dependem apenas do Namespace; StatefulSet depende do Secret e do Headless Service
-resource "kubectl_manifest" "mongo_headless_service" {
-  yaml_body  = file("${path.module}/../k8s/mongo-headless-service.yaml")
-  depends_on = [kubectl_manifest.namespace]
+resource "kubectl_manifest" "config" {
+  for_each   = local.config_files
+  yaml_body  = file("${path.module}/../k8s/01-config/${each.value}")
+  depends_on = [kubectl_manifest.namespaces]
 }
 
-resource "kubectl_manifest" "mongo_service" {
-  yaml_body  = file("${path.module}/../k8s/mongo-service.yaml")
-  depends_on = [kubectl_manifest.namespace]
-}
-
-resource "kubectl_manifest" "mongo_statefulset" {
-  yaml_body  = file("${path.module}/../k8s/mongo-statefulset.yaml")
+resource "kubectl_manifest" "mongo" {
+  for_each  = local.mongo_files
+  yaml_body = file("${path.module}/../k8s/02-mongo/${each.value}")
   depends_on = [
     kubectl_manifest.secret,
-    kubectl_manifest.mongo_headless_service,
+    kubectl_manifest.config,
   ]
 }
 
-# 4. Aplicação — depende do MongoDB estar declarado e do ConfigMap/Secret
-resource "kubectl_manifest" "app_deployment" {
-  yaml_body  = file("${path.module}/../k8s/app-deployment.yaml")
-  depends_on = [
-    kubectl_manifest.configmap,
-    kubectl_manifest.secret,
-    kubectl_manifest.mongo_statefulset,
-    kubectl_manifest.mongo_service,
-  ]
-}
-
-resource "kubectl_manifest" "app_service" {
-  yaml_body  = file("${path.module}/../k8s/app-service.yaml")
-  depends_on = [kubectl_manifest.app_deployment]
-}
-
-resource "kubectl_manifest" "app_hpa" {
-  yaml_body  = file("${path.module}/../k8s/app-hpa.yaml")
-  depends_on = [kubectl_manifest.app_deployment]
-}
-
-resource "kubectl_manifest" "app_pdb" {
-  yaml_body  = file("${path.module}/../k8s/app-pdb.yaml")
-  depends_on = [kubectl_manifest.app_deployment]
+resource "kubectl_manifest" "app" {
+  for_each  = local.app_files
+  yaml_body = file("${path.module}/../k8s/03-app/${each.value}")
+  depends_on = [kubectl_manifest.mongo]
 }

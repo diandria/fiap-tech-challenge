@@ -73,20 +73,17 @@ CD has `concurrency: { group: deploy, cancel-in-progress: true }` — overlappin
 
 Provider: `gavinbunney/kubectl ~> 1.14` — applies raw YAML manifests without converting them to Terraform resource blocks.
 
-| Resource | Manifest applied | Depends on |
-|---|---|---|
-| `kubectl_manifest.namespace` | `namespace.yaml` | — |
-| `kubectl_manifest.configmap` | `configmap.yaml` | namespace |
-| `kubectl_manifest.secret` | `secret.yaml` | namespace |
-| `kubectl_manifest.mongo_headless_service` | `mongo-headless-service.yaml` | namespace |
-| `kubectl_manifest.mongo_service` | `mongo-service.yaml` | namespace |
-| `kubectl_manifest.mongo_statefulset` | `mongo-statefulset.yaml` | secret, mongo_headless_service |
-| `kubectl_manifest.app_deployment` | `app-deployment.yaml` | configmap, secret, mongo_statefulset, mongo_service |
-| `kubectl_manifest.app_service` | `app-service.yaml` | app_deployment |
-| `kubectl_manifest.app_hpa` | `app-hpa.yaml` | app_deployment |
-| `kubectl_manifest.app_pdb` | `app-pdb.yaml` | app_deployment |
+Resources use `fileset` + `for_each` grouped by directory, with one individual resource for the secret (uses `templatefile()`).
 
-`secret.yaml` fields are marked `sensitive_fields = ["data", "stringData"]` to prevent credentials appearing in Terraform state diffs.
+| Resource | Manifests applied | Depends on |
+|---|---|---|
+| `kubectl_manifest.namespaces[*]` | `k8s/00-namespaces/*.yaml` | — |
+| `kubectl_manifest.secret` | `infra/templates/secret.yaml.tpl` | namespaces |
+| `kubectl_manifest.config[*]` | `k8s/01-config/*.yaml` | namespaces |
+| `kubectl_manifest.mongo[*]` | `k8s/02-mongo/*.yaml` | secret, config |
+| `kubectl_manifest.app[*]` | `k8s/03-app/*.yaml` | mongo |
+
+`secret` is a standalone resource using `templatefile()` to interpolate credentials from Terraform variables. Fields are marked `sensitive_fields = ["data", "stringData"]` to prevent credentials appearing in Terraform state diffs.
 
 ### Variables
 
