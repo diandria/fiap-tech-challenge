@@ -3,28 +3,91 @@
 ![CI](https://github.com/diandria/fiap-tech-challenge/actions/workflows/ci.yml/badge.svg)
 ![CD](https://github.com/diandria/fiap-tech-challenge/actions/workflows/cd.yml/badge.svg)
 
-REST API para gerenciar ordens de serviço de uma oficina mecânica. Implementa Clean Architecture, empacotada com Docker e orquestrada em Kubernetes via Terraform, com pipeline CI/CD completo no GitHub Actions.
-
-- Arquitetura: [docs/c4.md](docs/c4.md)
-- Regras de negócio: [docs/business-rules.md](docs/business-rules.md)
-- Componentes: [docs/components.md](docs/components.md)
-- Deploy e infraestrutura: [docs/deploy-flow.md](docs/deploy-flow.md)
-- Demo: <!-- TODO: adicionar link do vídeo (máx. 15 min) antes da entrega -->
+REST API para gerenciar ordens de serviço de uma oficina mecânica — FIAP Tech Challenge Fase 2.
 
 ---
 
 ## Sumário
 
-1. [Stack](#stack)
-2. [Papéis de usuário](#papéis-de-usuário)
-3. [Opção A — Docker Compose (dev local)](#opção-a--docker-compose-dev-local)
-4. [Opção B — Kubernetes + Minikube](#opção-b--kubernetes--minikube)
-5. [Configuração de credenciais](#configuração-de-credenciais)
-6. [Seed de desenvolvimento](#seed-de-desenvolvimento)
-7. [Testes](#testes)
-8. [Postman](#postman)
-9. [API Reference (Swagger)](#api-reference-swagger)
-10. [CI/CD](#cicd)
+1. [Sobre a Fase 2](#sobre-a-fase-2)
+2. [Arquitetura](#arquitetura)
+3. [Stack](#stack)
+4. [Papéis de usuário](#papéis-de-usuário)
+5. [Execução local — Docker Compose](#execução-local--docker-compose)
+6. [Kubernetes + Minikube](#kubernetes--minikube)
+7. [Infraestrutura com Terraform](#infraestrutura-com-terraform)
+8. [CI/CD](#cicd)
+9. [Testes](#testes)
+10. [Postman](#postman)
+11. [API Reference (Swagger)](#api-reference-swagger)
+
+---
+
+## Sobre a Fase 2
+
+A Fase 2 evoluiu a aplicação da Fase 1 com foco em qualidade, resiliência e escalabilidade:
+
+- **Clean Architecture + SOLID**: refatoração com separação de camadas, ports/interfaces e eliminação de violações de DIP, SRP e OCP.
+- **Testes automatizados**: cobertura de unitários e integração para todos os fluxos críticos (threshold ≥ 80%).
+- **Containerização**: Dockerfile otimizado e docker-compose para desenvolvimento local.
+- **Kubernetes**: manifests YAML com Deployment, Service (LoadBalancer), HPA (escala por CPU), PDB e StatefulSet do MongoDB.
+- **IaC com Terraform**: provisionamento do cluster e aplicação dos manifests via provider `gavinbunney/kubectl`.
+- **CI/CD**: pipeline completo no GitHub Actions — build, lint, teste, build de imagem Docker e deploy automatizado no cluster Minikube via self-hosted runner.
+
+---
+
+## Arquitetura
+
+| Documento | Conteúdo |
+|---|---|
+| [Diagramas C4](docs/architecture/c4.md) | Context, Container e Component — visão em três níveis |
+| [Catálogo de componentes](docs/architecture/components.md) | Inventário de todas as classes por camada Clean Architecture |
+| [Regras de negócio](docs/architecture/business-rules.md) | Máquina de estados da OS, cálculo de orçamento, gestão de estoque |
+| [DAS](docs/architecture/DAS.md) | Documento de Arquitetura de Software completo |
+| [Linguagem ubíqua](docs/architecture/ddd/ubiquitous-language.md) | Glossário de domínio |
+| [Fluxo de deploy](docs/infrastructure/deploy-flow.md) | Diagrama CI/CD, manifests K8s e recursos Terraform |
+
+### Visão geral da arquitetura
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                     GitHub Actions                         │
+│                                                            │
+│  CI (ubuntu-latest)          CD (self-hosted / Minikube)  │
+│  build → lint → test  ──►    docker build                  │
+│                              terraform apply               │
+│                              kubectl rollout               │
+└──────────────────────────────────────┬─────────────────────┘
+                                       │
+                                       ▼
+┌────────────────────────────────────────────────────────────┐
+│              Kubernetes — namespace: oficina               │
+│                                                            │
+│   ┌──────────────────┐        ┌──────────────────────┐    │
+│   │  oficina-app     │        │  mongo-0             │    │
+│   │  Deployment      │──────► │  StatefulSet         │    │
+│   │  2–10 réplicas   │ :27017 │  PVC: 5 Gi           │    │
+│   │  HPA (CPU 70%)   │        └──────────────────────┘    │
+│   └────────┬─────────┘                                     │
+│            │                                               │
+│   Service (LoadBalancer :8080)                             │
+└────────────┼───────────────────────────────────────────────┘
+             │
+       minikube tunnel
+             │
+      http://localhost:8080
+```
+
+### Clean Architecture — camadas
+
+```
+src/
+├── entities/          ← Layer 1: domínio puro (ServiceOrder, Customer, state machine)
+├── use-cases/         ← Layer 2: regras de aplicação + ports/interfaces
+│   └── ports/         ← abstrações (IServiceOrderRepository, IStatusChangeNotifier…)
+├── adapters/          ← Layer 3: controllers, gateways, presenters
+└── frameworks/        ← Layer 4: Express, Mongoose, rotas, main.ts
+```
 
 ---
 
@@ -39,7 +102,9 @@ REST API para gerenciar ordens de serviço de uma oficina mecânica. Implementa 
 | Docs API | swagger-ui-express + swagger-jsdoc |
 | Testes | Jest + ts-jest + Supertest + mongodb-memory-server |
 | Container | Docker + docker-compose |
-| Orquestração | Kubernetes (Minikube) + Terraform |
+| Orquestração | Kubernetes (Minikube) |
+| IaC | Terraform (`gavinbunney/kubectl` provider) |
+| CI/CD | GitHub Actions (CI em ubuntu-latest, CD em self-hosted) |
 
 ---
 
@@ -55,16 +120,14 @@ Aprovação e rejeição de orçamento usam endpoint **público** (`PATCH /servi
 
 ---
 
-## Opção A — Docker Compose (dev local)
-
-A forma mais rápida de rodar tudo localmente. Sobe a API e o MongoDB em containers.
+## Execução local — Docker Compose
 
 ### Pré-requisitos
 
-- Node.js 20+
 - Docker + docker-compose
+- Node.js 20+ (apenas para `npm install` e `seed:dev`)
 
-### 1. Configurar variáveis de ambiente
+### 1. Variáveis de ambiente
 
 ```bash
 cp .env.example .env
@@ -72,63 +135,77 @@ cp .env.example .env
 
 Edite `.env` se precisar mudar `ADMIN_PASSWORD` ou `JWT_SECRET`.
 
-### 2. Instalar dependências
+### 2. Subir os containers
 
 ```bash
 npm install
-```
-
-### 3. Subir os containers
-
-```bash
 docker-compose up -d
 ```
 
-Sobe `app` (porta 3000) e `mongo` (porta 27017). Aguarde alguns segundos para o MongoDB inicializar.
+Sobe `app` (porta 3000) e `mongo` (porta 27017).
 
-> Para rodar a API com hot-reload via ts-node: `docker-compose up -d mongo && npm run dev`
-
-### 4. Popular o banco com dados de exemplo
+### 3. Popular o banco (opcional)
 
 ```bash
 npm run seed:dev
 ```
 
-Cria serviços, itens, clientes, veículos e 3 usuários (`admin@dev.local`, `attendant@dev.local`, `mechanic@dev.local`, senha `dev123`).
+Cria 5 serviços, 6 itens, 4 clientes, 7 veículos e 3 usuários (`admin@dev.local`, `attendant@dev.local`, `mechanic@dev.local`, senha `dev123`).
 
-### 5. Verificar que está no ar
+### 4. Verificar
 
 ```bash
 curl http://localhost:3000/health
 ```
 
 - API: <http://localhost:3000>
-- Swagger UI: <http://localhost:3000/docs>
+- Swagger: <http://localhost:3000/docs>
 
 ### Parar
 
 ```bash
-docker-compose down
-
-# Com remoção de volumes (dados perdidos)
-docker-compose down -v
+docker-compose down          # mantém dados
+docker-compose down -v       # remove volumes
 ```
 
 ---
 
-## Opção B — Kubernetes + Minikube
+## Kubernetes + Minikube
 
-Ambiente de produção local usando os manifests de `/k8s` e o módulo Terraform de `/infra`. Replica o mesmo ambiente que o pipeline de CD usa.
+Ambiente que replica o pipeline de CD. Usa os manifests em `/k8s` e a IaC em `/infra`.
 
 ### Pré-requisitos
 
 - [Minikube](https://minikube.sigs.k8s.io/docs/start/)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [Terraform >= 1.0](https://developer.hashicorp.com/terraform/install)
+- [Terraform ≥ 1.0](https://developer.hashicorp.com/terraform/install)
 
-### 1. Configurar as variáveis do Terraform
+### Início rápido (WSL2 / Linux)
 
-Copie o arquivo de exemplo e preencha com as credenciais reais:
+O script `start.sh` faz tudo em sequência — DNS, Minikube, tunnel e runner:
+
+```bash
+./scripts/start.sh
+```
+
+Após a conclusão, a API estará em `http://localhost:8080`.
+
+### Passo a passo manual
+
+#### 1. Iniciar o Minikube
+
+```bash
+minikube start --driver=docker
+minikube addons enable metrics-server   # necessário para o HPA
+```
+
+#### 2. Iniciar o tunnel (terminal separado, manter aberto)
+
+```bash
+minikube tunnel
+```
+
+#### 3. Configurar o Terraform
 
 ```bash
 cp infra/terraform.tfvars.example infra/terraform.tfvars
@@ -148,59 +225,31 @@ mongo_root_password = "<senha root do MongoDB>"
 
 > `terraform.tfvars` está no `.gitignore` — nunca commite credenciais reais.
 
-### 2. Iniciar o Minikube
-
-```bash
-minikube start --cpus=2 --memory=4096
-minikube addons enable metrics-server   # obrigatório para o HPA funcionar
-```
-
-### 3. Aplicar a infraestrutura com Terraform
+#### 4. Aplicar infraestrutura
 
 ```bash
 cd infra/
-terraform init        # baixa o provider gavinbunney/kubectl — uma única vez
-terraform plan        # visualiza o que será criado
-terraform apply       # aplica todos os manifests na ordem correta
+terraform init
+terraform apply
 cd ..
 ```
 
-### 4. Obter a URL da aplicação
+#### 5. Verificar
 
 ```bash
-minikube service oficina-service -n oficina --url
+kubectl get pods -n oficina       # todos Running
+kubectl get hpa -n oficina        # status do autoscaler
+curl http://localhost:8080/health
 ```
 
-A API responde na URL retornada (NodePort 30080). O Swagger fica em `<url>/docs`.
+- API: <http://localhost:8080>
+- Swagger: <http://localhost:8080/docs>
 
-### 5. Popular o banco (opcional)
-
-Com a URL obtida no passo anterior, configure `MONGODB_URI` no `.env` apontando para o MongoDB do cluster ou rode o seed contra o banco do Kubernetes:
+### Popular o banco no cluster (opcional)
 
 ```bash
-# Expor o MongoDB via port-forward para rodar o seed localmente
 kubectl port-forward svc/mongo-service 27017:27017 -n oficina &
 MONGODB_URI=mongodb://root:<senha>@localhost:27017/car-repair-shop?authSource=admin npm run seed:dev
-```
-
-### Verificar o ambiente
-
-```bash
-kubectl get pods -n oficina          # todos devem estar Running
-kubectl get all -n oficina           # visão completa do namespace
-kubectl get hpa -n oficina           # status do autoscaler
-kubectl logs -l app.kubernetes.io/name=oficina-app -n oficina -f   # logs da API
-```
-
-### Destruir o ambiente
-
-```bash
-cd infra/
-terraform destroy
-cd ..
-
-# PVCs do MongoDB não são removidos pelo Terraform — excluir manualmente:
-kubectl delete pvc mongo-data-mongo-0 -n oficina
 ```
 
 ### Manifests Kubernetes (`/k8s/`)
@@ -211,163 +260,44 @@ kubectl delete pvc mongo-data-mongo-0 -n oficina
 | `configmap.yaml` | ConfigMap | Vars não-sensíveis: `PORT`, `CORS_ORIGIN`, `ADMIN_EMAIL`, SMTP |
 | `secret.yaml` | Secret | Vars sensíveis: `MONGODB_URI`, `JWT_SECRET`, credenciais MongoDB e admin |
 | `mongo-headless-service.yaml` | Service (headless) | DNS estável por Pod para o StatefulSet |
-| `mongo-service.yaml` | Service (ClusterIP) | Ponto de acesso da aplicação ao MongoDB |
+| `mongo-service.yaml` | Service (ClusterIP) | Acesso interno da aplicação ao MongoDB |
 | `mongo-statefulset.yaml` | StatefulSet | MongoDB com volume persistente de 5 Gi |
 | `app-deployment.yaml` | Deployment | API Node.js com rolling update e probes de saúde |
-| `app-service.yaml` | Service (NodePort 30080) | Expõe a API fora do cluster |
+| `app-service.yaml` | Service (LoadBalancer :8080) | Expõe a API via `minikube tunnel` em `localhost:8080` |
 | `app-hpa.yaml` | HorizontalPodAutoscaler | Escala entre 2 e 10 réplicas (CPU > 70%) |
 | `app-pdb.yaml` | PodDisruptionBudget | Garante mínimo de 1 réplica durante manutenção de nó |
 
+### Destruir o ambiente
+
+```bash
+cd infra/ && terraform destroy && cd ..
+kubectl delete pvc mongo-data-mongo-0 -n oficina   # PVC não removido pelo Terraform
+minikube stop
+```
+
 ---
 
-## Configuração de credenciais
+## Infraestrutura com Terraform
 
-### Docker Compose (`.env`)
+Provider: `gavinbunney/kubectl ~> 1.14` — aplica manifests YAML sem conversão para recursos Terraform nativos.
 
-| Variável | Descrição | Obrigatória |
+Os recursos usam `fileset` + `for_each` agrupados por diretório, com um recurso individual para o Secret (usa `templatefile()` para injetar as variáveis sensíveis).
+
+| Recurso Terraform | Manifests aplicados | Depende de |
 |---|---|---|
-| `PORT` | Porta HTTP (default: `3000`) | Não |
-| `MONGODB_URI` | Connection string do MongoDB | Sim |
-| `JWT_SECRET` | Segredo para assinar JWTs | Sim |
-| `CORS_ORIGIN` | Origens permitidas (separadas por vírgula) | Não |
-| `ADMIN_EMAIL` | Email do admin padrão | Não |
-| `ADMIN_PASSWORD` | Senha do admin padrão | Não |
-| `SONAR_HOST_URL` | URL do SonarQube local | Não |
-| `SONAR_TOKEN` | Token do SonarQube | Não |
+| `kubectl_manifest.namespaces[*]` | `k8s/00-namespaces/*.yaml` | — |
+| `kubectl_manifest.config[*]` | `k8s/01-config/*.yaml` | namespaces |
+| `kubectl_manifest.mongo[*]` | `k8s/02-mongo/*.yaml` | config |
+| `kubectl_manifest.secret` | `k8s/secret.yaml` (templatefile) | namespaces |
+| `kubectl_manifest.app[*]` | `k8s/03-app/*.yaml` | mongo, secret |
 
-### Kubernetes (via Terraform)
-
-Os secrets do Kubernetes são gerenciados pelo Terraform a partir de `infra/terraform.tfvars` (local) ou variáveis `TF_VAR_*` (CI/CD). O Secret contém: `MONGODB_URI`, `JWT_SECRET`, `ADMIN_PASSWORD`, `MONGO_ROOT_USERNAME` e `MONGO_ROOT_PASSWORD`.
-
-### Trocar senhas
-
-O seed cria o admin na **primeira execução**. Se o admin já existe no banco com a senha antiga:
-
-```bash
-# Docker Compose — acessar o Mongo e apagar o usuário
-docker exec -it <container-mongo> mongosh car-repair-shop --eval 'db.users.deleteOne({ email: "admin@master.com" })'
-```
-
-Reinicie a aplicação; o seed recria o admin com o novo `ADMIN_PASSWORD`.
-
----
-
-## Seed de desenvolvimento
-
-```bash
-npm run seed:dev
-```
-
-Popula o banco com dados fixos para testes manuais:
-
-- **5 serviços**: Oil Change, Wheel Alignment, Brake Pad Replacement, Battery Check, Engine Tune-up
-- **6 itens em estoque**: 5W30 Oil, Front Brake Pad Kit, Air Filter, Battery 60Ah, Spark Plug, Engine Coolant
-- **4 clientes** (3 CPFs + 1 CNPJ)
-- **7 veículos** distribuídos entre os clientes
-- **3 usuários** (senha: `dev123`): `admin@dev.local`, `attendant@dev.local`, `mechanic@dev.local`
-
-O script é **idempotente** — pode rodar várias vezes; registros existentes são pulados.
-
----
-
-## Testes
-
-```bash
-# Roda todos os testes (usa mongodb-memory-server — sem MongoDB externo necessário)
-npm test
-
-# Com relatório de cobertura (threshold >= 80%)
-npm run test:coverage
-```
-
-### SonarQube (opcional)
-
-```bash
-# Subir o SonarQube local
-docker-compose --profile sonar up -d sonarqube sonar-db
-
-# 1. Acessar http://localhost:9000 (login: admin/admin, trocar senha)
-# 2. Gerar token em My Account → Security
-# 3. Preencher no .env: SONAR_HOST_URL e SONAR_TOKEN
-
-npm run test:coverage   # gera coverage/lcov.info
-npm run sonar           # envia análise para o servidor local
-```
-
-Resultado em `http://localhost:9000/dashboard?id=car-repair-shop-api`.
-
----
-
-## Postman
-
-A pasta `postman/` contém a coleção e os environments para cada infraestrutura.
-
-| Environment | Arquivo | `baseUrl` |
-|-------------|---------|-----------|
-| Local / Docker Compose | `car-repair-shop.postman_environment.json` | `http://localhost:3000` |
-| Kubernetes / Minikube | `car-repair-shop-k8s.postman_environment.json` | `http://localhost:8080` |
-
-Importar no Postman: **Import → Upload Files** → selecione a collection + o environment desejado.
-
-Para o ambiente K8s, rode `minikube tunnel` em um terminal separado antes de fazer as requisições.
-
-Via CLI com Newman (local):
-
-```bash
-npx newman run postman/car-repair-shop.postman_collection.json \
-  -e postman/car-repair-shop.postman_environment.json
-```
-
-Veja `postman/README.md` para o fluxo detalhado de cada pasta.
-
----
-
-## API Reference (Swagger)
-
-Swagger UI disponível em `/docs` enquanto o servidor está no ar:
-
-- Docker Compose: <http://localhost:3000/docs>
-- Kubernetes: `<minikube-url>/docs`
-
-### Autenticar no Swagger UI
-
-1. Abra `POST /auth/login` → **Try it out** → envie `{ "email": "admin@master.com", "password": "<ADMIN_PASSWORD>" }`
-2. Copie o `token` da resposta
-3. Clique em **Authorize** (cadeado, canto superior direito) → cole o token **sem** o prefixo `Bearer ` → **Authorize** → **Close**
-
-Todos os endpoints protegidos passam a enviar `Authorization: Bearer <token>` automaticamente.
-
-### Endpoints públicos (sem token)
-
-| Endpoint | Descrição |
-|---|---|
-| `POST /auth/login` | Autentica e retorna JWT |
-| `GET /health` | Liveness probe |
-| `GET /ready` | Readiness probe |
-| `GET /service-orders/:id/status` | Lê status e orçamento da OS |
-| `PATCH /service-orders/:id/budget` | Aprova ou rejeita orçamento (rate-limited) |
-
-### Principais grupos de endpoints
-
-| Rota | Roles | Descrição |
-|---|---|---|
-| `POST /auth/register` | admin | Cria usuário |
-| `GET\|POST\|PUT\|DELETE /customers` | attendant, admin | CRUD de clientes |
-| `GET\|POST\|PUT\|DELETE /vehicles` | attendant, admin | CRUD de veículos |
-| `GET\|POST\|PUT\|DELETE /services` | GET: autenticado; escrita: admin | CRUD do catálogo de serviços |
-| `GET /services/avg-time` | autenticado | Tempo médio de execução por serviço |
-| `GET\|POST\|PUT\|DELETE /items` | GET: autenticado; escrita: admin | CRUD de itens de estoque |
-| `POST /service-orders` | attendant, admin | Abre uma OS |
-| `GET /service-orders` | autenticado | Lista OS ativas por prioridade operacional |
-| `PATCH /service-orders/:id` | mechanic, admin | Transições internas da OS |
-| `POST\|DELETE /service-orders/:id/services` | mechanic, admin | Adiciona/remove serviço da OS em DIAGNOSIS |
-| `POST\|DELETE /service-orders/:id/items` | mechanic, admin | Adiciona/remove item da OS em DIAGNOSIS |
+Documentação completa: [docs/infrastructure/deploy-flow.md](docs/infrastructure/deploy-flow.md)
 
 ---
 
 ## CI/CD
 
-Detalhes completos em [docs/deploy-flow.md](docs/deploy-flow.md).
+Detalhes completos em [docs/infrastructure/deploy-flow.md](docs/infrastructure/deploy-flow.md).
 
 ### CI (`.github/workflows/ci.yml`)
 
@@ -383,9 +313,9 @@ Dispara em push e pull request para `main`. Roda em `ubuntu-latest`.
 
 Dispara via `workflow_run` quando o CI conclui com sucesso em `main`. Roda em `self-hosted` (máquina com Minikube).
 
-Passos: checkout no SHA exato do CI → `docker build` no daemon do Minikube → patch da tag de imagem no manifest → `terraform apply` → verificação de rollout dos pods.
+Passos: checkout no SHA exato → `docker build` no daemon do Minikube → patch da tag de imagem no manifest → `terraform apply` → verificação de rollout.
 
-**GitHub Secrets necessários** (configurar em `Settings → Secrets and variables → Actions`):
+**GitHub Secrets necessários** (`Settings → Secrets and variables → Actions`):
 
 | Secret | Descrição |
 |---|---|
@@ -393,3 +323,73 @@ Passos: checkout no SHA exato do CI → `docker build` no daemon do Minikube →
 | `ADMIN_PASSWORD` | Senha do usuário administrador |
 | `MONGO_ROOT_USERNAME` | Usuário root do MongoDB |
 | `MONGO_ROOT_PASSWORD` | Senha root do MongoDB |
+
+---
+
+## Testes
+
+```bash
+npm test                  # todos os testes (sem MongoDB externo)
+npm run test:coverage     # com relatório de cobertura (threshold ≥ 80%)
+```
+
+### SonarQube (opcional)
+
+```bash
+docker-compose --profile sonar up -d sonarqube sonar-db
+# 1. Acessar http://localhost:9000 (admin/admin → trocar senha)
+# 2. Gerar token em My Account → Security
+# 3. Preencher SONAR_HOST_URL e SONAR_TOKEN no .env
+
+npm run test:coverage && npm run sonar
+```
+
+---
+
+## Postman
+
+A pasta `postman/` contém a coleção e os environments para cada ambiente.
+
+| Environment | Arquivo | `baseUrl` |
+|---|---|---|
+| Local / Docker Compose | `car-repair-shop.postman_environment.json` | `http://localhost:3000` |
+| Kubernetes / Minikube | `car-repair-shop-k8s.postman_environment.json` | `http://localhost:8080` |
+
+Importar: **Import → Upload Files** → selecione a collection + o environment desejado.
+
+Para o ambiente K8s, o `minikube tunnel` deve estar rodando (`./scripts/start.sh` já faz isso automaticamente).
+
+Via CLI com Newman:
+
+```bash
+npx newman run postman/car-repair-shop.postman_collection.json \
+  -e postman/car-repair-shop.postman_environment.json
+```
+
+Veja [`postman/README.md`](postman/README.md) para o fluxo detalhado.
+
+---
+
+## API Reference (Swagger)
+
+| Ambiente | URL |
+|---|---|
+| Docker Compose | <http://localhost:3000/docs> |
+| Kubernetes | <http://localhost:8080/docs> |
+
+### Autenticar no Swagger UI
+
+1. `POST /auth/login` → **Try it out** → `{ "email": "admin@master.com", "password": "<ADMIN_PASSWORD>" }`
+2. Copie o `token`
+3. **Authorize** (cadeado) → cole o token sem o prefixo `Bearer ` → **Authorize**
+
+### Endpoints públicos
+
+| Endpoint | Descrição |
+|---|---|
+| `POST /auth/login` | Autentica e retorna JWT |
+| `GET /health` | Liveness probe |
+| `GET /ready` | Readiness probe |
+| `GET /service-orders/:id/status` | Lê status e orçamento da OS |
+| `PATCH /service-orders/:id/budget` | Aprova ou rejeita orçamento (rate-limited) |
+
