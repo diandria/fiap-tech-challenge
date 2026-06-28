@@ -1,5 +1,8 @@
 # Car Repair Shop API
 
+![CI](https://github.com/diandria/fiap-tech-challenge/actions/workflows/ci.yml/badge.svg)
+![CD](https://github.com/diandria/fiap-tech-challenge/actions/workflows/cd.yml/badge.svg)
+
 REST API para gerenciar ordens de serviço de uma oficina mecânica. Implementa Clean Architecture, empacotada com Docker e orquestrada em Kubernetes via Terraform, com pipeline CI/CD completo no GitHub Actions.
 
 - Arquitetura: [docs/c4.md](docs/c4.md)
