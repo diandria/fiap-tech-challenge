@@ -32,8 +32,8 @@ jobs:
 
       - name: Update image tag in Deployment manifest
         run: |
-          sed -i "s|image: .*fiap-tech-challenge:.*|image: fiap-tech-challenge:${{ steps.tag.outputs.sha }}|" k8s/app-deployment.yaml
-          grep -q "fiap-tech-challenge:${{ steps.tag.outputs.sha }}" k8s/app-deployment.yaml || (echo "ERROR: image tag not updated in manifest" && exit 1)
+          sed -i "s|image: .*fiap-tech-challenge:.*|image: fiap-tech-challenge:${{ steps.tag.outputs.sha }}|" k8s/03-app/app-deployment.yaml
+          grep -q "fiap-tech-challenge:${{ steps.tag.outputs.sha }}" k8s/03-app/app-deployment.yaml || (echo "ERROR: image tag not updated in manifest" && exit 1)
 
       - name: Initialize Terraform
         working-directory: infra/
