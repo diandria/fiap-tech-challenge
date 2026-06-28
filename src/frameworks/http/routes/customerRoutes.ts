@@ -34,13 +34,13 @@ export function customerRoutes(controller: CustomerController): Router {
    *         application/json:
    *           schema:
    *             type: object
-   *             required: [name, taxId, email, phone]
+   *             required: [name, taxId, taxType, email, phone]
    *             properties:
    *               name: { type: string }
    *               taxId: { type: string }
+   *               taxType: { type: string, enum: [CPF, CNPJ] }
    *               email: { type: string }
    *               phone: { type: string }
-   *               taxType: { type: string, enum: [CPF, CNPJ] }
    *     responses:
    *       201:
    *         description: Created customer
