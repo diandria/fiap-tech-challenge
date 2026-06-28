@@ -308,6 +308,7 @@ Dispara em push e pull request para `main`. Roda em `ubuntu-latest`.
 | `build` | — | `npm ci && npm run build` |
 | `lint` | build | `npm run lint` |
 | `test` | build | `npm test` |
+| `coverage` | build, test | `npm run test:coverage` — faz upload do relatório como artefato |
 
 ### CD (`.github/workflows/cd.yml`)
 

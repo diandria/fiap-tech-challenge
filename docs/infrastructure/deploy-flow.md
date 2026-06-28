@@ -12,7 +12,7 @@ Push to main
 │ CI Workflow (.github/workflows/ci.yml)          │
 │                                                 │
 │  build ──► lint                                 │
-│         └► test                                 │
+│         └► test ──► coverage (artefato)         │
 └────────────────────────┬────────────────────────┘
                          │ workflow_run: completed
                          │ conclusion: success
@@ -36,6 +36,7 @@ Push to main
 | `build` | — | ubuntu-latest | `npm ci && npm run build` |
 | `lint` | build | ubuntu-latest | `npm run lint` |
 | `test` | build | ubuntu-latest | `npm test` |
+| `coverage` | build, test | ubuntu-latest | `npm run test:coverage` — faz upload do relatório como artefato (retido 3 dias) |
 
 ### CD steps
 
@@ -96,33 +97,50 @@ Resources use `fileset` + `for_each` grouped by directory, with one individual r
 
 | Output | Value |
 |---|---|
-| `app_url` | Instructions to run `minikube service oficina-service -n oficina --url` |
+| `app_url` | `http://localhost:8080` (após `minikube tunnel` em execução) |
 | `namespace` | `oficina` |
 
 ---
 
-## Running Locally
+## Executando Localmente
 
-**Prerequisites:** Minikube running, `kubectl` and `terraform` on PATH.
+**Pré-requisitos:** Minikube instalado, `kubectl` e `terraform` no PATH.
 
-> Before applying, replace all `"change-me-in-production"` placeholders in `k8s/secret.yaml` with real values (`JWT_SECRET`, `MONGODB_URI`, `ADMIN_PASSWORD`, `MONGO_ROOT_USERNAME`, `MONGO_ROOT_PASSWORD`, SMTP credentials).
+### Início rápido (WSL2 / Linux)
 
 ```bash
-# Start the cluster
-minikube start
+./scripts/start.sh
+# Inicia Minikube, aponta Docker ao daemon do Minikube,
+# sobe minikube tunnel em background e inicia o runner do GitHub Actions.
+# API disponível em http://localhost:8080
+```
 
-# Apply infrastructure
+### Passo a passo manual
+
+```bash
+# 1. Iniciar o Minikube
+minikube start --driver=docker
+minikube addons enable metrics-server
+
+# 2. Iniciar tunnel (terminal separado, manter aberto)
+minikube tunnel
+
+# 3. Configurar credenciais
+cp infra/terraform.tfvars.example infra/terraform.tfvars
+# Editar infra/terraform.tfvars com jwt_secret, admin_password, mongo_root_password
+
+# 4. Aplicar infraestrutura
 cd infra/
 terraform init
 terraform apply
 cd ..
 
-# Access the API
-minikube service oficina-service -n oficina --url
+# 5. Verificar
+kubectl get pods -n oficina
+curl http://localhost:8080/health
 
-# Tear down
-cd infra/
-terraform destroy
-cd ..
+# 6. Destruir
+cd infra/ && terraform destroy && cd ..
 kubectl delete pvc mongo-data-mongo-0 -n oficina
+minikube stop
 ```

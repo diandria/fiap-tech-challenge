@@ -1,25 +1,29 @@
 # Documento de Arquitetura de Software (DAS) — Car Repair Shop API
 
-**Projeto:** FIAP Tech Challenge — Fase 1
-**Versão:** 1.0 (MVP)
-**Stack:** Node.js + TypeScript + Express + MongoDB
+**Projeto:** FIAP Tech Challenge — Fase 2
+**Versão:** 2.0
+**Stack:** Node.js + TypeScript + Express + MongoDB + Kubernetes + Terraform
 
 ---
 
 ## 1. Introdução e Objetivos
 
-MVP de backend para uma oficina mecânica de médio porte. Substitui anotações manuais e planilhas por um sistema integrado que gerencia clientes, veículos, ordens de serviço e estoque de peças.
+Sistema de backend para uma oficina mecânica de médio porte. A Fase 2 evoluiu o MVP da Fase 1 incorporando qualidade de código, resiliência e escalabilidade.
 
-**Problema central:** ordens de serviço sem rastreabilidade — sem histórico do cliente, sem controle de peças, sem visibilidade de status.
+**Problema central (Fase 1):** ordens de serviço sem rastreabilidade — sem histórico do cliente, sem controle de peças, sem visibilidade de status.
 
-**Solução:** API REST monolítica com estado de OS auditável, aprovação de orçamento pelo cliente via código de verificação e reserva de estoque acompanhada ao longo do ciclo de vida da OS.
+**Evolução na Fase 2:** refatoração com Clean Architecture + SOLID, containerização em Kubernetes com HPA, provisionamento via Terraform e pipeline CI/CD automatizado.
+
+**Solução:** API REST com estado de OS auditável, aprovação de orçamento via código de verificação, reserva de estoque ao longo do ciclo de vida da OS, orquestrada em cluster Kubernetes com escalabilidade automática por CPU.
 
 ### Objetivos principais
 
 - Fornecer ciclo completo da Ordem de Serviço (OS), do recebimento à entrega, com estado controlado.
-- Permitir aprovação/rejeição de orçamento pelo cliente sem necessidade de login (autenticação por código de 4 dígitos).
+- Permitir aprovação/rejeição de orçamento pelo cliente sem necessidade de login (código de 4 dígitos).
 - Controlar estoque de peças com reserva por OS em andamento.
-- Disponibilizar API documentada (Swagger UI) e cobertura de testes mensurável.
+- Garantir qualidade via cobertura de testes ≥ 80% e pipeline CI que bloqueia merges com falha.
+- Suportar escala automática de réplicas via HPA (CPU > 70%).
+- Automatizar o deploy completo via CD com Terraform + kubectl no cluster Minikube.
 
 ### 1.1 Requisitos Funcionais
 
@@ -146,13 +150,16 @@ Atributos de qualidade e como são atendidos. Cada item aponta o ponto de implem
 
 | Tipo | Restrição |
 |---|---|
-| Acadêmica | Entrega como MVP do FIAP Tech Challenge — Fase 1 |
+| Acadêmica | Entrega como evolução do FIAP Tech Challenge — Fase 2 |
 | Técnica | Runtime obrigatoriamente Node.js + TypeScript |
-| Técnica | Empacotamento via Docker + docker-compose (ambiente reprodutível) |
+| Técnica | Empacotamento via Docker + docker-compose (desenvolvimento local) |
+| Técnica | Orquestração via Kubernetes (Minikube) |
+| Técnica | IaC via Terraform com provider `gavinbunney/kubectl` |
 | Técnica | Banco de dados MongoDB |
 | Funcional | RBAC com 3 papéis fixos: `attendant`, `mechanic`, `admin` |
 | Funcional | Aprovação de orçamento sem login (apenas com código derivado do CPF/CNPJ) |
-| Qualidade | Cobertura de testes mínima de 80% nos domínios críticos |
+| Qualidade | Cobertura de testes mínima de 80% |
+| Qualidade | Pipeline CI bloqueia merge em caso de falha de build, lint, teste ou coverage |
 
 ---
 
@@ -194,31 +201,31 @@ Estrutura por camadas, refletindo a arquitetura hexagonal:
 
 ```
 src/
-  domain/
-    entities/          # Interfaces TypeScript puras — sem acoplamento a frameworks
-    ports/             # Interfaces de repositório (ICustomerRepository, etc.) e INotificationService
-    errors/            # AppError, NotFoundError, ValidationError, ConflictError
-    validators.ts      # Validações de CPF, CNPJ, placa — funções puras
-    serviceOrderStateMachine.ts  # Transições válidas da OS — funções puras
-  application/
-    use-cases/         # Um arquivo por use case; depende só dos ports do domínio
-    utils/             # Helpers compartilhados entre use cases (ex.: findOSOrThrow)
-  infrastructure/
+  entities/            # Camada 1 — Interfaces TypeScript puras, state machine, validadores, erros de domínio
+  use-cases/           # Camada 2 — Um arquivo por use case; depende só das interfaces em ports/
+    ports/             # Interfaces (IServiceOrderRepository, IStatusChangeNotifier, IBudgetNotifier, IBudgetCalculator, …)
+    utils/             # Helpers compartilhados entre use cases (findOSOrThrow, assertTransition)
+    auth/
+    customers/
+    items/
+    services/
+    vehicles/
+    service-orders/    # Use cases de OS — CreateOS, StartDiagnosis, FinishDiagnosis, ApproveBudget, …
+  adapters/            # Camada 3 — Controllers, Gateways (repositórios Mongo), Presenters, Services
+    controllers/       # AuthController, ServiceOrderController, …
+    gateways/          # MongoServiceOrderRepository, MongoCustomerRepository, …
+    presenters/        # Transformações de response
+    services/          # ConsoleNotificationService (implementa INotificationService)
+  frameworks/          # Camada 4 — Express, Mongoose, rotas, configuração Swagger
     http/
-      routes/          # Routers Express — um por recurso
-      middlewares/     # authMiddleware, roleMiddleware, errorMiddleware
-    persistence/
-      models/          # Schemas Mongoose
-      repositories/    # Implementações dos ports do domínio
-      seed.ts          # Cria o admin padrão na primeira execução
-      connection.ts    # Abre/fecha conexão com Mongo
-    notifications/     # Adapters de INotificationService (MVP: ConsoleNotificationService)
-    swagger/           # Configuração do swagger-jsdoc
+      routes/          # authRoutes, serviceOrderRoutes, customerRoutes, …
+      middlewares/     # authMiddleware, requireRole, errorMiddleware
+    database/          # Conexão Mongoose, Schemas, seed.ts
   app.ts               # Setup do Express, registro de rotas e middlewares
-  main.ts              # Bootstrap, conexão com o banco, graceful shutdown
+  main.ts              # Bootstrap, composição de dependências, graceful shutdown
 ```
 
-**Regra de dependência:** `domain/` e `application/` não importam nada de `infrastructure/`. A inversão de dependência é garantida pelas interfaces dos ports.
+**Regra de dependência:** `entities/` e `use-cases/` não importam nada de `adapters/` ou `frameworks/`. A inversão de dependência é garantida pelas interfaces em `use-cases/ports/`.
 
 **Modelo de dados (entidades principais)**
 
@@ -311,7 +318,7 @@ Serviços individuais da OS são atualizados via `PATCH /service-orders/:id/serv
 
 ## 7. Visão de Deployment
 
-### Topologia local
+### Opção A — Docker Compose (desenvolvimento local)
 
 ```
 ┌─────────────────┐        ┌─────────────────┐
@@ -322,27 +329,34 @@ Serviços individuais da OS são atualizados via `PATCH /service-orders/:id/serv
        └─ docker-compose ───────────┘
 ```
 
-**Profile opcional `sonar`** acrescenta dois serviços só para análise estática (não sobem por padrão):
-
-```
-┌─────────────────┐        ┌─────────────────┐
-│  SonarQube 10   │  →     │ PostgreSQL 15   │
-│  :9000          │        │ (sonar-db)      │
-└─────────────────┘        └─────────────────┘
+```bash
+docker-compose up -d
+curl http://localhost:3000/health
 ```
 
-### Comandos
+### Opção B — Kubernetes + Minikube (produção local)
+
+```
+┌──────────────────────────────────────────────────┐
+│          Kubernetes — namespace: oficina          │
+│                                                  │
+│  oficina-app (Deployment, 2–10 réplicas, HPA)   │
+│       ↓ :27017                                   │
+│  mongo-0 (StatefulSet, PVC 5Gi)                 │
+│                                                  │
+│  Service: LoadBalancer :8080                     │
+└────────────────────┬─────────────────────────────┘
+                     │ minikube tunnel
+              http://localhost:8080
+```
 
 ```bash
-# Subir o ambiente da aplicação
-docker-compose up --build
-
-# Subir SonarQube (opcional)
-docker-compose --profile sonar up -d sonarqube sonar-db
-
-# Build da imagem da app
-docker build -t car-repair-shop-api .
+./scripts/start.sh        # inicia Minikube, tunnel e runner do GitHub Actions
+kubectl get pods -n oficina
+curl http://localhost:8080/health
 ```
+
+Provisionado via Terraform (`infra/`) com provider `gavinbunney/kubectl`. Detalhes em [docs/infrastructure/deploy-flow.md](../infrastructure/deploy-flow.md).
 
 **Dockerfile:** multi-stage — estágio `builder` compila o TypeScript; estágio `runtime` copia só `dist/` e instala dependências de produção.
 
@@ -463,6 +477,6 @@ npm run sonar             # análise SonarQube (requer servidor local + token no
 
 ## 12. Glossário
 
-Termos do domínio, atores e status da OS estão em [`docs/ddd/ubiquitous-language.md`](ddd/ubiquitous-language.md).
+Termos do domínio, atores e status da OS estão em [`docs/architecture/ddd/ubiquitous-language.md`](ddd/ubiquitous-language.md).
 
-Diagramas de DDD em `docs/ddd/`: Event Storming (`event-storming.png`), Linguagem Pictográfica (`linguagem-pictografica.png`).
+Diagramas de DDD em `docs/architecture/ddd/`: Event Storming (`event-storming.png`), Linguagem Pictográfica (`linguagem-pictografica.png`).
