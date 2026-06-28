@@ -11,9 +11,12 @@ minikube start --driver=docker
 echo "[3/4] Pointing Docker to Minikube daemon..."
 eval $(minikube docker-env)
 
-echo "[4/4] Starting GitHub Actions runner..."
+echo "[4/4] Starting minikube tunnel (background)..."
+nohup minikube tunnel > /tmp/minikube-tunnel.log 2>&1 &
+echo "Tunnel PID: $! (logs: /tmp/minikube-tunnel.log)"
+
+echo "[5/5] Starting GitHub Actions runner..."
 cd ~/actions-runner && ./run.sh &
 
 echo ""
-echo "Ready! To access the application run:"
-echo "  minikube service oficina-service -n oficina --url"
+echo "Ready! API available at http://localhost:8080"
