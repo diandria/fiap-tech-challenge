@@ -6,14 +6,14 @@ Postman collection with the full end-to-end API flow: authentication, master dat
 
 - `car-repair-shop.postman_collection.json` — v2.1.0 collection with all calls organized in numbered folders.
 - `car-repair-shop.postman_environment.json` — environment for **local / Docker Compose** (`baseUrl = http://localhost:3000`).
-- `car-repair-shop-k8s.postman_environment.json` — environment for **Kubernetes / Minikube** (`baseUrl = http://MINIKUBE_IP:30080`). See setup below.
+- `car-repair-shop-k8s.postman_environment.json` — environment for **Kubernetes / Minikube** (`baseUrl = http://localhost:8080`). See setup below.
 
 ## Environments
 
 | File | Target | `baseUrl` |
 |------|--------|-----------|
 | `car-repair-shop.postman_environment.json` | Local / Docker Compose | `http://localhost:3000` |
-| `car-repair-shop-k8s.postman_environment.json` | Kubernetes / Minikube | `http://<MINIKUBE_IP>:30080` |
+| `car-repair-shop-k8s.postman_environment.json` | Kubernetes / Minikube | `http://localhost:8080` |
 
 All other variables (credentials, persisted IDs) are identical between environments — only `baseUrl` differs.
 
@@ -30,15 +30,17 @@ All other variables (credentials, persisted IDs) are identical between environme
 
 ### Kubernetes / Minikube
 
-1. Minikube cluster running with manifests applied (`kubectl apply -k k8s/`).
-2. Obtain the NodePort URL:
-   ```bash
-   minikube service oficina-service -n oficina --url
-   # or
-   echo "http://$(minikube ip):30080"
-   ```
-3. In Postman, edit the `car-repair-shop-k8s` environment and replace the `baseUrl` value with the URL from the step above.
-4. The admin seed runs automatically on container start when `SEED_ON_START=true` is set in the cluster ConfigMap/Secret.
+The service is type `LoadBalancer` on port `8080`. On WSL2 with Minikube Docker driver, run `minikube tunnel` once in a separate terminal to bind `localhost:8080`:
+
+```bash
+minikube tunnel
+```
+
+Keep that terminal open. Then:
+
+1. Manifests applied: `kubectl apply -k k8s/`
+2. Service accessible at `http://localhost:8080`
+3. The admin seed runs automatically on container start when `SEED_ON_START=true` is set in the cluster ConfigMap/Secret.
 
 ## Import
 
