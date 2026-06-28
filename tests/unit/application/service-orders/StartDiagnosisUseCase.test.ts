@@ -1,10 +1,10 @@
 import { StartDiagnosisUseCase } from '../../../../src/use-cases/service-orders/StartDiagnosisUseCase';
-import { NotifyStatusChangeUseCase } from '../../../../src/use-cases/service-orders/NotifyStatusChangeUseCase';
+import { IStatusChangeNotifier } from '../../../../src/use-cases/ports/IStatusChangeNotifier';
 import { makeOSRepo, receivedOS, finishedOS } from '../../fixtures/serviceOrder';
 
-const makeNotifyStatusChange = () => ({
+const makeNotifyStatusChange = (): IStatusChangeNotifier => ({
   execute: jest.fn().mockResolvedValue(undefined),
-} as unknown as NotifyStatusChangeUseCase);
+});
 
 describe('StartDiagnosisUseCase', () => {
   it('GIVEN OS in RECEIVED status WHEN execute called THEN transitions to DIAGNOSIS', async () => {

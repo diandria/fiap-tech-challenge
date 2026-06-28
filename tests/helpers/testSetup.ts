@@ -42,6 +42,7 @@ import { AddServiceToOSUseCase } from '../../src/use-cases/service-orders/AddSer
 import { RemoveServiceFromOSUseCase } from '../../src/use-cases/service-orders/RemoveServiceFromOSUseCase';
 import { AddItemToOSUseCase } from '../../src/use-cases/service-orders/AddItemToOSUseCase';
 import { RemoveItemFromOSUseCase } from '../../src/use-cases/service-orders/RemoveItemFromOSUseCase';
+import { CalculateBudgetUseCase } from '../../src/use-cases/service-orders/CalculateBudgetUseCase';
 import { NotifyStatusChangeUseCase } from '../../src/use-cases/service-orders/NotifyStatusChangeUseCase';
 import { NotifyBudgetUseCase } from '../../src/use-cases/service-orders/NotifyBudgetUseCase';
 import { StartDiagnosisUseCase } from '../../src/use-cases/service-orders/StartDiagnosisUseCase';
@@ -126,7 +127,7 @@ export function createTestApp(): Application {
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
     new AddItemToOSUseCase(osRepo, itemRepo), new RemoveItemFromOSUseCase(osRepo, itemRepo),
     new StartDiagnosisUseCase(osRepo, notifyStatusChange),
-    new FinishDiagnosisUseCase(osRepo, serviceRepo, itemRepo, notifyStatusChange, notifyBudget),
+    new FinishDiagnosisUseCase(osRepo, notifyStatusChange, notifyBudget, new CalculateBudgetUseCase(serviceRepo, itemRepo)),
     new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange),
     new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
     new StartExecutionUseCase(osRepo, itemRepo, notifyStatusChange),

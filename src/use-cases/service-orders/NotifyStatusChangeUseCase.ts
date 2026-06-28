@@ -1,8 +1,9 @@
 import { IServiceOrderRepository } from '../ports/IServiceOrderRepository';
 import { ICustomerRepository } from '../ports/ICustomerRepository';
 import { INotificationService } from '../ports/INotificationService';
+import { IStatusChangeNotifier } from '../ports/IStatusChangeNotifier';
 
-export class NotifyStatusChangeUseCase {
+export class NotifyStatusChangeUseCase implements IStatusChangeNotifier {
   constructor(
     private readonly osRepo: IServiceOrderRepository,
     private readonly customerRepo: ICustomerRepository,
