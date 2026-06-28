@@ -1,10 +1,10 @@
 #!/bin/bash
 
-echo "[1/2] Parando runner do GitHub Actions..."
-pkill -f "actions-runner" 2>/dev/null && echo "Runner parado." || echo "Runner nao estava rodando."
+echo "[1/2] Stopping GitHub Actions runner..."
+pkill -f "actions-runner" 2>/dev/null && echo "Runner stopped." || echo "Runner was not running."
 
-echo "[2/2] Parando Minikube..."
+echo "[2/2] Stopping Minikube..."
 minikube stop
 
 echo ""
-echo "Sistema desligado."
+echo "System shut down."

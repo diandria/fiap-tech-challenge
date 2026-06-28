@@ -35,7 +35,7 @@ async function seedDomainData(): Promise<void> {
   const auth = { Authorization: `Bearer ${adminToken}` };
 
   const cust = await request(app).post('/customers').set(auth)
-    .send({ name: 'João', taxId: '529.982.247-25', taxType: 'CPF', email: 'j@t.com', phone: '11999999999' });
+    .send({ name: 'John', taxId: '529.982.247-25', taxType: 'CPF', email: 'j@t.com', phone: '11999999999' });
   customerId = cust.body.id;
 
   const veh = await request(app).post('/vehicles').set(auth)
