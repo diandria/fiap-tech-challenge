@@ -7,10 +7,9 @@ metadata:
     app.kubernetes.io/name: oficina-app
     app.kubernetes.io/part-of: fiap-tech-challenge
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app.kubernetes.io/name: oficina-app
   ports:
-  - port: 80
+  - port: 8080
     targetPort: 3000
-    nodePort: 30080

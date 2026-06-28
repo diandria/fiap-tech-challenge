@@ -300,19 +300,18 @@ Resultado em `http://localhost:9000/dashboard?id=car-repair-shop-api`.
 
 ## Postman
 
-A pasta `postman/` contém a coleção com o fluxo completo ponta a ponta.
+A pasta `postman/` contém a coleção e os environments para cada infraestrutura.
 
-```
-# Importar no Postman:
-postman/car-repair-shop.postman_collection.json
-postman/car-repair-shop.postman_environment.json
+| Environment | Arquivo | `baseUrl` |
+|-------------|---------|-----------|
+| Local / Docker Compose | `car-repair-shop.postman_environment.json` | `http://localhost:3000` |
+| Kubernetes / Minikube | `car-repair-shop-k8s.postman_environment.json` | `http://localhost:8080` |
 
-# Selecionar o environment "Car Repair Shop - Local"
-# Confirmar adminPassword no environment (deve bater com ADMIN_PASSWORD do .env)
-# Executar na ordem das pastas (00 → 06) — IDs e tokens são propagados automaticamente
-```
+Importar no Postman: **Import → Upload Files** → selecione a collection + o environment desejado.
 
-Via CLI com Newman:
+Para o ambiente K8s, rode `minikube tunnel` em um terminal separado antes de fazer as requisições.
+
+Via CLI com Newman (local):
 
 ```bash
 npx newman run postman/car-repair-shop.postman_collection.json \
