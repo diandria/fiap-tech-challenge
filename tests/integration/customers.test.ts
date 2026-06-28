@@ -11,10 +11,10 @@ let attendantToken: string;
 let mechanicToken: string;
 
 const validCustomer = {
-  name: 'João Silva',
+  name: 'John Smith',
   taxId: '529.982.247-25',
   taxType: 'CPF',
-  email: 'joao@test.com',
+  email: 'john@test.com',
   phone: '11999990000',
 };
 
@@ -98,7 +98,7 @@ describe('GET /customers/:id', () => {
     const created = await request(app).post('/customers').set('Authorization', `Bearer ${adminToken}`).send(validCustomer);
     const res = await request(app).get(`/customers/${created.body.id}`).set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.name).toBe('João Silva');
+    expect(res.body.name).toBe('John Smith');
   });
 
   it('GIVEN a non-existent id WHEN GET /customers/:id THEN returns 404', async () => {
@@ -113,9 +113,9 @@ describe('PUT /customers/:id', () => {
     const res = await request(app)
       .put(`/customers/${created.body.id}`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ name: 'João Atualizado' });
+      .send({ name: 'John Updated' });
     expect(res.status).toBe(200);
-    expect(res.body.name).toBe('João Atualizado');
+    expect(res.body.name).toBe('John Updated');
   });
 });
 

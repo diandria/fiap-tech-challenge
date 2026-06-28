@@ -1,9 +1,9 @@
 output "app_url" {
-  description = "URL de acesso à aplicação via Minikube NodePort"
+  description = "Application URL via Minikube NodePort"
   value       = "Execute: minikube service oficina-service -n oficina --url"
 }
 
 output "namespace" {
-  description = "Namespace onde os recursos foram criados"
+  description = "Namespace where resources were created"
   value       = "oficina"
 }
