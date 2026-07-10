@@ -1,14 +1,14 @@
-# Deployment Flow
+# Fluxo de Deploy
 
-## CI/CD Pipeline
+## Pipeline CI/CD
 
-All deployments are gated by the CI pipeline. CD listens for CI completion via `workflow_run`; it only runs when CI succeeds on `main`.
+Todo deploy é condicionado ao pipeline de CI. O CD escuta a conclusão do CI via `workflow_run` e só executa quando o CI conclui com sucesso na `main`.
 
 ```mermaid
 flowchart TB
-    push(["Push to main"]) --> ci
+    push(["Push na main"]) --> ci
 
-    subgraph ci["CI Workflow — .github/workflows/ci.yml (ubuntu-latest)"]
+    subgraph ci["Workflow CI — .github/workflows/ci.yml (ubuntu-latest)"]
         build["build\nnpm ci + npm run build"]
         lint["lint\nnpm run lint"]
         test["test\nnpm test"]
@@ -20,7 +20,7 @@ flowchart TB
 
     ci -->|"workflow_run: completed\nconclusion: success"| cd
 
-    subgraph cd["CD Workflow — .github/workflows/cd.yml (self-hosted / Minikube host)"]
+    subgraph cd["Workflow CD — .github/workflows/cd.yml (self-hosted / host do Minikube)"]
         checkout["1. Checkout no SHA exato\ntestado pelo CI"]
         docker["2. docker build\n→ daemon do Minikube"]
         patch["3. Patch da tag de imagem\nem k8s/app-deployment.yaml"]
@@ -34,54 +34,54 @@ flowchart TB
 
 > A visão da infraestrutura provisionada (recursos do cluster) está em [solution-design.md](solution-design.md).
 
-### CI jobs
+### Jobs do CI
 
-| Job | Needs | Runner | Command |
+| Job | Depende de | Runner | Comando |
 |---|---|---|---|
 | `build` | — | ubuntu-latest | `npm ci && npm run build` |
 | `lint` | build | ubuntu-latest | `npm run lint` |
 | `test` | build | ubuntu-latest | `npm test` |
 | `coverage` | build, test | ubuntu-latest | `npm run test:coverage` — faz upload do relatório como artefato (retido 3 dias) |
 
-### CD steps
+### Passos do CD
 
-| Step | Detail |
+| Passo | Detalhe |
 |---|---|
-| Checkout | `actions/checkout@v4` with `ref: github.event.workflow_run.head_sha` — pins to the exact CI-tested commit |
-| Image tag | Short git SHA (`git rev-parse --short HEAD`) |
-| Docker build | `eval $(minikube docker-env)` then `docker build` — image stays inside Minikube's daemon |
-| Manifest patch | `sed` replaces the image tag in `k8s/app-deployment.yaml`; guarded by a `grep` assertion |
-| Terraform apply | `terraform init -input=false && terraform apply -auto-approve -input=false` from `infra/` |
-| Rollout verify | `kubectl rollout status statefulset/mongo` (180 s) then `kubectl rollout status deployment/oficina-app` (120 s) |
+| Checkout | `actions/checkout@v4` com `ref: github.event.workflow_run.head_sha` — fixa exatamente o commit testado pelo CI |
+| Tag da imagem | SHA curto do git (`git rev-parse --short HEAD`) |
+| Build do Docker | `eval $(minikube docker-env)` seguido de `docker build` — a imagem fica no daemon do Minikube |
+| Patch do manifest | `sed` substitui a tag de imagem em `k8s/app-deployment.yaml`; validado por uma asserção com `grep` |
+| Terraform apply | `terraform init -input=false && terraform apply -auto-approve -input=false` a partir de `infra/` |
+| Verificação do rollout | `kubectl rollout status statefulset/mongo` (180 s) e depois `kubectl rollout status deployment/oficina-app` (120 s) |
 
-CD has `concurrency: { group: deploy, cancel-in-progress: true }` — overlapping runs cancel the older one. Total job timeout is 15 minutes.
+O CD usa `concurrency: { group: deploy, cancel-in-progress: true }` — execuções sobrepostas cancelam a mais antiga. O timeout total do job é de 15 minutos.
 
 ---
 
-## Kubernetes Manifests (`k8s/`)
+## Manifests Kubernetes (`k8s/`)
 
-| File | Kind | Purpose |
+| Arquivo | Kind | Função |
 |---|---|---|
-| `namespace.yaml` | Namespace | Isolates all resources under `oficina` |
-| `configmap.yaml` | ConfigMap | Non-secret env vars: `PORT`, `CORS_ORIGIN`, `ADMIN_EMAIL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_FROM` |
-| `secret.yaml` | Secret | Sensitive env vars: `MONGODB_URI`, `JWT_SECRET`, `ADMIN_PASSWORD`, `MONGO_ROOT_USERNAME`, `MONGO_ROOT_PASSWORD`, SMTP credentials |
-| `app-deployment.yaml` | Deployment | Application pods; `imagePullPolicy: IfNotPresent` (uses Minikube local image) |
-| `app-service.yaml` | Service | LoadBalancer (:8080) — accessible at `localhost:8080` via `minikube tunnel` |
-| `app-hpa.yaml` | HorizontalPodAutoscaler | Scales `oficina-app` deployment based on CPU utilization (target: 70%) |
-| `app-pdb.yaml` | PodDisruptionBudget | Guarantees minimum available pods during voluntary disruptions |
-| `mongo-statefulset.yaml` | StatefulSet | Single MongoDB replica; PVC named `mongo-data-mongo-0` |
-| `mongo-service.yaml` | Service | ClusterIP — app-to-MongoDB internal access |
-| `mongo-headless-service.yaml` | Service (headless) | Required by StatefulSet for stable DNS pod identity |
+| `namespace.yaml` | Namespace | Isola todos os recursos no namespace `oficina` |
+| `configmap.yaml` | ConfigMap | Variáveis não sensíveis: `PORT`, `CORS_ORIGIN`, `ADMIN_EMAIL`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_FROM` |
+| `secret.yaml` | Secret | Variáveis sensíveis: `MONGODB_URI`, `JWT_SECRET`, `ADMIN_PASSWORD`, `MONGO_ROOT_USERNAME`, `MONGO_ROOT_PASSWORD`, credenciais SMTP |
+| `app-deployment.yaml` | Deployment | Pods da aplicação; `imagePullPolicy: IfNotPresent` (usa a imagem local do Minikube) |
+| `app-service.yaml` | Service | LoadBalancer (:8080) — acessível em `localhost:8080` via `minikube tunnel` |
+| `app-hpa.yaml` | HorizontalPodAutoscaler | Escala o deployment `oficina-app` por utilização de CPU (alvo: 70%) |
+| `app-pdb.yaml` | PodDisruptionBudget | Garante um mínimo de pods disponíveis durante disrupções voluntárias |
+| `mongo-statefulset.yaml` | StatefulSet | Réplica única do MongoDB; PVC nomeado `mongo-data-mongo-0` |
+| `mongo-service.yaml` | Service | ClusterIP — acesso interno da aplicação ao MongoDB |
+| `mongo-headless-service.yaml` | Service (headless) | Exigido pelo StatefulSet para identidade DNS estável do pod |
 
 ---
 
-## Terraform Resources (`infra/`)
+## Recursos Terraform (`infra/`)
 
-Provider: `gavinbunney/kubectl ~> 1.14` — applies raw YAML manifests without converting them to Terraform resource blocks.
+Provider: `gavinbunney/kubectl ~> 1.14` — aplica os manifests YAML diretamente, sem convertê-los em blocos de recurso nativos do Terraform.
 
-Resources use `fileset` + `for_each` grouped by directory, with one individual resource for the secret (uses `templatefile()`).
+Os recursos usam `fileset` + `for_each` agrupados por diretório, com um recurso individual para o secret (usa `templatefile()`).
 
-| Resource | Manifests applied | Depends on |
+| Recurso | Manifests aplicados | Depende de |
 |---|---|---|
 | `kubectl_manifest.namespaces[*]` | `k8s/00-namespaces/*.yaml` | — |
 | `kubectl_manifest.secret` | `infra/templates/secret.yaml.tpl` | namespaces |
@@ -89,18 +89,18 @@ Resources use `fileset` + `for_each` grouped by directory, with one individual r
 | `kubectl_manifest.mongo[*]` | `k8s/02-mongo/*.yaml` | secret, config |
 | `kubectl_manifest.app[*]` | `k8s/03-app/*.yaml` | mongo |
 
-`secret` is a standalone resource using `templatefile()` to interpolate credentials from Terraform variables. Fields are marked `sensitive_fields = ["data", "stringData"]` to prevent credentials appearing in Terraform state diffs.
+O `secret` é um recurso individual que usa `templatefile()` para interpolar as credenciais a partir de variáveis do Terraform. Os campos são marcados com `sensitive_fields = ["data", "stringData"]` para impedir que credenciais apareçam nos diffs do state.
 
-### Variables
+### Variáveis
 
-| Variable | Default | Description |
+| Variável | Padrão | Descrição |
 |---|---|---|
-| `kubeconfig_path` | `~/.kube/config` | Path to kubeconfig; expanded with `pathexpand()` |
-| `kubeconfig_context` | `minikube` | Context to use within the kubeconfig |
+| `kubeconfig_path` | `~/.kube/config` | Caminho do kubeconfig; expandido com `pathexpand()` |
+| `kubeconfig_context` | `minikube` | Contexto a usar dentro do kubeconfig |
 
 ### Outputs
 
-| Output | Value |
+| Output | Valor |
 |---|---|
 | `app_url` | `http://localhost:8080` (após `minikube tunnel` em execução) |
 | `namespace` | `oficina` |

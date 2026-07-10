@@ -1,55 +1,55 @@
-# Component Catalogue
+# Catálogo de Componentes
 
-Structured inventory of every named component in the codebase, organized by Clean Architecture layer.
+Inventário estruturado de todos os componentes nomeados do código, organizado por camada da Clean Architecture.
 
-## Layer 1 — Entities (`src/entities/`)
+## Camada 1 — Entities (`src/entities/`)
 
-| File | Type | Purpose |
+| Arquivo | Tipo | Função |
 |---|---|---|
-| `ServiceOrder.ts` | Interface + types | OS aggregate root; holds status, services, items, timestamps |
-| `Customer.ts` | Interface | Customer data; `taxId` is used to derive the budget approval code at runtime |
-| `Vehicle.ts` | Interface | Vehicle linked to a customer |
-| `Item.ts` | Interface + function | Stock item; `getAvailableQuantity()` computes free stock |
-| `Service.ts` | Interface | Labour service with price |
-| `User.ts` | Interface + enum | System user with `UserRole` (ADMIN, MECHANIC, ATTENDANT) |
-| `serviceOrderStateMachine.ts` | Functions | `canTransition` / `assertTransition` enforce valid OS state changes |
-| `validators.ts` | Functions | Domain-level field validators |
+| `ServiceOrder.ts` | Interface + tipos | Raiz do agregado OS; contém status, serviços, itens e timestamps |
+| `Customer.ts` | Interface | Dados do cliente; o `taxId` é usado para derivar o código de aprovação do orçamento em tempo de execução |
+| `Vehicle.ts` | Interface | Veículo vinculado a um cliente |
+| `Item.ts` | Interface + função | Item de estoque; `getAvailableQuantity()` calcula o estoque livre |
+| `Service.ts` | Interface | Serviço de mão de obra com preço |
+| `User.ts` | Interface + enum | Usuário do sistema com `UserRole` (ADMIN, MECHANIC, ATTENDANT) |
+| `serviceOrderStateMachine.ts` | Funções | `canTransition` / `assertTransition` garantem transições de estado válidas da OS |
+| `validators.ts` | Funções | Validadores de campos no nível de domínio |
 | `errors/AppError.ts` | Classes | `AppError`, `NotFoundError`, `ValidationError`, `UnauthorizedError`, `ForbiddenError`, `ConflictError` |
 
-## Layer 2 — Use Cases (`src/use-cases/`)
+## Camada 2 — Use Cases (`src/use-cases/`)
 
-### Service Order use cases (`service-orders/`)
+### Use cases de Ordem de Serviço (`service-orders/`)
 
-| Class | Trigger | Description |
+| Classe | Acionado por | Descrição |
 |---|---|---|
-| `CreateServiceOrderUseCase` | Attendant | Opens a new OS for a customer + vehicle |
-| `GetServiceOrderUseCase` | Any role | Returns a single OS by ID |
-| `ListServiceOrdersUseCase` | Any role | Returns all OSs (optionally filtered by status) |
-| `StartDiagnosisUseCase` | Mechanic | Transitions OS: RECEIVED → DIAGNOSIS |
-| `AddServiceToOSUseCase` | Mechanic | Adds a catalogue service to the OS during DIAGNOSIS |
-| `RemoveServiceFromOSUseCase` | Mechanic | Removes a service from the OS during DIAGNOSIS |
-| `AddItemToOSUseCase` | Mechanic | Adds a stock item to the OS; reserves stock |
-| `RemoveItemFromOSUseCase` | Mechanic | Removes an item from the OS; releases stock |
-| `FinishDiagnosisUseCase` | Mechanic | Computes `budgetTotal`; transitions to WAITING_APPROVAL; notifies customer |
-| `ApproveBudgetUseCase` | Customer | Validates confirmation code; transitions to APPROVED |
-| `RejectBudgetUseCase` | Customer | Transitions OS: WAITING_APPROVAL → REJECTED |
-| `StartExecutionUseCase` | Mechanic | Transitions OS: APPROVED → EXECUTION |
-| `StartServiceUseCase` | Mechanic | Records `startedAt` on an individual OSService |
-| `FinishServiceUseCase` | Mechanic | Records `finishedAt` on an individual OSService |
-| `FinishOSUseCase` | Mechanic | Transitions OS: EXECUTION → FINISHED |
-| `DeliverOSUseCase` | Attendant | Transitions OS: FINISHED → DELIVERED |
-| `GetAvgExecutionTimeUseCase` | Any role | Returns average execution time per service catalogue entry |
+| `CreateServiceOrderUseCase` | Atendente | Abre uma nova OS para um cliente + veículo |
+| `GetServiceOrderUseCase` | Qualquer papel | Retorna uma OS pelo ID |
+| `ListServiceOrdersUseCase` | Qualquer papel | Retorna todas as OS (com filtro opcional por status) |
+| `StartDiagnosisUseCase` | Mecânico | Transição da OS: RECEIVED → DIAGNOSIS |
+| `AddServiceToOSUseCase` | Mecânico | Adiciona um serviço do catálogo à OS durante o DIAGNOSIS |
+| `RemoveServiceFromOSUseCase` | Mecânico | Remove um serviço da OS durante o DIAGNOSIS |
+| `AddItemToOSUseCase` | Mecânico | Adiciona um item de estoque à OS; reserva estoque |
+| `RemoveItemFromOSUseCase` | Mecânico | Remove um item da OS; libera a reserva de estoque |
+| `FinishDiagnosisUseCase` | Mecânico | Calcula o `budgetTotal`; transiciona para WAITING_APPROVAL; notifica o cliente |
+| `ApproveBudgetUseCase` | Cliente | Valida o código de confirmação; transiciona para APPROVED |
+| `RejectBudgetUseCase` | Cliente | Transição da OS: WAITING_APPROVAL → REJECTED |
+| `StartExecutionUseCase` | Mecânico | Transição da OS: APPROVED → EXECUTION |
+| `StartServiceUseCase` | Mecânico | Registra `startedAt` em um OSService individual |
+| `FinishServiceUseCase` | Mecânico | Registra `finishedAt` em um OSService individual |
+| `FinishOSUseCase` | Mecânico | Transição da OS: EXECUTION → FINISHED |
+| `DeliverOSUseCase` | Atendente | Transição da OS: FINISHED → DELIVERED |
+| `GetAvgExecutionTimeUseCase` | Qualquer papel | Retorna o tempo médio de execução por serviço do catálogo |
 
-### Notification use cases (`service-orders/`)
+### Use cases de notificação (`service-orders/`)
 
-| Class | Method | Description |
+| Classe | Método | Descrição |
 |---|---|---|
-| `NotifyStatusChangeUseCase` | `execute({ osId })` | Sends a status-change notification to the customer; best-effort |
-| `NotifyBudgetUseCase` | `execute({ osId })` | Sends the computed budget to the customer; best-effort |
+| `NotifyStatusChangeUseCase` | `execute({ osId })` | Envia notificação de mudança de status ao cliente; melhor esforço |
+| `NotifyBudgetUseCase` | `execute({ osId })` | Envia o orçamento calculado ao cliente; melhor esforço |
 
-### Other use case modules
+### Demais módulos de use cases
 
-| Module | Use Cases |
+| Módulo | Use Cases |
 |---|---|
 | `auth/` | `LoginUseCase`, `RegisterUseCase` |
 | `customers/` | `CreateCustomerUseCase`, `GetCustomerUseCase`, `ListCustomersUseCase`, `UpdateCustomerUseCase`, `DeleteCustomerUseCase` |
@@ -59,7 +59,7 @@ Structured inventory of every named component in the codebase, organized by Clea
 
 ### Ports (`use-cases/ports/`)
 
-| Interface | Implemented by |
+| Interface | Implementada por |
 |---|---|
 | `IServiceOrderRepository` | `MongoServiceOrderRepository` |
 | `ICustomerRepository` | `MongoCustomerRepository` |
@@ -69,22 +69,22 @@ Structured inventory of every named component in the codebase, organized by Clea
 | `IUserRepository` | `MongoUserRepository` |
 | `INotificationService` | `ConsoleNotificationService` |
 
-## Layer 3 — Interface Adapters (`src/adapters/`)
+## Camada 3 — Interface Adapters (`src/adapters/`)
 
 ### Controllers (`adapters/controllers/`)
 
-| Class | Routes |
+| Classe | Rotas |
 |---|---|
 | `AuthController` | `POST /auth/login`, `POST /auth/register` (admin) |
 | `CustomerController` | `GET/POST /customers`, `GET/PUT/DELETE /customers/:id` |
 | `VehicleController` | `GET/POST /vehicles`, `GET/PUT/DELETE /vehicles/:id` |
 | `ItemController` | `GET/POST /items`, `GET/PUT/DELETE /items/:id` |
 | `ServiceController` | `GET/POST /services`, `GET/PUT/DELETE /services/:id`, `GET /services/avg-time` |
-| `ServiceOrderController` | Full OS lifecycle + item/service management endpoints |
+| `ServiceOrderController` | Ciclo de vida completo da OS + endpoints de gestão de itens/serviços |
 
-### Gateways / Repositories (`adapters/gateways/`)
+### Gateways / Repositórios (`adapters/gateways/`)
 
-| Class | Port implemented |
+| Classe | Port implementada |
 |---|---|
 | `MongoServiceOrderRepository` | `IServiceOrderRepository` |
 | `MongoCustomerRepository` | `ICustomerRepository` |
@@ -95,30 +95,30 @@ Structured inventory of every named component in the codebase, organized by Clea
 
 ### Presenters (`adapters/presenters/`)
 
-| Class | Formats response for |
+| Classe | Formata a resposta de |
 |---|---|
-| `AuthPresenter` | Auth (login / register) |
-| `CustomerPresenter` | Customer endpoints |
-| `VehiclePresenter` | Vehicle endpoints |
-| `ItemPresenter` | Item endpoints |
-| `ServicePresenter` | Service endpoints |
-| `ServiceOrderPresenter` | Service order endpoints |
+| `AuthPresenter` | Autenticação (login / register) |
+| `CustomerPresenter` | Endpoints de clientes |
+| `VehiclePresenter` | Endpoints de veículos |
+| `ItemPresenter` | Endpoints de itens |
+| `ServicePresenter` | Endpoints de serviços |
+| `ServiceOrderPresenter` | Endpoints de ordens de serviço |
 
 ### Services (`adapters/services/`)
 
-| Class | Port implemented |
+| Classe | Port implementada |
 |---|---|
 | `ConsoleNotificationService` | `INotificationService` |
 
-## Layer 4 — Frameworks & Drivers (`src/frameworks/`)
+## Camada 4 — Frameworks & Drivers (`src/frameworks/`)
 
-| Component | File | Role |
+| Componente | Arquivo | Papel |
 |---|---|---|
-| Express application factory | `app.ts` | Wires middleware, routes, and error handler |
-| Entry point | `main.ts` | Connects to MongoDB then starts Express |
-| Route files | `frameworks/http/routes/` | Map HTTP verbs + paths to controller methods |
-| Auth middleware | `frameworks/http/middlewares/authMiddleware.ts` | JWT verification; injects `req.user` |
-| Role middleware | `frameworks/http/middlewares/roleMiddleware.ts` | Role-based access control guard |
-| Error handler | `frameworks/http/middlewares/errorMiddleware.ts` | Converts `AppError` subclasses to HTTP status codes |
-| MongoDB connection | `frameworks/database/` | Mongoose connection setup |
-| OpenAPI / Swagger | integrated via `swagger-jsdoc` + `swagger-ui-express` | `GET /api-docs` |
+| Factory da aplicação Express | `app.ts` | Conecta middlewares, rotas e o error handler |
+| Ponto de entrada | `main.ts` | Conecta ao MongoDB e inicia o Express |
+| Arquivos de rotas | `frameworks/http/routes/` | Mapeiam verbos HTTP + paths para métodos dos controllers |
+| Middleware de autenticação | `frameworks/http/middlewares/authMiddleware.ts` | Verificação de JWT; injeta `req.user` |
+| Middleware de papéis | `frameworks/http/middlewares/roleMiddleware.ts` | Guarda de controle de acesso baseado em papéis |
+| Error handler | `frameworks/http/middlewares/errorMiddleware.ts` | Converte subclasses de `AppError` em códigos de status HTTP |
+| Conexão MongoDB | `frameworks/database/` | Configuração da conexão via Mongoose |
+| OpenAPI / Swagger | integrado via `swagger-jsdoc` + `swagger-ui-express` | `GET /api-docs` |
