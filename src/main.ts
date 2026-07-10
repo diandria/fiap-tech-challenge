@@ -131,7 +131,13 @@ async function main(): Promise<void> {
 
   // HTTP server starts before DB connects so health probes are reachable during startup
   const server = app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
-  process.on('SIGTERM', async () => { server.close(); await disconnectDB(); process.exit(0); });
+  // Drain in-flight requests before exiting so rollouts and HPA scale-downs
+  // don't reset client connections; force-exit fallback stays within the pod's
+  // 30s termination grace period.
+  process.on('SIGTERM', () => {
+    server.close(async () => { await disconnectDB(); process.exit(0); });
+    setTimeout(() => process.exit(1), 25_000).unref();
+  });
 
   await connectDB(MONGODB_URI);
   await seedDefaultAdmin();

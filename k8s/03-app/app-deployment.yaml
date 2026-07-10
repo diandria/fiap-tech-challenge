@@ -33,6 +33,12 @@ spec:
       - name: oficina-app
         image: fiap-tech-challenge:latest
         imagePullPolicy: IfNotPresent
+        # Endpoint removal from the Service propagates asynchronously; the delay
+        # keeps the pod accepting connections until traffic stops arriving.
+        lifecycle:
+          preStop:
+            exec:
+              command: ["sleep", "5"]
         ports:
         - containerPort: 3000
         envFrom:
