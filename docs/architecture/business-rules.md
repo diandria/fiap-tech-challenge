@@ -1,67 +1,69 @@
-# Business Rules
+# Regras de Negócio
 
-## Service Order Lifecycle
+## Ciclo de Vida da Ordem de Serviço
 
-A Service Order (OS) progresses through a strict state machine. Only the transitions listed below are valid; any other transition throws a `ValidationError`.
+A OS percorre uma máquina de estados estrita. Apenas as transições listadas abaixo são válidas; qualquer outra lança `ValidationError`.
 
 ```
 RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINISHED → DELIVERED
                                         ↘ REJECTED
 ```
 
-| From              | To                  | Trigger                              |
-|-------------------|---------------------|--------------------------------------|
-| RECEIVED          | DIAGNOSIS           | Mechanic starts diagnosis            |
-| DIAGNOSIS         | WAITING_APPROVAL    | Mechanic finishes diagnosis (budget computed) |
-| WAITING_APPROVAL  | APPROVED            | Customer approves with confirmation code |
-| WAITING_APPROVAL  | REJECTED            | Customer rejects the budget          |
-| APPROVED          | EXECUTION           | Mechanic starts execution            |
-| EXECUTION         | FINISHED            | Mechanic finishes all services       |
-| FINISHED          | DELIVERED           | Attendant records vehicle delivery   |
+| De                | Para                | Gatilho                                              |
+|-------------------|---------------------|------------------------------------------------------|
+| RECEIVED          | DIAGNOSIS           | Mecânico inicia o diagnóstico                        |
+| DIAGNOSIS         | WAITING_APPROVAL    | Mecânico encerra o diagnóstico (orçamento calculado) |
+| WAITING_APPROVAL  | APPROVED            | Cliente aprova com código de confirmação             |
+| WAITING_APPROVAL  | REJECTED            | Cliente rejeita o orçamento                          |
+| APPROVED          | EXECUTION           | Mecânico inicia a execução                           |
+| EXECUTION         | FINISHED            | Mecânico finaliza todos os serviços                  |
+| FINISHED          | DELIVERED           | Atendente registra a entrega do veículo              |
 
-`DELIVERED` and `REJECTED` are terminal states — no further transitions are allowed.
+`DELIVERED` e `REJECTED` são estados terminais — nenhuma transição adicional é permitida.
 
-## Budget Calculation
+## Cálculo do Orçamento
 
-Budget is computed when the OS transitions from `DIAGNOSIS` to `WAITING_APPROVAL` (`FinishDiagnosisUseCase`):
+O orçamento é calculado quando a OS transita de `DIAGNOSIS` para `WAITING_APPROVAL` (`FinishDiagnosisUseCase`):
 
 ```
 budgetTotal = Σ service.price  +  Σ (item.price × osItem.quantity)
 ```
 
-The result is stored on the OS and sent to the customer via notification. It is not recalculated after `WAITING_APPROVAL`.
+O resultado é armazenado na OS e enviado ao cliente via notificação. Não é recalculado após `WAITING_APPROVAL`.
 
-## Stock Management
+## Gestão de Estoque
 
-Items carry two counters:
+Os itens possuem dois contadores:
 
-| Field              | Meaning                                      |
-|--------------------|----------------------------------------------|
-| `stockQuantity`    | Total physical units in stock                |
-| `reservedQuantity` | Units reserved by open service orders        |
+| Campo              | Significado                                         |
+|--------------------|-----------------------------------------------------|
+| `stockQuantity`    | Total de unidades físicas em estoque                |
+| `reservedQuantity` | Unidades reservadas por ordens de serviço em aberto |
 
-Available stock = `stockQuantity − reservedQuantity`.
+Estoque disponível = `stockQuantity − reservedQuantity`.
 
-**Reservation rules:**
-- An item can only be added to an OS during `DIAGNOSIS`.
-- `AddItemToOSUseCase` checks available stock before reserving; throws `ValidationError` if insufficient.
-- `reservedQuantity` is incremented on addition and decremented on removal (`RemoveItemFromOSUseCase`).
+**Regras de reserva:**
+- Um item só pode ser adicionado a uma OS durante o estado `DIAGNOSIS`.
+- `AddItemToOSUseCase` verifica o estoque disponível antes de reservar; lança `ValidationError` se insuficiente.
+- `reservedQuantity` é incrementado na adição e decrementado na remoção (`RemoveItemFromOSUseCase`).
+- Na transição `APPROVED → EXECUTION`, `stockQuantity` é decrementado e `reservedQuantity` zerado.
+- Na transição `WAITING_APPROVAL → REJECTED`, `reservedQuantity` é decrementado para todos os itens da OS.
 
-## Notifications
+## Notificações
 
-Notifications are best-effort and never block the main flow:
+Notificações são best-effort e nunca bloqueiam o fluxo principal:
 
-| Event                | Use Case               | Method                  |
-|----------------------|------------------------|-------------------------|
-| Status changed       | `NotifyStatusChangeUseCase` | `notifyStatusChanged`  |
-| Budget ready         | `NotifyBudgetUseCase`  | `notifyBudgetReady`     |
+| Evento           | Use Case                    | Interface               |
+|------------------|-----------------------------|-------------------------|
+| Status alterado  | `NotifyStatusChangeUseCase` | `IStatusChangeNotifier` |
+| Orçamento pronto | `NotifyBudgetUseCase`       | `IBudgetNotifier`       |
 
-Both use cases wrap the notification call in a `try/catch` and log errors without propagating them. The current implementation (`ConsoleNotificationService`) writes to `stdout`; the port (`INotificationService`) allows swapping to email or another channel.
+Ambos os use cases envolvem a chamada em `try/catch` e registram erros sem propagá-los. A implementação atual (`ConsoleNotificationService`) escreve em `stdout`; as interfaces permitem substituição por e-mail ou outro canal sem alterar o domínio.
 
-## Customer Approval Code
+## Código de Aprovação do Cliente
 
-When a customer approves the budget, they must supply a confirmation code. The code is not stored as a dedicated field; it is derived at runtime as the first 4 characters of `customer.taxId` by `verifyCustomerCode` in `use-cases/utils/serviceOrderUtils.ts`. `ApproveBudgetUseCase` calls that helper before moving the OS to `APPROVED`. An invalid code throws `ValidationError`.
+Ao aprovar ou rejeitar o orçamento, o cliente deve fornecer um código de confirmação. O código não é armazenado como campo dedicado — é derivado em tempo de execução como os primeiros 4 caracteres do `customer.taxId` pela função `verifyCustomerCode` em `use-cases/utils/serviceOrderUtils.ts`. Um código inválido lança `ValidationError`.
 
-## Service Timing
+## Temporização dos Serviços
 
-Services within an OS track their own start and finish timestamps (`OSService.startedAt`, `OSService.finishedAt`) via `StartServiceUseCase` and `FinishServiceUseCase`. These are independent from the OS-level timestamps (`startedAt`, `finishedAt`, `deliveredAt`).
+Os serviços dentro de uma OS rastreiam seus próprios timestamps de início e fim (`OSService.startedAt`, `OSService.finishedAt`) via `StartServiceUseCase` e `FinishServiceUseCase`. Esses timestamps são independentes dos timestamps da OS (`startedAt`, `finishedAt`, `deliveredAt`).

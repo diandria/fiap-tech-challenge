@@ -38,44 +38,43 @@ A Fase 2 evoluiu a aplicação da Fase 1 com foco em qualidade, resiliência e e
 
 ## Arquitetura
 
+O desenho da arquitetura está dividido em três visões complementares:
+
+| Visão | Documento | Conteúdo |
+|---|---|---|
+| **Componentes da aplicação** | [Diagramas C4](docs/architecture/c4.md) | Context, Container e Component — visão em três níveis |
+| **Infraestrutura provisionada** | [Desenho de solução](docs/infrastructure/solution-design.md) | Cluster Minikube, recursos K8s (Deployment, HPA, StatefulSet, Services…) e fluxo do tráfego |
+| **Fluxo de deploy** | [Fluxo de deploy](docs/infrastructure/deploy-flow.md) | Diagrama CI/CD, manifests K8s e recursos Terraform |
+
+Documentação complementar:
+
 | Documento | Conteúdo |
 |---|---|
-| [Diagramas C4](docs/architecture/c4.md) | Context, Container e Component — visão em três níveis |
 | [Catálogo de componentes](docs/architecture/components.md) | Inventário de todas as classes por camada Clean Architecture |
 | [Regras de negócio](docs/architecture/business-rules.md) | Máquina de estados da OS, cálculo de orçamento, gestão de estoque |
 | [DAS](docs/architecture/DAS.md) | Documento de Arquitetura de Software completo |
 | [Linguagem ubíqua](docs/architecture/ddd/ubiquitous-language.md) | Glossário de domínio |
-| [Fluxo de deploy](docs/infrastructure/deploy-flow.md) | Diagrama CI/CD, manifests K8s e recursos Terraform |
 
 ### Visão geral da arquitetura
 
-```
-┌────────────────────────────────────────────────────────────┐
-│                     GitHub Actions                         │
-│                                                            │
-│  CI (ubuntu-latest)          CD (self-hosted / Minikube)  │
-│  build → lint → test  ──►    docker build                  │
-│                              terraform apply               │
-│                              kubectl rollout               │
-└──────────────────────────────────────┬─────────────────────┘
-                                       │
-                                       ▼
-┌────────────────────────────────────────────────────────────┐
-│              Kubernetes — namespace: oficina               │
-│                                                            │
-│   ┌──────────────────┐        ┌──────────────────────┐    │
-│   │  oficina-app     │        │  mongo-0             │    │
-│   │  Deployment      │──────► │  StatefulSet         │    │
-│   │  2–10 réplicas   │ :27017 │  PVC: 5 Gi           │    │
-│   │  HPA (CPU 70%)   │        └──────────────────────┘    │
-│   └────────┬─────────┘                                     │
-│            │                                               │
-│   Service (LoadBalancer :8080)                             │
-└────────────┼───────────────────────────────────────────────┘
-             │
-       minikube tunnel
-             │
-      http://localhost:8080
+```mermaid
+flowchart TB
+    subgraph gha["GitHub Actions"]
+        ci["CI (ubuntu-latest)\nbuild → lint → test"]
+        cd["CD (self-hosted / Minikube)\ndocker build\nterraform apply\nkubectl rollout"]
+        ci --> cd
+    end
+
+    subgraph k8s["Kubernetes — namespace: oficina"]
+        app["oficina-app\nDeployment\n2–10 réplicas\nHPA (CPU 70%)"]
+        mongo["mongo-0\nStatefulSet\nPVC: 5 Gi"]
+        svc["Service\nLoadBalancer :8080"]
+        app -->|":27017"| mongo
+        svc --> app
+    end
+
+    gha --> k8s
+    user["http://localhost:8080"] -->|"minikube tunnel"| svc
 ```
 
 ### Clean Architecture — camadas
@@ -252,6 +251,32 @@ kubectl port-forward svc/mongo-service 27017:27017 -n oficina &
 MONGODB_URI=mongodb://root:<senha>@localhost:27017/car-repair-shop?authSource=admin npm run seed:dev
 ```
 
+### Demonstrar o HPA (teste de carga com k6)
+
+O script [`scripts/load-test.js`](scripts/load-test.js) gera carga sustentada (100 VUs por ~4 min) contra a API para forçar o autoscaling. Requer o [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) instalado e o `minikube tunnel` ativo.
+
+Em um terminal, acompanhe o HPA e as réplicas:
+
+```bash
+kubectl get hpa,pods -n oficina -w
+```
+
+Em outro, dispare a carga:
+
+```bash
+k6 run scripts/load-test.js
+```
+
+Com CPU acima de 70% do request, o HPA escala o deployment de 2 até 10 réplicas; ao fim da carga, as réplicas voltam ao mínimo após a janela de estabilização (~5 min). Variáveis opcionais:
+
+```bash
+# API em outro endereço (ex.: docker-compose)
+k6 run -e BASE_URL=http://localhost:3000 scripts/load-test.js
+
+# Incluir leitura pública de uma OS real no mix de carga
+k6 run -e OS_ID=<id-da-os> scripts/load-test.js
+```
+
 ### Manifests Kubernetes (`/k8s/`)
 
 | Arquivo | Kind | O que faz |
@@ -308,6 +333,7 @@ Dispara em push e pull request para `main`. Roda em `ubuntu-latest`.
 | `build` | — | `npm ci && npm run build` |
 | `lint` | build | `npm run lint` |
 | `test` | build | `npm test` |
+| `coverage` | build, test | `npm run test:coverage` — faz upload do relatório como artefato |
 
 ### CD (`.github/workflows/cd.yml`)
 
