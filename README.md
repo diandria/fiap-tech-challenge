@@ -57,33 +57,24 @@ Documentação complementar:
 
 ### Visão geral da arquitetura
 
-```
-┌────────────────────────────────────────────────────────────┐
-│                     GitHub Actions                         │
-│                                                            │
-│  CI (ubuntu-latest)          CD (self-hosted / Minikube)  │
-│  build → lint → test  ──►    docker build                  │
-│                              terraform apply               │
-│                              kubectl rollout               │
-└──────────────────────────────────────┬─────────────────────┘
-                                       │
-                                       ▼
-┌────────────────────────────────────────────────────────────┐
-│              Kubernetes — namespace: oficina               │
-│                                                            │
-│   ┌──────────────────┐        ┌──────────────────────┐    │
-│   │  oficina-app     │        │  mongo-0             │    │
-│   │  Deployment      │──────► │  StatefulSet         │    │
-│   │  2–10 réplicas   │ :27017 │  PVC: 5 Gi           │    │
-│   │  HPA (CPU 70%)   │        └──────────────────────┘    │
-│   └────────┬─────────┘                                     │
-│            │                                               │
-│   Service (LoadBalancer :8080)                             │
-└────────────┼───────────────────────────────────────────────┘
-             │
-       minikube tunnel
-             │
-      http://localhost:8080
+```mermaid
+flowchart TB
+    subgraph gha["GitHub Actions"]
+        ci["CI (ubuntu-latest)\nbuild → lint → test"]
+        cd["CD (self-hosted / Minikube)\ndocker build\nterraform apply\nkubectl rollout"]
+        ci --> cd
+    end
+
+    subgraph k8s["Kubernetes — namespace: oficina"]
+        app["oficina-app\nDeployment\n2–10 réplicas\nHPA (CPU 70%)"]
+        mongo["mongo-0\nStatefulSet\nPVC: 5 Gi"]
+        svc["Service\nLoadBalancer :8080"]
+        app -->|":27017"| mongo
+        svc --> app
+    end
+
+    gha --> k8s
+    user["http://localhost:8080"] -->|"minikube tunnel"| svc
 ```
 
 ### Clean Architecture — camadas
