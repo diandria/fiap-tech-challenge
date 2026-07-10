@@ -258,7 +258,7 @@ O script [`scripts/load-test.js`](scripts/load-test.js) gera carga sustentada (1
 Em um terminal, acompanhe o HPA e as réplicas:
 
 ```bash
-kubectl get hpa,pods -n oficina -w
+watch kubectl get hpa,pods -n oficina
 ```
 
 Em outro, dispare a carga:
