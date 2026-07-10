@@ -90,3 +90,5 @@ Kubernetes (com `minikube tunnel` ativo):
 npx newman run postman/car-repair-shop.postman_collection.json \
   -e postman/car-repair-shop-k8s.postman_environment.json
 ```
+
+>> Alteração para demonstração
