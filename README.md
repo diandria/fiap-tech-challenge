@@ -38,14 +38,22 @@ A Fase 2 evoluiu a aplicação da Fase 1 com foco em qualidade, resiliência e e
 
 ## Arquitetura
 
+O desenho da arquitetura está dividido em três visões complementares:
+
+| Visão | Documento | Conteúdo |
+|---|---|---|
+| **Componentes da aplicação** | [Diagramas C4](docs/architecture/c4.md) | Context, Container e Component — visão em três níveis |
+| **Infraestrutura provisionada** | [Desenho de solução](docs/infrastructure/solution-design.md) | Cluster Minikube, recursos K8s (Deployment, HPA, StatefulSet, Services…) e fluxo do tráfego |
+| **Fluxo de deploy** | [Fluxo de deploy](docs/infrastructure/deploy-flow.md) | Diagrama CI/CD, manifests K8s e recursos Terraform |
+
+Documentação complementar:
+
 | Documento | Conteúdo |
 |---|---|
-| [Diagramas C4](docs/architecture/c4.md) | Context, Container e Component — visão em três níveis |
 | [Catálogo de componentes](docs/architecture/components.md) | Inventário de todas as classes por camada Clean Architecture |
 | [Regras de negócio](docs/architecture/business-rules.md) | Máquina de estados da OS, cálculo de orçamento, gestão de estoque |
 | [DAS](docs/architecture/DAS.md) | Documento de Arquitetura de Software completo |
 | [Linguagem ubíqua](docs/architecture/ddd/ubiquitous-language.md) | Glossário de domínio |
-| [Fluxo de deploy](docs/infrastructure/deploy-flow.md) | Diagrama CI/CD, manifests K8s e recursos Terraform |
 
 ### Visão geral da arquitetura
 

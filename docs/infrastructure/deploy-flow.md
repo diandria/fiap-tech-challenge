@@ -4,30 +4,35 @@
 
 All deployments are gated by the CI pipeline. CD listens for CI completion via `workflow_run`; it only runs when CI succeeds on `main`.
 
+```mermaid
+flowchart TB
+    push(["Push to main"]) --> ci
+
+    subgraph ci["CI Workflow — .github/workflows/ci.yml (ubuntu-latest)"]
+        build["build\nnpm ci + npm run build"]
+        lint["lint\nnpm run lint"]
+        test["test\nnpm test"]
+        coverage["coverage\nnpm run test:coverage\n(artefato, 3 dias)"]
+        build --> lint
+        build --> test
+        test --> coverage
+    end
+
+    ci -->|"workflow_run: completed\nconclusion: success"| cd
+
+    subgraph cd["CD Workflow — .github/workflows/cd.yml (self-hosted / Minikube host)"]
+        checkout["1. Checkout no SHA exato\ntestado pelo CI"]
+        docker["2. docker build\n→ daemon do Minikube"]
+        patch["3. Patch da tag de imagem\nem k8s/app-deployment.yaml"]
+        tf["4. terraform init + apply\n(secrets via GitHub Secrets)"]
+        rollout["5. kubectl rollout status\nmongo (180s) + app (120s)"]
+        checkout --> docker --> patch --> tf --> rollout
+    end
+
+    cd --> cluster["Cluster Minikube\nnamespace: oficina"]
 ```
-Push to main
-    │
-    ▼
-┌─────────────────────────────────────────────────┐
-│ CI Workflow (.github/workflows/ci.yml)          │
-│                                                 │
-│  build ──► lint                                 │
-│         └► test ──► coverage (artefato)         │
-└────────────────────────┬────────────────────────┘
-                         │ workflow_run: completed
-                         │ conclusion: success
-                         ▼
-┌─────────────────────────────────────────────────┐
-│ CD Workflow (.github/workflows/cd.yml)          │
-│ runs-on: self-hosted (Minikube host)            │
-│                                                 │
-│  1. Checkout pinned SHA                         │
-│  2. docker build → Minikube Docker daemon       │
-│  3. Patch image tag in k8s/app-deployment.yaml  │
-│  4. terraform init && terraform apply           │
-│  5. kubectl rollout status (mongo + app)        │
-└─────────────────────────────────────────────────┘
-```
+
+> A visão da infraestrutura provisionada (recursos do cluster) está em [solution-design.md](solution-design.md).
 
 ### CI jobs
 
