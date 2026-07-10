@@ -260,6 +260,32 @@ kubectl port-forward svc/mongo-service 27017:27017 -n oficina &
 MONGODB_URI=mongodb://root:<senha>@localhost:27017/car-repair-shop?authSource=admin npm run seed:dev
 ```
 
+### Demonstrar o HPA (teste de carga com k6)
+
+O script [`scripts/load-test.js`](scripts/load-test.js) gera carga sustentada (100 VUs por ~4 min) contra a API para forçar o autoscaling. Requer o [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) instalado e o `minikube tunnel` ativo.
+
+Em um terminal, acompanhe o HPA e as réplicas:
+
+```bash
+kubectl get hpa,pods -n oficina -w
+```
+
+Em outro, dispare a carga:
+
+```bash
+k6 run scripts/load-test.js
+```
+
+Com CPU acima de 70% do request, o HPA escala o deployment de 2 até 10 réplicas; ao fim da carga, as réplicas voltam ao mínimo após a janela de estabilização (~5 min). Variáveis opcionais:
+
+```bash
+# API em outro endereço (ex.: docker-compose)
+k6 run -e BASE_URL=http://localhost:3000 scripts/load-test.js
+
+# Incluir leitura pública de uma OS real no mix de carga
+k6 run -e OS_ID=<id-da-os> scripts/load-test.js
+```
+
 ### Manifests Kubernetes (`/k8s/`)
 
 | Arquivo | Kind | O que faz |
