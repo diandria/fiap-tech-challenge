@@ -5,6 +5,8 @@
 
 REST API para gerenciar ordens de serviço de uma oficina mecânica — FIAP Tech Challenge Fase 2.
 
+**Vídeo demonstrativo:** [assistir](https://drive.google.com/file/d/12GHq4ZRI1nZ-8uK1CyrCQ5obYXaEJFox/view?usp=sharing)
+
 ---
 
 ## Sumário
