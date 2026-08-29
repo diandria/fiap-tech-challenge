@@ -25,13 +25,13 @@ services:
       - "3000:3000"
     environment:
       PORT: "3000"
-      MONGODB_URI: "mongodb://admin:secret@mongo:27017/car-repair-shop?authSource=admin"
       JWT_SECRET: "dev-secret-change-in-prod"
       ADMIN_EMAIL: "admin@master.com"
       ADMIN_PASSWORD: "admin123"
       CORS_ORIGIN: "http://localhost:3000"
+      DATABASE_URL: "postgresql://oficina:oficina@postgres:5432/car_repair_shop?schema=public"
     depends_on:
-      mongo:
+      postgres:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -41,22 +41,6 @@ services:
       start_period: 15s
       retries: 3
 
-  mongo:
-    image: mongo:7
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: "admin"
-      MONGO_INITDB_ROOT_PASSWORD: "secret"
-    volumes:
-      - mongo_data:/data/db
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      start_period: 20s
-      retries: 5
 
   sonar-db:
     image: postgres:15
@@ -92,7 +76,6 @@ services:
 
 volumes:
   postgres-data:
-  mongo_data:
   sonar_db_data:
   sonar_data:
   sonar_extensions:

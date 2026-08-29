@@ -74,7 +74,7 @@ src/
 ├── use-cases/         ← Layer 2: regras de aplicação + ports/interfaces
 │   └── ports/         ← abstrações (IServiceOrderRepository, IStatusChangeNotifier…)
 ├── adapters/          ← Layer 3: controllers, gateways, presenters
-└── frameworks/        ← Layer 4: Express, Mongoose, rotas, main.ts
+└── frameworks/        ← Layer 4: Express, Prisma, rotas, main.ts
 ```
 
 ---
@@ -85,10 +85,10 @@ src/
 |---|---|
 | Runtime | Node.js 20 + TypeScript |
 | HTTP | Express |
-| Banco | MongoDB + Mongoose |
+| Banco | PostgreSQL 16 + Prisma |
 | Auth | JWT (jsonwebtoken) + bcryptjs |
 | Docs API | swagger-ui-express + swagger-jsdoc |
-| Testes | Jest + ts-jest + Supertest + mongodb-memory-server |
+| Testes | Jest + ts-jest + Supertest + Testcontainers |
 | Container | Docker + docker-compose |
 | Orquestração | Kubernetes (Minikube) |
 | IaC | Terraform (`gavinbunney/kubectl` provider) |
@@ -130,7 +130,13 @@ npm install
 docker-compose up -d
 ```
 
-Sobe `app` (porta 3000) e `mongo` (porta 27017).
+Sobe `app` (porta 3000) e `postgres` (porta 5432).
+
+Na primeira execução, aplique as migrations:
+
+```bash
+npm run db:migrate
+```
 
 ### 3. Popular o banco (opcional)
 
