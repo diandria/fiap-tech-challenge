@@ -1,3 +1,4 @@
+import { isUuid } from './uuid';
 import { PrismaClient } from '@prisma/client';
 import { IVehicleRepository } from '../../use-cases/ports/IVehicleRepository';
 import { Vehicle } from '../../entities/Vehicle';
@@ -33,6 +34,7 @@ export class PostgresVehicleRepository implements IVehicleRepository {
   }
 
   async findById(id: string): Promise<Vehicle | null> {
+    if (!isUuid(id)) return null;
     const row = await this.prisma.vehicle.findUnique({ where: { id } });
     return row ? this.toEntity(row as VehicleRow) : null;
   }
@@ -48,6 +50,7 @@ export class PostgresVehicleRepository implements IVehicleRepository {
   }
 
   async update(id: string, data: Partial<Omit<Vehicle, 'id'>>): Promise<Vehicle | null> {
+    if (!isUuid(id)) return null;
     const existing = await this.prisma.vehicle.findUnique({ where: { id } });
     if (!existing) return null;
 
@@ -56,6 +59,7 @@ export class PostgresVehicleRepository implements IVehicleRepository {
   }
 
   async delete(id: string): Promise<boolean> {
+    if (!isUuid(id)) return false;
     const existing = await this.prisma.vehicle.findUnique({ where: { id } });
     if (!existing) return false;
 

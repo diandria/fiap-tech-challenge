@@ -1,14 +1,15 @@
-import { MongoMemoryServer } from 'mongodb-memory-server';
-import mongoose from 'mongoose';
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { execSync } from 'node:child_process';
+import { PrismaClient } from '@prisma/client';
 import { Application } from 'express';
 import { createApp } from '../../src/app';
 
-import { MongoCustomerRepository } from '../../src/adapters/gateways/MongoCustomerRepository';
-import { MongoVehicleRepository } from '../../src/adapters/gateways/MongoVehicleRepository';
-import { MongoServiceRepository } from '../../src/adapters/gateways/MongoServiceRepository';
-import { MongoItemRepository } from '../../src/adapters/gateways/MongoItemRepository';
-import { MongoServiceOrderRepository } from '../../src/adapters/gateways/MongoServiceOrderRepository';
-import { MongoUserRepository } from '../../src/adapters/gateways/MongoUserRepository';
+import { PostgresCustomerRepository } from '../../src/adapters/gateways/PostgresCustomerRepository';
+import { PostgresVehicleRepository } from '../../src/adapters/gateways/PostgresVehicleRepository';
+import { PostgresServiceRepository } from '../../src/adapters/gateways/PostgresServiceRepository';
+import { PostgresItemRepository } from '../../src/adapters/gateways/PostgresItemRepository';
+import { PostgresServiceOrderRepository } from '../../src/adapters/gateways/PostgresServiceOrderRepository';
+import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { ConsoleNotificationService } from '../../src/adapters/services/ConsoleNotificationService';
 
 import { LoginUseCase } from '../../src/use-cases/auth/LoginUseCase';
@@ -70,32 +71,43 @@ import { serviceRoutes } from '../../src/frameworks/http/routes/serviceRoutes';
 import { itemRoutes } from '../../src/frameworks/http/routes/itemRoutes';
 import { serviceOrderRoutes } from '../../src/frameworks/http/routes/serviceOrderRoutes';
 
-let mongoServer: MongoMemoryServer;
+let container: StartedPostgreSqlContainer;
+export let prisma: PrismaClient;
 
 export async function connectTestDB(): Promise<void> {
-  mongoServer = await MongoMemoryServer.create();
-  await mongoose.connect(mongoServer.getUri());
+  container = await new PostgreSqlContainer('postgres:16-alpine').start();
+  process.env.DATABASE_URL = container.getConnectionUri();
+
+  execSync('npx prisma migrate deploy', {
+    env: { ...process.env, DATABASE_URL: container.getConnectionUri() },
+    stdio: 'pipe',
+  });
+
+  prisma = new PrismaClient({ datasources: { db: { url: container.getConnectionUri() } } });
+  await prisma.$connect();
 }
 
 export async function disconnectTestDB(): Promise<void> {
-  await mongoose.disconnect();
-  await mongoServer.stop();
+  await prisma?.$disconnect();
+  await container?.stop();
 }
 
 export async function clearTestDB(): Promise<void> {
-  const collections = mongoose.connection.collections;
-  for (const key in collections) {
-    await collections[key].deleteMany({});
-  }
+  // CASCADE respeita as chaves estrangeiras; sem ele o TRUNCATE falha por dependencia.
+  await prisma.$executeRawUnsafe(`
+    TRUNCATE TABLE service_order_items, service_order_services, service_orders,
+                   vehicles, customers, items, services, users
+    RESTART IDENTITY CASCADE
+  `);
 }
 
 export function createTestApp(): Application {
-  const customerRepo = new MongoCustomerRepository();
-  const vehicleRepo = new MongoVehicleRepository();
-  const serviceRepo = new MongoServiceRepository();
-  const itemRepo = new MongoItemRepository();
-  const osRepo = new MongoServiceOrderRepository();
-  const userRepo = new MongoUserRepository();
+  const customerRepo = new PostgresCustomerRepository(prisma);
+  const vehicleRepo = new PostgresVehicleRepository(prisma);
+  const serviceRepo = new PostgresServiceRepository(prisma);
+  const itemRepo = new PostgresItemRepository(prisma);
+  const osRepo = new PostgresServiceOrderRepository(prisma);
+  const userRepo = new PostgresUserRepository(prisma);
   const notifier = new ConsoleNotificationService();
 
   const authController = new AuthController(new LoginUseCase(userRepo), new RegisterUseCase(userRepo));

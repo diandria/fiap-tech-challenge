@@ -14,7 +14,7 @@ function makePrisma() {
 }
 
 const row = {
-  id: 'i1',
+  id: '66666666-6666-4666-8666-666666666666',
   name: 'Filtro de oleo',
   price: new Prisma.Decimal('50.00'),
   stockQuantity: 10,
@@ -26,10 +26,10 @@ describe('PostgresItemRepository', () => {
     const prisma = makePrisma();
     prisma.item.findUnique.mockResolvedValue(row);
 
-    const item = await new PostgresItemRepository(prisma).findById('i1');
+    const item = await new PostgresItemRepository(prisma).findById('66666666-6666-4666-8666-666666666666');
 
     expect(item).toEqual({
-      id: 'i1',
+      id: '66666666-6666-4666-8666-666666666666',
       name: 'Filtro de oleo',
       price: 50,
       stockQuantity: 10,
@@ -41,7 +41,7 @@ describe('PostgresItemRepository', () => {
     const prisma = makePrisma();
     prisma.item.findUnique.mockResolvedValue(null);
 
-    expect(await new PostgresItemRepository(prisma).findById('nope')).toBeNull();
+    expect(await new PostgresItemRepository(prisma).findById('99999999-9999-4999-8999-999999999999')).toBeNull();
   });
 
   it('should persist the absolute reserved quantity GIVEN an update WHEN called by a use case', async () => {
@@ -49,10 +49,10 @@ describe('PostgresItemRepository', () => {
     prisma.item.findUnique.mockResolvedValue(row);
     prisma.item.update.mockResolvedValue({ ...row, reservedQuantity: 5 });
 
-    await new PostgresItemRepository(prisma).update('i1', { reservedQuantity: 5 });
+    await new PostgresItemRepository(prisma).update('66666666-6666-4666-8666-666666666666', { reservedQuantity: 5 });
 
     expect(prisma.item.update).toHaveBeenCalledWith({
-      where: { id: 'i1' },
+      where: { id: '66666666-6666-4666-8666-666666666666' },
       data: { reservedQuantity: 5 },
     });
   });
@@ -61,7 +61,7 @@ describe('PostgresItemRepository', () => {
     const prisma = makePrisma();
     prisma.item.findUnique.mockResolvedValue(null);
 
-    expect(await new PostgresItemRepository(prisma).update('nope', { reservedQuantity: 1 })).toBeNull();
+    expect(await new PostgresItemRepository(prisma).update('99999999-9999-4999-8999-999999999999', { reservedQuantity: 1 })).toBeNull();
     expect(prisma.item.update).not.toHaveBeenCalled();
   });
 
@@ -69,7 +69,7 @@ describe('PostgresItemRepository', () => {
     const prisma = makePrisma();
     prisma.item.findUnique.mockResolvedValue(null);
 
-    expect(await new PostgresItemRepository(prisma).delete('nope')).toBe(false);
+    expect(await new PostgresItemRepository(prisma).delete('99999999-9999-4999-8999-999999999999')).toBe(false);
     expect(prisma.item.delete).not.toHaveBeenCalled();
   });
 });

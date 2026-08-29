@@ -1,3 +1,4 @@
+import { isUuid } from './uuid';
 import { PrismaClient } from '@prisma/client';
 import { ICustomerRepository } from '../../use-cases/ports/ICustomerRepository';
 import { Customer, TaxType } from '../../entities/Customer';
@@ -39,6 +40,7 @@ export class PostgresCustomerRepository implements ICustomerRepository {
   }
 
   async findById(id: string): Promise<Customer | null> {
+    if (!isUuid(id)) return null;
     const row = await this.prisma.customer.findFirst({ where: { id, ...active } });
     return row ? this.toEntity(row as CustomerRow) : null;
   }
@@ -57,6 +59,7 @@ export class PostgresCustomerRepository implements ICustomerRepository {
     id: string,
     data: Partial<Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>>,
   ): Promise<Customer | null> {
+    if (!isUuid(id)) return null;
     const existing = await this.prisma.customer.findFirst({ where: { id, ...active } });
     if (!existing) return null;
 
@@ -65,6 +68,7 @@ export class PostgresCustomerRepository implements ICustomerRepository {
   }
 
   async softDelete(id: string): Promise<boolean> {
+    if (!isUuid(id)) return false;
     const existing = await this.prisma.customer.findFirst({ where: { id, ...active } });
     if (!existing) return false;
 

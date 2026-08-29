@@ -14,7 +14,7 @@ function makePrisma() {
 }
 
 const row = {
-  id: 's1',
+  id: '44444444-4444-4444-8444-444444444444',
   name: 'Troca de oleo',
   price: new Prisma.Decimal('149.90'),
   estimatedMinutes: 30,
@@ -25,7 +25,7 @@ describe('PostgresServiceRepository', () => {
     const prisma = makePrisma();
     prisma.service.findUnique.mockResolvedValue(row);
 
-    const service = await new PostgresServiceRepository(prisma).findById('s1');
+    const service = await new PostgresServiceRepository(prisma).findById('44444444-4444-4444-8444-444444444444');
 
     expect(service?.price).toBe(149.9);
     expect(typeof service?.price).toBe('number');
@@ -38,7 +38,7 @@ describe('PostgresServiceRepository', () => {
     const services = await new PostgresServiceRepository(prisma).findAll();
 
     expect(services[0]).toEqual({
-      id: 's1',
+      id: '44444444-4444-4444-8444-444444444444',
       name: 'Troca de oleo',
       price: 149.9,
       estimatedMinutes: 30,
@@ -49,14 +49,14 @@ describe('PostgresServiceRepository', () => {
     const prisma = makePrisma();
     prisma.service.findUnique.mockResolvedValue(null);
 
-    expect(await new PostgresServiceRepository(prisma).findById('nope')).toBeNull();
+    expect(await new PostgresServiceRepository(prisma).findById('99999999-9999-4999-8999-999999999999')).toBeNull();
   });
 
   it('should return null GIVEN a missing service WHEN update is called', async () => {
     const prisma = makePrisma();
     prisma.service.findUnique.mockResolvedValue(null);
 
-    expect(await new PostgresServiceRepository(prisma).update('nope', { price: 1 })).toBeNull();
+    expect(await new PostgresServiceRepository(prisma).update('99999999-9999-4999-8999-999999999999', { price: 1 })).toBeNull();
     expect(prisma.service.update).not.toHaveBeenCalled();
   });
 
@@ -64,7 +64,7 @@ describe('PostgresServiceRepository', () => {
     const prisma = makePrisma();
     prisma.service.findUnique.mockResolvedValue(null);
 
-    expect(await new PostgresServiceRepository(prisma).delete('nope')).toBe(false);
+    expect(await new PostgresServiceRepository(prisma).delete('99999999-9999-4999-8999-999999999999')).toBe(false);
     expect(prisma.service.delete).not.toHaveBeenCalled();
   });
 });

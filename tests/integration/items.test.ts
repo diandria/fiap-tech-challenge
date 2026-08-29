@@ -1,10 +1,10 @@
 import request from 'supertest';
 import { Application } from 'express';
 
-import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp } from '../helpers/testSetup';
-import { MongoUserRepository } from '../../src/adapters/gateways/MongoUserRepository';
+import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } from '../helpers/testSetup';
+import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
-import { MongoItemRepository } from '../../src/adapters/gateways/MongoItemRepository';
+import { PostgresItemRepository } from '../../src/adapters/gateways/PostgresItemRepository';
 
 let app: Application;
 let adminToken: string;
@@ -14,7 +14,7 @@ let attendantToken: string;
 const validItem = { name: 'Oil Filter', price: 25, stockQuantity: 10 };
 
 async function seedAdmin(): Promise<void> {
-  const repo = new MongoUserRepository();
+  const repo = new PostgresUserRepository(prisma);
   const register = new RegisterUseCase(repo);
   await register.execute({ email: 'admin@test.com', password: 'adminpass', role: 'admin' });
   await register.execute({ email: 'mechanic@test.com', password: 'mechpass', role: 'mechanic' });
@@ -78,7 +78,7 @@ describe('DELETE /items/:id', () => {
 
   it('GIVEN an item with active reservations WHEN DELETE /items/:id THEN returns 400 with reserved message', async () => {
     const created = await request(app).post('/items').set('Authorization', `Bearer ${adminToken}`).send(validItem);
-    const itemRepo = new MongoItemRepository();
+    const itemRepo = new PostgresItemRepository(prisma);
     await itemRepo.update(created.body.id, { reservedQuantity: 3 });
 
     const res = await request(app)

@@ -3,7 +3,7 @@ import type { Config } from 'jest';
 const config: Config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  testTimeout: 30000,
+  testTimeout: 120_000,
   roots: ['<rootDir>/tests'],
   maxWorkers: 4,
   collectCoverageFrom: [

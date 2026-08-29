@@ -12,14 +12,14 @@ function makePrisma() {
   } as any;
 }
 
-const row = { id: 'v1', customerId: 'c1', plate: 'ABC1D23', brand: 'Fiat', model: 'Uno', year: 2020 };
+const row = { id: '33333333-3333-4333-8333-333333333333', customerId: '11111111-1111-4111-8111-111111111111', plate: 'ABC1D23', brand: 'Fiat', model: 'Uno', year: 2020 };
 
 describe('PostgresVehicleRepository', () => {
   it('should map a row to a Vehicle entity GIVEN an existing row WHEN findById is called', async () => {
     const prisma = makePrisma();
     prisma.vehicle.findUnique.mockResolvedValue(row);
 
-    const vehicle = await new PostgresVehicleRepository(prisma).findById('v1');
+    const vehicle = await new PostgresVehicleRepository(prisma).findById('33333333-3333-4333-8333-333333333333');
 
     expect(vehicle).toEqual(row);
   });
@@ -28,16 +28,16 @@ describe('PostgresVehicleRepository', () => {
     const prisma = makePrisma();
     prisma.vehicle.findUnique.mockResolvedValue(null);
 
-    expect(await new PostgresVehicleRepository(prisma).findById('nope')).toBeNull();
+    expect(await new PostgresVehicleRepository(prisma).findById('99999999-9999-4999-8999-999999999999')).toBeNull();
   });
 
   it('should filter by customer GIVEN a customerId WHEN findAll is called', async () => {
     const prisma = makePrisma();
     prisma.vehicle.findMany.mockResolvedValue([row]);
 
-    await new PostgresVehicleRepository(prisma).findAll('c1');
+    await new PostgresVehicleRepository(prisma).findAll('11111111-1111-4111-8111-111111111111');
 
-    expect(prisma.vehicle.findMany).toHaveBeenCalledWith({ where: { customerId: 'c1' } });
+    expect(prisma.vehicle.findMany).toHaveBeenCalledWith({ where: { customerId: '11111111-1111-4111-8111-111111111111' } });
   });
 
   it('should list every vehicle GIVEN no customerId WHEN findAll is called', async () => {
@@ -63,7 +63,7 @@ describe('PostgresVehicleRepository', () => {
     const prisma = makePrisma();
     prisma.vehicle.findUnique.mockResolvedValue(null);
 
-    expect(await new PostgresVehicleRepository(prisma).update('nope', { brand: 'x' })).toBeNull();
+    expect(await new PostgresVehicleRepository(prisma).update('99999999-9999-4999-8999-999999999999', { brand: 'x' })).toBeNull();
     expect(prisma.vehicle.update).not.toHaveBeenCalled();
   });
 
@@ -71,7 +71,7 @@ describe('PostgresVehicleRepository', () => {
     const prisma = makePrisma();
     prisma.vehicle.findUnique.mockResolvedValue(null);
 
-    expect(await new PostgresVehicleRepository(prisma).delete('nope')).toBe(false);
+    expect(await new PostgresVehicleRepository(prisma).delete('99999999-9999-4999-8999-999999999999')).toBe(false);
     expect(prisma.vehicle.delete).not.toHaveBeenCalled();
   });
 });

@@ -1,8 +1,8 @@
 import request from 'supertest';
 import { Application } from 'express';
 
-import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp } from '../helpers/testSetup';
-import { MongoUserRepository } from '../../src/adapters/gateways/MongoUserRepository';
+import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } from '../helpers/testSetup';
+import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
 
 let app: Application;
@@ -13,7 +13,7 @@ let attendantToken: string;
 const validService = { name: 'Oil Change', price: 80, estimatedMinutes: 30 };
 
 async function seedTokens(): Promise<void> {
-  const repo = new MongoUserRepository();
+  const repo = new PostgresUserRepository(prisma);
   const register = new RegisterUseCase(repo);
   await register.execute({ email: 'admin@test.com', password: 'adminpass', role: 'admin' });
   await register.execute({ email: 'mechanic@test.com', password: 'mechpass', role: 'mechanic' });
@@ -126,12 +126,12 @@ describe('Role Authorization — /services', () => {
   });
 
   it('GIVEN no Authorization header WHEN PUT /services/:id THEN returns 401', async () => {
-    const res = await request(app).put('/services/000000000000000000000000').send({ price: 99 });
+    const res = await request(app).put('/services/00000000-0000-0000-0000-000000000000').send({ price: 99 });
     expect(res.status).toBe(401);
   });
 
   it('GIVEN no Authorization header WHEN DELETE /services/:id THEN returns 401', async () => {
-    const res = await request(app).delete('/services/000000000000000000000000');
+    const res = await request(app).delete('/services/00000000-0000-0000-0000-000000000000');
     expect(res.status).toBe(401);
   });
 });

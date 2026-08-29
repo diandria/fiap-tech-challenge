@@ -4,7 +4,7 @@ function makePrisma() {
   return { user: { findUnique: jest.fn(), create: jest.fn() } } as any;
 }
 
-const row = { id: 'u1', email: 'admin@master.com', passwordHash: 'hash', role: 'admin' };
+const row = { id: '77777777-7777-4777-8777-777777777777', email: 'admin@master.com', passwordHash: 'hash', role: 'admin' };
 
 describe('PostgresUserRepository', () => {
   it('should map a row to a User entity GIVEN an existing row WHEN findByEmail is called', async () => {
@@ -27,7 +27,7 @@ describe('PostgresUserRepository', () => {
     const prisma = makePrisma();
     prisma.user.findUnique.mockResolvedValue(null);
 
-    expect(await new PostgresUserRepository(prisma).findById('nope')).toBeNull();
+    expect(await new PostgresUserRepository(prisma).findById('99999999-9999-4999-8999-999999999999')).toBeNull();
   });
 
   it('should persist the role GIVEN user data WHEN create is called', async () => {
