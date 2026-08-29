@@ -1,3 +1,4 @@
+import { isUuid } from './uuid';
 import { PrismaClient } from '@prisma/client';
 import { IUserRepository, CreateUserData } from '../../use-cases/ports/IUserRepository';
 import { User, UserRole } from '../../entities/User';
@@ -22,6 +23,7 @@ export class PostgresUserRepository implements IUserRepository {
   }
 
   async findById(id: string): Promise<User | null> {
+    if (!isUuid(id)) return null;
     const row = await this.prisma.user.findUnique({ where: { id } });
     return row ? this.toEntity(row as UserRow) : null;
   }

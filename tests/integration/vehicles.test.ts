@@ -1,8 +1,8 @@
 import request from 'supertest';
 import { Application } from 'express';
 
-import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp } from '../helpers/testSetup';
-import { MongoUserRepository } from '../../src/adapters/gateways/MongoUserRepository';
+import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } from '../helpers/testSetup';
+import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
 
 let app: Application;
@@ -10,16 +10,34 @@ let adminToken: string;
 let attendantToken: string;
 let mechanicToken: string;
 
-const validVehicle = {
-  customerId: 'c-placeholder',
+// O identificador do cliente e resolvido antes de cada teste: com integridade
+// referencial no banco, um valor inventado seria recusado pela chave estrangeira.
+let customerId: string;
+
+const baseVehicle = {
   plate: 'ABC-1234',
   brand: 'Toyota',
   model: 'Corolla',
   year: 2020,
 };
 
+const validVehicle = (): Record<string, unknown> => ({ ...baseVehicle, customerId });
+
+async function seedCustomer(): Promise<void> {
+  const created = await prisma.customer.create({
+    data: {
+      name: 'Cliente de teste',
+      taxId: '12345678909',
+      taxType: 'CPF',
+      email: 'cliente@test.com',
+      phone: '11999999999',
+    },
+  });
+  customerId = created.id;
+}
+
 async function seedAdmin(): Promise<void> {
-  const repo = new MongoUserRepository();
+  const repo = new PostgresUserRepository(prisma);
   const register = new RegisterUseCase(repo);
   await register.execute({ email: 'admin@test.com', password: 'adminpass', role: 'admin' });
   await register.execute({ email: 'attendant@test.com', password: 'attpass', role: 'attendant' });
@@ -44,13 +62,15 @@ beforeAll(async () => {
 
 afterAll(async () => { await disconnectTestDB(); });
 afterEach(async () => { await clearTestDB(); });
+// Recriado a cada teste porque o clear apaga tambem o cliente.
+beforeEach(async () => { await seedCustomer(); });
 
 describe('POST /vehicles', () => {
   it('GIVEN a valid old-format plate WHEN POST /vehicles as admin THEN returns 201', async () => {
     const res = await request(app)
       .post('/vehicles')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send(validVehicle);
+      .send(validVehicle());
     expect(res.status).toBe(201);
     expect(res.body.plate).toBe('ABC-1234');
   });
@@ -59,7 +79,7 @@ describe('POST /vehicles', () => {
     const res = await request(app)
       .post('/vehicles')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ ...validVehicle, plate: 'ABC1D23' });
+      .send({ ...validVehicle(), plate: 'ABC1D23' });
     expect(res.status).toBe(201);
   });
 
@@ -67,38 +87,48 @@ describe('POST /vehicles', () => {
     const res = await request(app)
       .post('/vehicles')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ ...validVehicle, plate: 'INVALID' });
+      .send({ ...validVehicle(), plate: 'INVALID' });
     expect(res.status).toBe(400);
   });
 
   it('GIVEN an existing vehicle WHEN POST /vehicles with the same plate THEN returns 409', async () => {
-    await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send(validVehicle);
-    const res = await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send(validVehicle);
+    await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send(validVehicle());
+    const res = await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send(validVehicle());
     expect(res.status).toBe(409);
   });
 });
 
 describe('GET /vehicles', () => {
   it('GIVEN one registered vehicle WHEN GET /vehicles THEN returns array with one item', async () => {
-    await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send(validVehicle);
+    await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send(validVehicle());
     const res = await request(app).get('/vehicles').set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(res.body.length).toBe(1);
   });
 
-  it('GIVEN vehicles for two different customers WHEN GET /vehicles?customerId=c-1 THEN returns only vehicles for c-1', async () => {
-    await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send({ ...validVehicle, customerId: 'c-1' });
-    await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send({ ...validVehicle, plate: 'XYZ9W87', customerId: 'c-2' });
-    const res = await request(app).get('/vehicles?customerId=c-1').set('Authorization', `Bearer ${adminToken}`);
+  it('GIVEN vehicles for two different customers WHEN GET /vehicles filtered by customer THEN returns only that customer vehicles', async () => {
+    const other = await prisma.customer.create({
+      data: {
+        name: 'Outro cliente',
+        taxId: '98765432100',
+        taxType: 'CPF',
+        email: 'outro@test.com',
+        phone: '11888888888',
+      },
+    });
+
+    await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send({ ...validVehicle(), customerId });
+    await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send({ ...validVehicle(), plate: 'XYZ9W87', customerId: other.id });
+    const res = await request(app).get(`/vehicles?customerId=${customerId}`).set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(res.body.length).toBe(1);
-    expect(res.body[0].customerId).toBe('c-1');
+    expect(res.body[0].customerId).toBe(customerId);
   });
 });
 
 describe('DELETE /vehicles/:id', () => {
   it('GIVEN an existing vehicle WHEN DELETE /vehicles/:id THEN returns 204', async () => {
-    const created = await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send(validVehicle);
+    const created = await request(app).post('/vehicles').set('Authorization', `Bearer ${adminToken}`).send(validVehicle());
     const del = await request(app).delete(`/vehicles/${created.body.id}`).set('Authorization', `Bearer ${adminToken}`);
     expect(del.status).toBe(204);
   });
@@ -106,7 +136,7 @@ describe('DELETE /vehicles/:id', () => {
 
 describe('Role Authorization — /vehicles', () => {
   it('GIVEN an attendant token WHEN POST /vehicles THEN returns 201', async () => {
-    const res = await request(app).post('/vehicles').set('Authorization', `Bearer ${attendantToken}`).send(validVehicle);
+    const res = await request(app).post('/vehicles').set('Authorization', `Bearer ${attendantToken}`).send(validVehicle());
     expect(res.status).toBe(201);
   });
 
@@ -121,7 +151,7 @@ describe('Role Authorization — /vehicles', () => {
   });
 
   it('GIVEN a mechanic token WHEN POST /vehicles THEN returns 403', async () => {
-    const res = await request(app).post('/vehicles').set('Authorization', `Bearer ${mechanicToken}`).send(validVehicle);
+    const res = await request(app).post('/vehicles').set('Authorization', `Bearer ${mechanicToken}`).send(validVehicle());
     expect(res.status).toBe(403);
   });
 
@@ -131,7 +161,7 @@ describe('Role Authorization — /vehicles', () => {
   });
 
   it('GIVEN no Authorization header WHEN POST /vehicles THEN returns 401', async () => {
-    const res = await request(app).post('/vehicles').send(validVehicle);
+    const res = await request(app).post('/vehicles').send(validVehicle());
     expect(res.status).toBe(401);
   });
 });

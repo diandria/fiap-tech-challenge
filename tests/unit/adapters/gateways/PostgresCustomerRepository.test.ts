@@ -12,7 +12,7 @@ function makePrisma() {
 }
 
 const row = {
-  id: 'c1',
+  id: '11111111-1111-4111-8111-111111111111',
   name: 'Ana',
   taxId: '12345678909',
   taxType: 'CPF',
@@ -28,10 +28,10 @@ describe('PostgresCustomerRepository', () => {
     const prisma = makePrisma();
     prisma.customer.findFirst.mockResolvedValue(row);
 
-    const customer = await new PostgresCustomerRepository(prisma).findById('c1');
+    const customer = await new PostgresCustomerRepository(prisma).findById('11111111-1111-4111-8111-111111111111');
 
     expect(customer).toEqual({
-      id: 'c1',
+      id: '11111111-1111-4111-8111-111111111111',
       name: 'Ana',
       taxId: '12345678909',
       taxType: 'CPF',
@@ -46,7 +46,7 @@ describe('PostgresCustomerRepository', () => {
     const prisma = makePrisma();
     prisma.customer.findFirst.mockResolvedValue(row);
 
-    const customer = await new PostgresCustomerRepository(prisma).findById('c1');
+    const customer = await new PostgresCustomerRepository(prisma).findById('11111111-1111-4111-8111-111111111111');
 
     expect(customer).not.toHaveProperty('deletedAt');
   });
@@ -55,10 +55,10 @@ describe('PostgresCustomerRepository', () => {
     const prisma = makePrisma();
     prisma.customer.findFirst.mockResolvedValue(null);
 
-    await new PostgresCustomerRepository(prisma).findById('c1');
+    await new PostgresCustomerRepository(prisma).findById('11111111-1111-4111-8111-111111111111');
 
     expect(prisma.customer.findFirst).toHaveBeenCalledWith({
-      where: { id: 'c1', deletedAt: null },
+      where: { id: '11111111-1111-4111-8111-111111111111', deletedAt: null },
     });
   });
 
@@ -85,7 +85,7 @@ describe('PostgresCustomerRepository', () => {
     const prisma = makePrisma();
     prisma.customer.findFirst.mockResolvedValue(null);
 
-    const result = await new PostgresCustomerRepository(prisma).update('nope', { name: 'x' });
+    const result = await new PostgresCustomerRepository(prisma).update('99999999-9999-4999-8999-999999999999', { name: 'x' });
 
     expect(result).toBeNull();
     expect(prisma.customer.update).not.toHaveBeenCalled();
@@ -96,11 +96,11 @@ describe('PostgresCustomerRepository', () => {
     prisma.customer.findFirst.mockResolvedValue(row);
     prisma.customer.update.mockResolvedValue({ ...row, deletedAt: new Date() });
 
-    const ok = await new PostgresCustomerRepository(prisma).softDelete('c1');
+    const ok = await new PostgresCustomerRepository(prisma).softDelete('11111111-1111-4111-8111-111111111111');
 
     expect(ok).toBe(true);
     expect(prisma.customer.update).toHaveBeenCalledWith({
-      where: { id: 'c1' },
+      where: { id: '11111111-1111-4111-8111-111111111111' },
       data: { deletedAt: expect.any(Date) },
     });
   });
@@ -109,6 +109,24 @@ describe('PostgresCustomerRepository', () => {
     const prisma = makePrisma();
     prisma.customer.findFirst.mockResolvedValue(null);
 
-    expect(await new PostgresCustomerRepository(prisma).softDelete('nope')).toBe(false);
+    expect(await new PostgresCustomerRepository(prisma).softDelete('99999999-9999-4999-8999-999999999999')).toBe(false);
+  });
+});
+
+describe('PostgresCustomerRepository — malformed identifiers', () => {
+  it('should return null without querying GIVEN a non-uuid id WHEN findById is called', async () => {
+    const prisma = makePrisma();
+
+    const customer = await new PostgresCustomerRepository(prisma).findById('nao-e-uuid');
+
+    expect(customer).toBeNull();
+    expect(prisma.customer.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('should return false without querying GIVEN a non-uuid id WHEN softDelete is called', async () => {
+    const prisma = makePrisma();
+
+    expect(await new PostgresCustomerRepository(prisma).softDelete('000000000000000000000000')).toBe(false);
+    expect(prisma.customer.findFirst).not.toHaveBeenCalled();
   });
 });

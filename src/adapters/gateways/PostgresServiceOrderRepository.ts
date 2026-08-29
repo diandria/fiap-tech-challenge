@@ -1,3 +1,4 @@
+import { isUuid } from './uuid';
 import { PrismaClient, Prisma } from '@prisma/client';
 import {
   IServiceOrderRepository,
@@ -91,6 +92,7 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
   }
 
   async findById(id: string): Promise<ServiceOrder | null> {
+    if (!isUuid(id)) return null;
     const row = await this.prisma.serviceOrder.findUnique({
       where: { id },
       include: INCLUDE_RELATIONS,
@@ -121,6 +123,7 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
     id: string,
     data: Partial<Omit<ServiceOrder, 'id'>>,
   ): Promise<ServiceOrder | null> {
+    if (!isUuid(id)) return null;
     const existing = await this.prisma.serviceOrder.findUnique({ where: { id } });
     if (!existing) return null;
 

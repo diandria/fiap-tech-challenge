@@ -1,6 +1,6 @@
 import request from 'supertest';
 
-import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp } from '../helpers/testSetup';
+import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } from '../helpers/testSetup';
 import { Application } from 'express';
 
 describe('Auth Integration', () => {
@@ -30,9 +30,9 @@ describe('Auth Integration', () => {
 
     it('GIVEN a valid admin token WHEN POST /auth/register with new credentials THEN returns 201 AND omits passwordHash', async () => {
       // First create an admin directly via the repo to bootstrap
-      const { MongoUserRepository } = await import('../../src/adapters/gateways/MongoUserRepository');
+      const { PostgresUserRepository } = await import('../../src/adapters/gateways/PostgresUserRepository');
       const { RegisterUseCase } = await import('../../src/use-cases/auth/RegisterUseCase');
-      const repo = new MongoUserRepository();
+      const repo = new PostgresUserRepository(prisma);
       const register = new RegisterUseCase(repo);
       await register.execute({ email: 'admin@test.com', password: 'adminpass', role: 'admin' });
 
@@ -53,9 +53,9 @@ describe('Auth Integration', () => {
     });
 
     it('GIVEN an existing email WHEN POST /auth/register with the same email THEN returns 409', async () => {
-      const { MongoUserRepository } = await import('../../src/adapters/gateways/MongoUserRepository');
+      const { PostgresUserRepository } = await import('../../src/adapters/gateways/PostgresUserRepository');
       const { RegisterUseCase } = await import('../../src/use-cases/auth/RegisterUseCase');
-      const repo = new MongoUserRepository();
+      const repo = new PostgresUserRepository(prisma);
       const register = new RegisterUseCase(repo);
       await register.execute({ email: 'admin@test.com', password: 'adminpass', role: 'admin' });
 
@@ -80,9 +80,9 @@ describe('Auth Integration', () => {
 
   describe('POST /auth/login', () => {
     beforeEach(async () => {
-      const { MongoUserRepository } = await import('../../src/adapters/gateways/MongoUserRepository');
+      const { PostgresUserRepository } = await import('../../src/adapters/gateways/PostgresUserRepository');
       const { RegisterUseCase } = await import('../../src/use-cases/auth/RegisterUseCase');
-      const repo = new MongoUserRepository();
+      const repo = new PostgresUserRepository(prisma);
       const register = new RegisterUseCase(repo);
       await register.execute({ email: 'user@test.com', password: 'correct', role: 'mechanic' });
     });

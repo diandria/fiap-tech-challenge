@@ -1,3 +1,4 @@
+import { isUuid } from './uuid';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { IItemRepository } from '../../use-cases/ports/IItemRepository';
 import { Item } from '../../entities/Item';
@@ -29,6 +30,7 @@ export class PostgresItemRepository implements IItemRepository {
   }
 
   async findById(id: string): Promise<Item | null> {
+    if (!isUuid(id)) return null;
     const row = await this.prisma.item.findUnique({ where: { id } });
     return row ? this.toEntity(row as ItemRow) : null;
   }
@@ -39,6 +41,7 @@ export class PostgresItemRepository implements IItemRepository {
   }
 
   async update(id: string, data: Partial<Omit<Item, 'id'>>): Promise<Item | null> {
+    if (!isUuid(id)) return null;
     const existing = await this.prisma.item.findUnique({ where: { id } });
     if (!existing) return null;
 
@@ -47,6 +50,7 @@ export class PostgresItemRepository implements IItemRepository {
   }
 
   async delete(id: string): Promise<boolean> {
+    if (!isUuid(id)) return false;
     const existing = await this.prisma.item.findUnique({ where: { id } });
     if (!existing) return false;
 

@@ -1,8 +1,8 @@
 import request from 'supertest';
 import { Application } from 'express';
 
-import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp } from '../helpers/testSetup';
-import { MongoUserRepository } from '../../src/adapters/gateways/MongoUserRepository';
+import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } from '../helpers/testSetup';
+import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
 
 let app: Application;
@@ -19,7 +19,7 @@ const validCustomer = {
 };
 
 async function seedTokens(): Promise<void> {
-  const repo = new MongoUserRepository();
+  const repo = new PostgresUserRepository(prisma);
   const register = new RegisterUseCase(repo);
   await register.execute({ email: 'admin@test.com', password: 'adminpass', role: 'admin' });
   await register.execute({ email: 'attendant@test.com', password: 'attpass', role: 'attendant' });
@@ -102,7 +102,7 @@ describe('GET /customers/:id', () => {
   });
 
   it('GIVEN a non-existent id WHEN GET /customers/:id THEN returns 404', async () => {
-    const res = await request(app).get('/customers/000000000000000000000000').set('Authorization', `Bearer ${adminToken}`);
+    const res = await request(app).get('/customers/00000000-0000-0000-0000-000000000000').set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(404);
   });
 });
@@ -146,17 +146,17 @@ describe('Role Authorization — /customers', () => {
   });
 
   it('GIVEN no Authorization header WHEN GET /customers/:id THEN returns 401', async () => {
-    const res = await request(app).get('/customers/000000000000000000000000');
+    const res = await request(app).get('/customers/00000000-0000-0000-0000-000000000000');
     expect(res.status).toBe(401);
   });
 
   it('GIVEN no Authorization header WHEN PUT /customers/:id THEN returns 401', async () => {
-    const res = await request(app).put('/customers/000000000000000000000000').send({ name: 'x' });
+    const res = await request(app).put('/customers/00000000-0000-0000-0000-000000000000').send({ name: 'x' });
     expect(res.status).toBe(401);
   });
 
   it('GIVEN no Authorization header WHEN DELETE /customers/:id THEN returns 401', async () => {
-    const res = await request(app).delete('/customers/000000000000000000000000');
+    const res = await request(app).delete('/customers/00000000-0000-0000-0000-000000000000');
     expect(res.status).toBe(401);
   });
 });
