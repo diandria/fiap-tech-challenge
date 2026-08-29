@@ -11,3 +11,4 @@ nada sobre o sistema. Cada documento se sustenta em mérito técnico.
 
 | ID | Título | Status | Data |
 |---|---|---|---|
+| [RFC-001](RFC-001-escolha-da-nuvem.md) | Escolha do provedor de nuvem | Aceita | 2026-08-28 |
