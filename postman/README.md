@@ -38,7 +38,7 @@ minikube tunnel
 
 Mantenha esse terminal aberto. Em seguida:
 
-1. Infraestrutura aplicada via Terraform (`cd infra/ && terraform apply`) — detalhes em [docs/infrastructure/deploy-flow.md](../docs/infrastructure/deploy-flow.md).
+1. Infraestrutura aplicada via Terraform (`cd infra/ && terraform apply`).
 2. Service acessível em `http://localhost:8080`.
 3. O seed do admin roda automaticamente na inicialização do container, usando `ADMIN_EMAIL` (ConfigMap) e `ADMIN_PASSWORD` (Secret).
 

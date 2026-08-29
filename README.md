@@ -40,22 +40,9 @@ A Fase 2 evoluiu a aplicação da Fase 1 com foco em qualidade, resiliência e e
 
 ## Arquitetura
 
-O desenho da arquitetura está dividido em três visões complementares:
-
-| Visão | Documento | Conteúdo |
-|---|---|---|
-| **Componentes da aplicação** | [Diagramas C4](docs/architecture/c4.md) | Context, Container e Component — visão em três níveis |
-| **Infraestrutura provisionada** | [Desenho de solução](docs/infrastructure/solution-design.md) | Cluster Minikube, recursos K8s (Deployment, HPA, StatefulSet, Services…) e fluxo do tráfego |
-| **Fluxo de deploy** | [Fluxo de deploy](docs/infrastructure/deploy-flow.md) | Diagrama CI/CD, manifests K8s e recursos Terraform |
-
-Documentação complementar:
-
-| Documento | Conteúdo |
-|---|---|
-| [Catálogo de componentes](docs/architecture/components.md) | Inventário de todas as classes por camada Clean Architecture |
-| [Regras de negócio](docs/architecture/business-rules.md) | Máquina de estados da OS, cálculo de orçamento, gestão de estoque |
-| [DAS](docs/architecture/DAS.md) | Documento de Arquitetura de Software completo |
-| [Linguagem ubíqua](docs/architecture/ddd/ubiquitous-language.md) | Glossário de domínio |
+> **Documentação em reconstrução.** A documentação arquitetural das fases anteriores foi removida.
+> A da Fase 3 — diagrama de componentes, diagramas de sequência, RFCs, ADRs e modelo ER — será
+> produzida na milestone M0 (ver `docs/phase-3-milestones.md`) e linkada aqui.
 
 ### Visão geral da arquitetura
 
@@ -318,13 +305,9 @@ Os recursos usam `fileset` + `for_each` agrupados por diretório, com um recurso
 | `kubectl_manifest.secret` | `k8s/secret.yaml` (templatefile) | namespaces |
 | `kubectl_manifest.app[*]` | `k8s/03-app/*.yaml` | mongo, secret |
 
-Documentação completa: [docs/infrastructure/deploy-flow.md](docs/infrastructure/deploy-flow.md)
-
 ---
 
 ## CI/CD
-
-Detalhes completos em [docs/infrastructure/deploy-flow.md](docs/infrastructure/deploy-flow.md).
 
 ### CI (`.github/workflows/ci.yml`)
 
