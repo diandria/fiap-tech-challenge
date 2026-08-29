@@ -9,7 +9,11 @@
     "seed:dev": "ts-node scripts/seed-dev.ts",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "sonar": "docker run --rm --network host -v \"$PWD\":/usr/src --env-file .env sonarsource/sonar-scanner-cli"
+    "sonar": "docker run --rm --network host -v \"$PWD\":/usr/src --env-file .env sonarsource/sonar-scanner-cli",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
