@@ -1,14 +1,14 @@
 import 'dotenv/config';
 import { createApp } from './app';
-import { connectDB, disconnectDB } from './frameworks/database/connection';
+import { prisma, disconnectPrisma } from './frameworks/database/prismaClient';
 import { seedDefaultAdmin } from './frameworks/database/seed';
 
-import { MongoCustomerRepository } from './adapters/gateways/MongoCustomerRepository';
-import { MongoVehicleRepository } from './adapters/gateways/MongoVehicleRepository';
-import { MongoServiceRepository } from './adapters/gateways/MongoServiceRepository';
-import { MongoItemRepository } from './adapters/gateways/MongoItemRepository';
-import { MongoServiceOrderRepository } from './adapters/gateways/MongoServiceOrderRepository';
-import { MongoUserRepository } from './adapters/gateways/MongoUserRepository';
+import { PostgresCustomerRepository } from './adapters/gateways/PostgresCustomerRepository';
+import { PostgresVehicleRepository } from './adapters/gateways/PostgresVehicleRepository';
+import { PostgresServiceRepository } from './adapters/gateways/PostgresServiceRepository';
+import { PostgresItemRepository } from './adapters/gateways/PostgresItemRepository';
+import { PostgresServiceOrderRepository } from './adapters/gateways/PostgresServiceOrderRepository';
+import { PostgresUserRepository } from './adapters/gateways/PostgresUserRepository';
 import { ConsoleNotificationService } from './adapters/services/ConsoleNotificationService';
 
 import { LoginUseCase } from './use-cases/auth/LoginUseCase';
@@ -71,15 +71,15 @@ import { itemRoutes } from './frameworks/http/routes/itemRoutes';
 import { serviceOrderRoutes } from './frameworks/http/routes/serviceOrderRoutes';
 
 const PORT = process.env.PORT ?? 3000;
-const MONGODB_URI = process.env.MONGODB_URI ?? 'mongodb://localhost:27017/car-repair-shop';
+
 
 async function main(): Promise<void> {
-  const customerRepo = new MongoCustomerRepository();
-  const vehicleRepo = new MongoVehicleRepository();
-  const serviceRepo = new MongoServiceRepository();
-  const itemRepo = new MongoItemRepository();
-  const osRepo = new MongoServiceOrderRepository();
-  const userRepo = new MongoUserRepository();
+  const customerRepo = new PostgresCustomerRepository(prisma);
+  const vehicleRepo = new PostgresVehicleRepository(prisma);
+  const serviceRepo = new PostgresServiceRepository(prisma);
+  const itemRepo = new PostgresItemRepository(prisma);
+  const osRepo = new PostgresServiceOrderRepository(prisma);
+  const userRepo = new PostgresUserRepository(prisma);
   const notifier = new ConsoleNotificationService();
 
   const authController = new AuthController(new LoginUseCase(userRepo), new RegisterUseCase(userRepo));
@@ -135,12 +135,12 @@ async function main(): Promise<void> {
   // don't reset client connections; force-exit fallback stays within the pod's
   // 30s termination grace period.
   process.on('SIGTERM', () => {
-    server.close(async () => { await disconnectDB(); process.exit(0); });
+    server.close(async () => { await disconnectPrisma(); process.exit(0); });
     setTimeout(() => process.exit(1), 25_000).unref();
   });
 
-  await connectDB(MONGODB_URI);
-  await seedDefaultAdmin();
+  await prisma.$connect();
+  await seedDefaultAdmin(userRepo);
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });
