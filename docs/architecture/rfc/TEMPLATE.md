@@ -1,4 +1,4 @@
-# RFC-XXX — <título>
+# RFC-XXX (<título>)
 
 - **Status:** Rascunho | Em discussão | Aceita | Rejeitada
 - **Data:** YYYY-MM-DD
@@ -11,8 +11,9 @@
 
 ## Alternativas avaliadas
 
-<No mínimo três, cada uma com prós e contras honestos. Alternativa sem nenhuma vantagem é espantalho
-e enfraquece o documento: ou ela era ruim demais para entrar na lista, ou a análise foi preguiçosa.>
+<No mínimo três, cada uma com pontos a favor e contra, honestos. Alternativa sem nenhuma vantagem é
+espantalho e enfraquece o documento: ou ela era ruim demais para entrar na lista, ou a análise foi
+preguiçosa.>
 
 ## Critérios de decisão
 

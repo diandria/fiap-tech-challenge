@@ -1,4 +1,4 @@
-# ADR-XXX — <título>
+# ADR-XXX (<título>)
 
 - **Status:** Proposto | Aceito | Substituído por ADR-YYY
 - **Data:** YYYY-MM-DD
@@ -8,7 +8,7 @@
 
 ## Alternativas
 
-| Alternativa | Prós | Contras |
+| Alternativa | A favor | Contra |
 |---|---|---|
 
 ## Decisão
