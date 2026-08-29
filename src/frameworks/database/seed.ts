@@ -1,7 +1,11 @@
-import { MongoUserRepository } from '../../adapters/gateways/MongoUserRepository';
+import { IUserRepository } from '../../use-cases/ports/IUserRepository';
 import { RegisterUseCase } from '../../use-cases/auth/RegisterUseCase';
 
-export async function seedDefaultAdmin(): Promise<void> {
+/**
+ * Recebe o repositorio ja construido: quem escolhe a implementacao concreta e o
+ * Composition Root, nao o seed.
+ */
+export async function seedDefaultAdmin(repo: IUserRepository): Promise<void> {
   const email = process.env.ADMIN_EMAIL ?? 'admin@master.com';
   const password = process.env.ADMIN_PASSWORD;
 
@@ -10,7 +14,6 @@ export async function seedDefaultAdmin(): Promise<void> {
     return;
   }
 
-  const repo = new MongoUserRepository();
   const existing = await repo.findByEmail(email);
   if (existing) return;
 
