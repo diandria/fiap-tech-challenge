@@ -9,3 +9,5 @@ coverage
 *.tfstate.backup
 *.tfvars
 !*.tfvars.example
+# Prisma
+prisma/*.db
