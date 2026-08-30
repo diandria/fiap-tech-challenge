@@ -4,7 +4,7 @@ import { errorMiddleware } from './frameworks/http/middlewares/errorMiddleware';
 import { traceContextMiddleware } from './frameworks/http/middlewares/traceContextMiddleware';
 import { requestLoggerMiddleware } from './frameworks/http/middlewares/requestLoggerMiddleware';
 import { setupSwagger } from './frameworks/http/swagger/setup';
-import { healthRoutes } from './frameworks/http/routes/healthRoutes';
+import { healthRoutes, ReadinessCheck } from './frameworks/http/routes/healthRoutes';
 
 interface AppRoutes {
   auth: Router;
@@ -15,7 +15,7 @@ interface AppRoutes {
   serviceOrders: Router;
 }
 
-export function createApp(routes: AppRoutes): Application {
+export function createApp(routes: AppRoutes, checkDatabase: ReadinessCheck): Application {
   const app = express();
 
   // Primeiro de todos: todo evento posterior, inclusive o de erro, precisa do
@@ -52,7 +52,7 @@ export function createApp(routes: AppRoutes): Application {
 
   setupSwagger(app);
 
-  app.use('/', healthRoutes());
+  app.use('/', healthRoutes(checkDatabase));
 
   app.use('/auth', routes.auth);
   app.use('/customers', routes.customers);
