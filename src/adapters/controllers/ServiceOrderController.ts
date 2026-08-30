@@ -61,7 +61,7 @@ export class ServiceOrderController {
 
   async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = await this.getOS.execute(req.params.id);
+      const data = await this.getOS.execute({ osId: req.params.id });
       const { status, body } = ServiceOrderPresenter.ok(data);
       res.status(status).json(body);
     } catch (err) { next(err); }
@@ -69,7 +69,7 @@ export class ServiceOrderController {
 
   async getStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = await this.getOS.execute(req.params.id);
+      const data = await this.getOS.execute({ osId: req.params.id });
       const { status, body } = ServiceOrderPresenter.status({ id: data.id, status: data.status, budgetTotal: data.budgetTotal });
       res.status(status).json(body);
     } catch (err) { next(err); }
@@ -109,8 +109,8 @@ export class ServiceOrderController {
       if (!decision) throw new ValidationError('status is required');
       let data;
       switch (decision) {
-        case 'APPROVED': data = await this.approveBudget.execute(id, code); break;
-        case 'REJECTED': data = await this.rejectBudget.execute(id, code); break;
+        case 'APPROVED': data = await this.approveBudget.execute({ osId: id, code }); break;
+        case 'REJECTED': data = await this.rejectBudget.execute({ osId: id, code }); break;
         default: throw new ValidationError(`Unsupported budget status: ${decision}`);
       }
       const { status, body } = ServiceOrderPresenter.ok(data);

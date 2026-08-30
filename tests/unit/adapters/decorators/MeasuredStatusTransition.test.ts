@@ -82,21 +82,25 @@ describe('MeasuredBudgetDecision', () => {
     const inner = { execute: jest.fn().mockResolvedValue(anOrder('APPROVED', TWO_HOURS_MS)) };
     const decorated = new MeasuredBudgetDecision(inner);
 
-    await decorated.execute('os1', 'CODE123');
+    await decorated.execute({ osId: 'os1', code: 'CODE123' });
 
     const { count, sum } = await observedFor('APPROVED');
     expect(count).toBe(1);
     expect(sum).toBeGreaterThan(7190);
   });
 
-  it('should forward both arguments GIVEN a decision WHEN executed', async () => {
+  // O decorator nao pode perder `requesterCustomerId` no caminho: se perdesse,
+  // a titularidade deixaria de ser checada em producao e continuaria passando
+  // nos testes de use case, que chamam o caso de uso sem decorator.
+  it('should forward the whole input GIVEN a decision WHEN executed', async () => {
     const expected = anOrder('REJECTED');
     const inner = { execute: jest.fn().mockResolvedValue(expected) };
     const decorated = new MeasuredBudgetDecision(inner);
+    const input = { osId: 'os1', code: 'CODE123', requesterCustomerId: 'c-1' };
 
-    const result = await decorated.execute('os1', 'CODE123');
+    const result = await decorated.execute(input);
 
     expect(result).toBe(expected);
-    expect(inner.execute).toHaveBeenCalledWith('os1', 'CODE123');
+    expect(inner.execute).toHaveBeenCalledWith(input);
   });
 });
