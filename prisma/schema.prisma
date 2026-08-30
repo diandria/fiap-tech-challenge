@@ -2,7 +2,10 @@
 // Restricoes CHECK nao sao expressaveis aqui e entram como SQL na migration inicial.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // Necessario para o Prisma emitir spans: ele nao usa o driver pg, fala com
+  // o proprio query engine, entao a instrumentacao de pg nao enxerga nada.
+  previewFeatures = ["tracing"]
 }
 
 datasource db {
