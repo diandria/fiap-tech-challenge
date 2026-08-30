@@ -72,6 +72,9 @@ import { vehicleRoutes } from '../../src/frameworks/http/routes/vehicleRoutes';
 import { serviceRoutes } from '../../src/frameworks/http/routes/serviceRoutes';
 import { itemRoutes } from '../../src/frameworks/http/routes/itemRoutes';
 import { serviceOrderRoutes } from '../../src/frameworks/http/routes/serviceOrderRoutes';
+import { MeasuredCreateServiceOrder } from '../../src/adapters/decorators/MeasuredCreateServiceOrder';
+import { MeasuredStatusTransition } from '../../src/adapters/decorators/MeasuredStatusTransition';
+import { MeasuredBudgetDecision } from '../../src/adapters/decorators/MeasuredBudgetDecision';
 
 let container: StartedPostgreSqlContainer;
 export let prisma: PrismaClient;
@@ -137,17 +140,21 @@ export function createTestApp(): Application {
   const notifyBudget = new NotifyBudgetUseCase(osRepo, customerRepo, notifier, appLogger);
 
   const osController = new ServiceOrderController(
-    new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo), new GetServiceOrderUseCase(osRepo),
+    new MeasuredCreateServiceOrder(new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo)),
+    new GetServiceOrderUseCase(osRepo),
     new ListServiceOrdersUseCase(osRepo),
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
     new AddItemToOSUseCase(osRepo, itemRepo), new RemoveItemFromOSUseCase(osRepo, itemRepo),
-    new StartDiagnosisUseCase(osRepo, notifyStatusChange),
-    new FinishDiagnosisUseCase(osRepo, notifyStatusChange, notifyBudget, new CalculateBudgetUseCase(serviceRepo, itemRepo)),
-    new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange),
-    new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
-    new StartExecutionUseCase(osRepo, itemRepo, notifyStatusChange),
+    new MeasuredStatusTransition(new StartDiagnosisUseCase(osRepo, notifyStatusChange)),
+    new MeasuredStatusTransition(
+      new FinishDiagnosisUseCase(osRepo, notifyStatusChange, notifyBudget, new CalculateBudgetUseCase(serviceRepo, itemRepo)),
+    ),
+    new MeasuredBudgetDecision(new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange)),
+    new MeasuredBudgetDecision(new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange)),
+    new MeasuredStatusTransition(new StartExecutionUseCase(osRepo, itemRepo, notifyStatusChange)),
     new StartServiceUseCase(osRepo), new FinishServiceUseCase(osRepo),
-    new FinishOSUseCase(osRepo, notifyStatusChange), new DeliverOSUseCase(osRepo, notifyStatusChange),
+    new MeasuredStatusTransition(new FinishOSUseCase(osRepo, notifyStatusChange)),
+    new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange)),
     new GetAvgExecutionTimeUseCase(osRepo),
   );
 

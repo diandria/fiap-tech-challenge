@@ -5,6 +5,7 @@ import { Application } from 'express';
 import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } from '../helpers/testSetup';
 import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
+import { serviceOrdersCreated } from '../../src/frameworks/metrics/businessMetrics';
 
 let app: Application;
 let adminToken: string;
@@ -364,6 +365,20 @@ describe('POST /service-orders — creation with services and items', () => {
     expect(res.body.status).toBe('RECEIVED');
     expect(res.body.services).toEqual([]);
     expect(res.body.items).toEqual([]);
+  });
+
+  // Prova a cadeia inteira: requisicao HTTP, controller recebendo o port,
+  // decorator do Composition Root e metrica. Os testes unitarios do decorator
+  // usam dublê, entao nao pegariam uma fiacao errada em main.ts.
+  it('GIVEN a successful creation WHEN POST /service-orders THEN increments the business counter', async () => {
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const before = (await serviceOrdersCreated.get()).values[0].value;
+
+    const res = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
+
+    expect(res.status).toBe(201);
+    const after = (await serviceOrdersCreated.get()).values[0].value;
+    expect(after).toBe(before + 1);
   });
 
   it('GIVEN a valid serviceId WHEN creating an OS with services array THEN returns 201 with service resolved in body', async () => {
