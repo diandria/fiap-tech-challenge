@@ -6,6 +6,7 @@ import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } f
 import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
 import { serviceOrdersCreated } from '../../src/frameworks/metrics/businessMetrics';
+import jwt from 'jsonwebtoken';
 
 let app: Application;
 let adminToken: string;
@@ -31,6 +32,18 @@ async function seedTokens(): Promise<void> {
   mechanicToken = mechRes.body.token;
   const attRes = await request(app).post('/auth/login').send({ email: 'attendant@test.com', password: 'attpass' });
   attendantToken = attRes.body.token;
+}
+
+/**
+ * Emite um token de cliente com o mesmo formato que a function emite (RFC-003).
+ * Assinado com o segredo da aplicacao, que e o mesmo dos dois lados.
+ */
+function customerToken(id: string, cpf = '52998224725'): string {
+  return jwt.sign(
+    { type: 'customer', sub: id, cpf, name: 'John' },
+    process.env.JWT_SECRET as string,
+    { expiresIn: '1h' },
+  );
 }
 
 async function seedDomainData(): Promise<void> {
@@ -105,13 +118,15 @@ describe('Full OS lifecycle', () => {
     expect(finish.body.budgetTotal).toBe(130);
 
     // 6. Public status check (no auth)
-    const statusCheck = await request(app).get(`/service-orders/${osId}/status`);
+    const statusCheck = await request(app).get(`/service-orders/${osId}/status`)
+      .set('Authorization', `Bearer ${customerToken(customerId)}`);
     expect(statusCheck.status).toBe(200);
     expect(statusCheck.body.status).toBe('WAITING_APPROVAL');
     expect(statusCheck.body.budgetTotal).toBe(130);
 
-    // 7. Approve budget — public PATCH /budget with first 4 digits of CPF (52998224725 → "5299") → APPROVED
+    // 7. Approve budget — customer PATCH /budget with first 4 digits of CPF (52998224725 → "5299") → APPROVED
     const approve = await request(app).patch(`/service-orders/${osId}/budget`)
+      .set('Authorization', `Bearer ${customerToken(customerId)}`)
       .send({ status: 'APPROVED', code: '5299' });
     expect(approve.status).toBe(200);
     expect(approve.body.status).toBe('APPROVED');
@@ -175,8 +190,9 @@ describe('Full OS lifecycle', () => {
     const beforeReject = await request(app).get(`/items/${itemId}`).set(auth);
     expect(beforeReject.body.reservedQuantity).toBe(3);
 
-    // Public PATCH /budget with REJECTED + correct code
+    // Customer PATCH /budget with REJECTED + correct code
     const reject = await request(app).patch(`/service-orders/${osId}/budget`)
+      .set('Authorization', `Bearer ${customerToken(customerId)}`)
       .send({ status: 'REJECTED', code: '5299' });
     expect(reject.status).toBe(200);
     expect(reject.body.status).toBe('REJECTED');
@@ -187,6 +203,72 @@ describe('Full OS lifecycle', () => {
     expect(afterReject.body.availableQuantity).toBe(10);
   });
 
+  describe('Customer authentication on the two customer routes', () => {
+    async function osWaitingApproval(): Promise<string> {
+      const auth = { Authorization: `Bearer ${adminToken}` };
+      const os = await request(app).post('/service-orders').set(auth)
+        .send({ customerId, vehicleId, serviceIds: [serviceId], items: [{ itemId, quantity: 1 }] });
+      const osId = os.body.id;
+      await request(app).patch(`/service-orders/${osId}`).set({ Authorization: `Bearer ${mechanicToken}` })
+        .send({ status: 'DIAGNOSIS' });
+      await request(app).patch(`/service-orders/${osId}`).set({ Authorization: `Bearer ${mechanicToken}` })
+        .send({ status: 'WAITING_APPROVAL' });
+      return osId;
+    }
+
+    it('GIVEN no token WHEN GET /service-orders/:id/status THEN returns 401', async () => {
+      const osId = await osWaitingApproval();
+      const res = await request(app).get(`/service-orders/${osId}/status`);
+      expect(res.status).toBe(401);
+    });
+
+    it('GIVEN the owner customer token WHEN GET /service-orders/:id/status THEN returns 200', async () => {
+      const osId = await osWaitingApproval();
+      const res = await request(app).get(`/service-orders/${osId}/status`)
+        .set('Authorization', `Bearer ${customerToken(customerId)}`);
+      expect(res.status).toBe(200);
+      expect(res.body.status).toBe('WAITING_APPROVAL');
+    });
+
+    it('GIVEN another customer token WHEN GET /service-orders/:id/status THEN returns 403', async () => {
+      const osId = await osWaitingApproval();
+      const res = await request(app).get(`/service-orders/${osId}/status`)
+        .set('Authorization', `Bearer ${customerToken('00000000-0000-0000-0000-000000000000')}`);
+      expect(res.status).toBe(403);
+    });
+
+    // Um token de funcionario tambem nao passa: sem `sub` nao ha dono contra
+    // quem comparar, e deixa-lo passar tornaria a checagem um no-op.
+    it('GIVEN a staff token WHEN GET /service-orders/:id/status THEN returns 403', async () => {
+      const osId = await osWaitingApproval();
+      const res = await request(app).get(`/service-orders/${osId}/status`)
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('GIVEN no token WHEN PATCH /service-orders/:id/budget THEN returns 401', async () => {
+      const osId = await osWaitingApproval();
+      const res = await request(app).patch(`/service-orders/${osId}/budget`)
+        .send({ status: 'APPROVED', code: '5299' });
+      expect(res.status).toBe(401);
+    });
+
+    // O teste que prova a protecao: nao basta o 403, o status nao pode mudar.
+    it('GIVEN another customer token WHEN PATCH /budget THEN returns 403 AND keeps the status', async () => {
+      const osId = await osWaitingApproval();
+
+      const res = await request(app).patch(`/service-orders/${osId}/budget`)
+        .set('Authorization', `Bearer ${customerToken('00000000-0000-0000-0000-000000000000')}`)
+        .send({ status: 'APPROVED', code: '5299' });
+
+      expect(res.status).toBe(403);
+
+      const after = await request(app).get(`/service-orders/${osId}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(after.body.status).toBe('WAITING_APPROVAL');
+    });
+  });
+
   it('GIVEN an OS in WAITING_APPROVAL WHEN PATCH /budget with status=APPROVED is called with a wrong code THEN returns 400', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
     const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
@@ -195,7 +277,7 @@ describe('Full OS lifecycle', () => {
     await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
     await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
 
-    const res = await request(app).patch(`/service-orders/${osId}/budget`).send({ status: 'APPROVED', code: '0000' });
+    const res = await request(app).patch(`/service-orders/${osId}/budget`).set('Authorization', `Bearer ${customerToken(customerId)}`).send({ status: 'APPROVED', code: '0000' });
     expect(res.status).toBe(400);
   });
 
@@ -219,7 +301,7 @@ describe('Full OS lifecycle', () => {
     await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
     await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
 
-    const res = await request(app).patch(`/service-orders/${osId}/budget`).send({ status: 'EXECUTION', code: '5299' });
+    const res = await request(app).patch(`/service-orders/${osId}/budget`).set('Authorization', `Bearer ${customerToken(customerId)}`).send({ status: 'EXECUTION', code: '5299' });
     expect(res.status).toBe(400);
   });
 
@@ -227,7 +309,7 @@ describe('Full OS lifecycle', () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     const osId = created.body.id;
-    const res = await request(app).patch(`/service-orders/${osId}/budget`).send({ code: '5299' });
+    const res = await request(app).patch(`/service-orders/${osId}/budget`).set('Authorization', `Bearer ${customerToken(customerId)}`).send({ code: '5299' });
     expect(res.status).toBe(400);
   });
 
@@ -576,7 +658,7 @@ describe('GET /service-orders — active listing and priority sort', () => {
     expect((await request(app).patch(`/service-orders/${osId}`).set(mechAuth()).send({ status: 'WAITING_APPROVAL' })).status).toBe(200);
     if (targetStatus === 'WAITING_APPROVAL') return;
 
-    expect((await request(app).patch(`/service-orders/${osId}/budget`).send({ status: 'APPROVED', code: '5299' })).status).toBe(200);
+    expect((await request(app).patch(`/service-orders/${osId}/budget`).set('Authorization', `Bearer ${customerToken(customerId)}`).send({ status: 'APPROVED', code: '5299' })).status).toBe(200);
 
     expect((await request(app).patch(`/service-orders/${osId}`).set(mechAuth()).send({ status: 'EXECUTION' })).status).toBe(200);
     if (targetStatus === 'EXECUTION') return;
