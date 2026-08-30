@@ -37,11 +37,17 @@ afterAll(async () => { await disconnectTestDB(); });
 afterEach(async () => { await clearTestDB(); });
 
 describe('GET /services', () => {
-  it('GIVEN one service in catalog WHEN GET /services without auth THEN returns 200 with array', async () => {
+  it('GIVEN one service in catalog WHEN GET /services with a staff token THEN returns 200 with array', async () => {
     await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
-    const res = await request(app).get('/services');
+    const res = await request(app).get('/services').set('Authorization', `Bearer ${mechanicToken}`);
     expect(res.status).toBe(200);
     expect(res.body.length).toBe(1);
+  });
+
+  // O catalogo carrega precos. Deixou de ser publico nesta fase.
+  it('GIVEN no Authorization header WHEN GET /services THEN returns 401', async () => {
+    const res = await request(app).get('/services');
+    expect(res.status).toBe(401);
   });
 });
 

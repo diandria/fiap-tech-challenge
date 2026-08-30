@@ -15,6 +15,19 @@ import { ServiceOrderPresenter } from '../presenters/ServiceOrderPresenter';
 import { ValidationError } from '../../entities/errors/AppError';
 import { ServiceOrder, OSStatus } from '../../entities/ServiceOrder';
 
+/**
+ * Extrai o dono da requisicao **do token**, nunca do corpo ou da query.
+ *
+ * Se viesse do cliente, a validacao de titularidade seria decorativa: bastaria
+ * informar o ID de quem se quisesse consultar. Concentrar a leitura aqui deixa
+ * um unico lugar para auditar essa garantia.
+ *
+ * Devolve undefined para funcionario, que nao e restrito por titularidade.
+ */
+function requesterCustomerId(req: Request): string | undefined {
+  return req.user?.type === 'customer' ? req.user.sub : undefined;
+}
+
 export class ServiceOrderController {
   private readonly statusHandlers: Record<string, (id: string) => Promise<ServiceOrder>>;
 
@@ -69,7 +82,10 @@ export class ServiceOrderController {
 
   async getStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = await this.getOS.execute({ osId: req.params.id });
+      const data = await this.getOS.execute({
+        osId: req.params.id,
+        requesterCustomerId: requesterCustomerId(req),
+      });
       const { status, body } = ServiceOrderPresenter.status({ id: data.id, status: data.status, budgetTotal: data.budgetTotal });
       res.status(status).json(body);
     } catch (err) { next(err); }
@@ -109,8 +125,8 @@ export class ServiceOrderController {
       if (!decision) throw new ValidationError('status is required');
       let data;
       switch (decision) {
-        case 'APPROVED': data = await this.approveBudget.execute({ osId: id, code }); break;
-        case 'REJECTED': data = await this.rejectBudget.execute({ osId: id, code }); break;
+        case 'APPROVED': data = await this.approveBudget.execute({ osId: id, code, requesterCustomerId: requesterCustomerId(req) }); break;
+        case 'REJECTED': data = await this.rejectBudget.execute({ osId: id, code, requesterCustomerId: requesterCustomerId(req) }); break;
         default: throw new ValidationError(`Unsupported budget status: ${decision}`);
       }
       const { status, body } = ServiceOrderPresenter.ok(data);

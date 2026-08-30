@@ -12,12 +12,17 @@ export function serviceRoutes(controller: ServiceController): Router {
    *   get:
    *     summary: List all services
    *     tags: [Services]
-   *     security: []
    *     responses:
    *       200:
    *         description: Array of services
+   *       401:
+   *         description: Missing or invalid token
    */
-  router.get('/', (req, res, next) => controller.list(req, res, next));
+  // Era publica na Fase 2, com `security: []` explicito. Deixou de ser: o
+  // catalogo carrega precos, que sao informacao de negocio, e a rota nao se
+  // encaixa em nenhuma das quatro excecoes permitidas -- autenticacao, health
+  // check, Swagger e webhook.
+  router.get('/', authMiddleware, (req, res, next) => controller.list(req, res, next));
 
   /**
    * @openapi

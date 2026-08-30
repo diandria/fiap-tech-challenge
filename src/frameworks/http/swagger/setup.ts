@@ -38,6 +38,16 @@ All other OS transitions go through \`PATCH /service-orders/{id}\` with the targ
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
+          description: 'Token de funcionario, emitido por POST /auth/login.',
+        },
+        // Esquema separado de proposito. Os dois sao Bearer JWT, mas tem
+        // emissores e publicos diferentes: manter um so esconderia que existem
+        // dois fluxos de autenticacao no sistema.
+        customerBearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Token de cliente, emitido pela function em POST /auth/cpf.',
         },
       },
     },

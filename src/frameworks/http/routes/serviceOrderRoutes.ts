@@ -2,7 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { ServiceOrderController } from '../../../adapters/controllers/ServiceOrderController';
 import { authMiddleware } from '../middlewares/authMiddleware';
-import { requireRole } from '../middlewares/roleMiddleware';
+import { requireRole, requireCustomer } from '../middlewares/roleMiddleware';
 
 const budgetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -18,8 +18,10 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    * @openapi
    * /service-orders/{id}/status:
    *   get:
-   *     summary: Get OS status and budget total (public)
+   *     summary: Get OS status and budget total (customer only — own OS)
    *     tags: [Service Orders]
+   *     security:
+   *       - customerBearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -31,13 +33,13 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *       404:
    *         description: Not found
    */
-  router.get('/:id/status', (req, res, next) => controller.getStatus(req, res, next));
+  router.get('/:id/status', authMiddleware, requireCustomer, (req, res, next) => controller.getStatus(req, res, next));
 
   /**
    * @openapi
    * /service-orders/{id}/budget:
    *   patch:
-   *     summary: Customer budget decision — approve or reject (public)
+   *     summary: Customer budget decision — approve or reject (customer only — own OS)
    *     description: |
    *       Public endpoint authenticated by the 4-digit customer `code` (first 4 digits of CPF/CNPJ).
    *       Rate-limited to 5 req/h per IP+OS combination.
@@ -70,7 +72,7 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *       429:
    *         description: Too many attempts
    */
-  router.patch('/:id/budget', budgetLimiter, (req, res, next) => controller.budgetDecision(req, res, next));
+  router.patch('/:id/budget', budgetLimiter, authMiddleware, requireCustomer, (req, res, next) => controller.budgetDecision(req, res, next));
 
   router.use(authMiddleware);
 
