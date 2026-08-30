@@ -55,23 +55,52 @@ Execute as pastas na ordem numerada. Cada request persiste no environment o que 
 | 00 | Setup | Login do admin, cadastro de atendente/mecânico (idempotente: aceita 201 ou 409), login de ambos os papéis |
 | 01 | Catálogo (admin) | Cria um serviço (Troca de Óleo, R$ 120) e um item (Óleo 5W30, R$ 40, estoque 10) |
 | 02 | Cliente e Veículo (atendente) | Cria um cliente com CPF (`96627075300`, 4 primeiros dígitos = código de aprovação `9662`) e um veículo `ABC-1234` (idempotente: 409 reutiliza o registro existente) |
-| 03 | OS Caminho Feliz | Ciclo completo: cria OS → diagnóstico → adiciona serviço + item (qtd 2) → finaliza diagnóstico (`budgetTotal = 200`) → consulta pública de status → aprova com código `9662` → execução → entrega |
+| 03 | OS Caminho Feliz | Ciclo completo: cria OS → diagnóstico → adiciona serviço + item (qtd 2) → finaliza diagnóstico (`budgetTotal = 200`) → consulta de status **como cliente** → aprova com código `9662` → execução → entrega |
 | 04 | Rejeição | Segunda OS rejeitada após o orçamento — verifica que o item volta ao estoque |
 | 05 | Estatísticas e Listagens | `avg-execution`, tempo médio do catálogo de serviços (`/services/avg-time`), filtros por `status` e `customerId`, detalhe por ID |
 | 06 | Cenários de Erro | 401 (senha errada, sem token), 403 (papel errado), 400 (CPF/placa inválidos, código errado, transição inválida), 404 |
 | 07 | Remoção de Item/Serviço da OS (mecânico) | Cria uma terceira OS e demonstra `DELETE /service-orders/:id/services/:serviceId` e `DELETE /service-orders/:id/items/:itemId` (libera estoque) |
 | 08 | Manutenção (PUT/DELETE de entidades) | Cria cliente/veículo/serviço/item temporários e exercita todos os PUT e DELETE de catálogo e de cliente/veículo |
+| 09 | Cliente (CPF) | Autenticação de cliente por CPF e titularidade da OS: 401 sem token, 403 com token de funcionário, 403 com token de outro cliente — e a OS permanece intacta |
 
 ## Variáveis persistidas (preenchidas automaticamente)
 
-`adminToken`, `attendantToken`, `mechanicToken`, `attendantId`, `mechanicId`, `customerId`, `customerTaxId`, `customerCode`, `vehicleId`, `serviceId`, `itemId`, `osId`, `osRejectId`, `osRemovalId`, `tempCustomerId`, `tempVehicleId`, `tempServiceId`, `tempItemId`.
+`adminToken`, `attendantToken`, `mechanicToken`, `customerToken`, `otherCustomerToken`, `attendantId`, `mechanicId`, `customerId`, `customerTaxId`, `customerCode`, `vehicleId`, `serviceId`, `itemId`, `osId`, `osRejectId`, `osRemovalId`, `tempCustomerId`, `tempVehicleId`, `tempServiceId`, `tempItemId`.
+
+## Autenticação de cliente (Fase 3)
+
+A partir do M7 existem **dois fluxos de autenticação**, com emissores diferentes:
+
+| Fluxo | Emissor | Rota | Token |
+|---|---|---|---|
+| Funcionário | a própria aplicação | `POST /auth/login` | `adminToken`, `attendantToken`, `mechanicToken` |
+| Cliente | a function, pelo API Gateway | `POST /auth/cpf` | `customerToken` |
+
+`GET /service-orders/:id/status` e `PATCH /service-orders/:id/budget` **deixaram de ser públicas**.
+Exigem token de cliente, e o cliente só enxerga e decide sobre a própria OS.
+
+### Como o `customerToken` é obtido
+
+**Contra o ambiente implantado:** preencha `authBaseUrl` com a URL do API Gateway
+(`terraform output api_gateway_url` no repositório de infra-k8s). A pasta 09 chama `/auth/cpf`, que
+é servida pela function, e grava o token real.
+
+**Localmente não existe function.** Sem alternativa, todas as rotas de cliente responderiam 401 e a
+coleção pararia de rodar fora da AWS. Por isso o script de pré-requisição da coleção emite um token
+com o **mesmo formato e o mesmo segredo** (`jwtSecret`), quando `customerToken` está vazio. É uma
+conveniência de desenvolvimento, não parte do produto: contra o gateway, o token real sobrescreve o
+emitido localmente.
+
+> `jwtSecret` precisa bater com o `JWT_SECRET` da aplicação. No Docker Compose é
+> `dev-secret-change-in-prod`; no Kubernetes vem de `k8s/secret.yaml`. Se divergir, o sintoma é um
+> 401 sem mensagem útil.
 
 ## Regras de negócio cobertas pelo fluxo
 
 - Código de aprovação do cliente = 4 primeiros dígitos do CPF/CNPJ.
 - Máquina de estados da OS: `RECEIVED → DIAGNOSIS → WAITING_APPROVAL → APPROVED → EXECUTION → FINISHED → DELIVERED` (com ramificação `REJECTED` a partir de `WAITING_APPROVAL`).
 - Transições internas da OS via `PATCH /service-orders/:id` com `{ status }` (mecânico+admin).
-- Aprovação/rejeição de orçamento pelo cliente via `PATCH /service-orders/:id/budget` com `{ status: "APPROVED" | "REJECTED", code }` (público, com rate limit).
+- Aprovação/rejeição de orçamento pelo cliente via `PATCH /service-orders/:id/budget` com `{ status: "APPROVED" | "REJECTED", code }` — exige token de cliente, rate limit e titularidade da OS. O `code` permanece: o token diz *quem* está agindo, o código diz que a pessoa quis aprovar *aquele* orçamento e não clicou por engano.
 - Transições por serviço via `PATCH /service-orders/:id/services/:serviceId` com `{ status: "IN_PROGRESS" | "COMPLETED" }`.
 - Total do orçamento = serviços + (item.price × quantidade).
 - Autorização por papel: atendente (clientes/veículos/abertura de OS), mecânico (diagnóstico/execução/transições), admin (catálogo).
