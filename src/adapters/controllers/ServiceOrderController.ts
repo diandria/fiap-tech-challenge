@@ -1,21 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
-import { CreateServiceOrderUseCase } from '../../use-cases/service-orders/CreateServiceOrderUseCase';
 import { GetServiceOrderUseCase } from '../../use-cases/service-orders/GetServiceOrderUseCase';
 import { ListServiceOrdersUseCase } from '../../use-cases/service-orders/ListServiceOrdersUseCase';
 import { AddServiceToOSUseCase } from '../../use-cases/service-orders/AddServiceToOSUseCase';
 import { RemoveServiceFromOSUseCase } from '../../use-cases/service-orders/RemoveServiceFromOSUseCase';
 import { AddItemToOSUseCase } from '../../use-cases/service-orders/AddItemToOSUseCase';
 import { RemoveItemFromOSUseCase } from '../../use-cases/service-orders/RemoveItemFromOSUseCase';
-import { StartDiagnosisUseCase } from '../../use-cases/service-orders/StartDiagnosisUseCase';
-import { FinishDiagnosisUseCase } from '../../use-cases/service-orders/FinishDiagnosisUseCase';
-import { ApproveBudgetUseCase } from '../../use-cases/service-orders/ApproveBudgetUseCase';
-import { RejectBudgetUseCase } from '../../use-cases/service-orders/RejectBudgetUseCase';
-import { StartExecutionUseCase } from '../../use-cases/service-orders/StartExecutionUseCase';
 import { StartServiceUseCase } from '../../use-cases/service-orders/StartServiceUseCase';
 import { FinishServiceUseCase } from '../../use-cases/service-orders/FinishServiceUseCase';
-import { FinishOSUseCase } from '../../use-cases/service-orders/FinishOSUseCase';
-import { DeliverOSUseCase } from '../../use-cases/service-orders/DeliverOSUseCase';
 import { GetAvgExecutionTimeUseCase } from '../../use-cases/service-orders/GetAvgExecutionTimeUseCase';
+import { ICreateServiceOrder } from '../../use-cases/ports/input/ICreateServiceOrder';
+import { IChangeServiceOrderStatus } from '../../use-cases/ports/input/IChangeServiceOrderStatus';
+import { IDecideBudget } from '../../use-cases/ports/input/IDecideBudget';
 import { ServiceOrderPresenter } from '../presenters/ServiceOrderPresenter';
 import { ValidationError } from '../../entities/errors/AppError';
 import { ServiceOrder, OSStatus } from '../../entities/ServiceOrder';
@@ -24,22 +19,22 @@ export class ServiceOrderController {
   private readonly statusHandlers: Record<string, (id: string) => Promise<ServiceOrder>>;
 
   constructor(
-    private readonly createOS: CreateServiceOrderUseCase,
+    private readonly createOS: ICreateServiceOrder,
     private readonly getOS: GetServiceOrderUseCase,
     private readonly listOS: ListServiceOrdersUseCase,
     private readonly addService: AddServiceToOSUseCase,
     private readonly removeService: RemoveServiceFromOSUseCase,
     private readonly addItem: AddItemToOSUseCase,
     private readonly removeItem: RemoveItemFromOSUseCase,
-    private readonly startDiagnosis: StartDiagnosisUseCase,
-    private readonly finishDiagnosis: FinishDiagnosisUseCase,
-    private readonly approveBudget: ApproveBudgetUseCase,
-    private readonly rejectBudget: RejectBudgetUseCase,
-    private readonly startExecution: StartExecutionUseCase,
+    private readonly startDiagnosis: IChangeServiceOrderStatus,
+    private readonly finishDiagnosis: IChangeServiceOrderStatus,
+    private readonly approveBudget: IDecideBudget,
+    private readonly rejectBudget: IDecideBudget,
+    private readonly startExecution: IChangeServiceOrderStatus,
     private readonly startService: StartServiceUseCase,
     private readonly finishService: FinishServiceUseCase,
-    private readonly finishOS: FinishOSUseCase,
-    private readonly deliverOS: DeliverOSUseCase,
+    private readonly finishOS: IChangeServiceOrderStatus,
+    private readonly deliverOS: IChangeServiceOrderStatus,
     private readonly getAvgExecution: GetAvgExecutionTimeUseCase,
   ) {
     this.statusHandlers = {

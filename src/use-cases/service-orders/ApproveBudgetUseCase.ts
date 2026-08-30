@@ -5,8 +5,9 @@ import { NotFoundError } from '../../entities/errors/AppError';
 import { assertTransition } from '../../entities/serviceOrderStateMachine';
 import { findOSOrThrow, verifyCustomerCode } from '../utils/serviceOrderUtils';
 import { IStatusChangeNotifier } from '../ports/IStatusChangeNotifier';
+import { IDecideBudget } from '../ports/input/IDecideBudget';
 
-export class ApproveBudgetUseCase {
+export class ApproveBudgetUseCase implements IDecideBudget {
   constructor(
     private readonly osRepo: IServiceOrderRepository,
     private readonly customerRepo: ICustomerRepository,

@@ -4,15 +4,9 @@ import { IItemRepository } from '../ports/IItemRepository';
 import { ServiceOrder, OSService, OSItem } from '../../entities/ServiceOrder';
 import { getAvailableQuantity } from '../../entities/Item';
 import { NotFoundError, ValidationError } from '../../entities/errors/AppError';
+import { ICreateServiceOrder, CreateServiceOrderInput } from '../ports/input/ICreateServiceOrder';
 
-interface CreateServiceOrderInput {
-  customerId: string;
-  vehicleId: string;
-  services?: string[];
-  items?: { itemId: string; quantity: number }[];
-}
-
-export class CreateServiceOrderUseCase {
+export class CreateServiceOrderUseCase implements ICreateServiceOrder {
   constructor(
     private readonly osRepo: IServiceOrderRepository,
     private readonly serviceRepo: IServiceRepository,
