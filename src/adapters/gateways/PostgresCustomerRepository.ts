@@ -50,6 +50,11 @@ export class PostgresCustomerRepository implements ICustomerRepository {
     return row ? this.toEntity(row as CustomerRow) : null;
   }
 
+  async findByTaxIdIncludingInactive(taxId: string): Promise<Customer | null> {
+    const row = await this.prisma.customer.findFirst({ where: { taxId } });
+    return row ? this.toEntity(row as CustomerRow) : null;
+  }
+
   async create(data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>): Promise<Customer> {
     const row = await this.prisma.customer.create({ data });
     return this.toEntity(row as CustomerRow);

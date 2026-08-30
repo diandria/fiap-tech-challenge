@@ -19,6 +19,7 @@ import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
 import { CreateCustomerUseCase } from '../../src/use-cases/customers/CreateCustomerUseCase';
 import { GetCustomerByIdUseCase } from '../../src/use-cases/customers/GetCustomerByIdUseCase';
 import { GetCustomerByTaxIdUseCase } from '../../src/use-cases/customers/GetCustomerByTaxIdUseCase';
+import { LookupCustomerByCpfUseCase } from '../../src/use-cases/customers/LookupCustomerByCpfUseCase';
 import { ListCustomersUseCase } from '../../src/use-cases/customers/ListCustomersUseCase';
 import { UpdateCustomerUseCase } from '../../src/use-cases/customers/UpdateCustomerUseCase';
 import { DeleteCustomerUseCase } from '../../src/use-cases/customers/DeleteCustomerUseCase';
@@ -117,7 +118,11 @@ export function createTestApp(): Application {
   const notifier = new ConsoleNotificationService();
   const appLogger = new PinoLoggerAdapter(logger);
 
-  const authController = new AuthController(new LoginUseCase(userRepo), new RegisterUseCase(userRepo));
+  const authController = new AuthController(
+    new LoginUseCase(userRepo),
+    new RegisterUseCase(userRepo),
+    new LookupCustomerByCpfUseCase(customerRepo),
+  );
   const customerController = new CustomerController(
     new CreateCustomerUseCase(customerRepo), new GetCustomerByIdUseCase(customerRepo),
     new GetCustomerByTaxIdUseCase(customerRepo), new ListCustomersUseCase(customerRepo),

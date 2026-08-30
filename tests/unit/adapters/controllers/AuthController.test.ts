@@ -8,7 +8,7 @@ function makeRes() {
 describe('AuthController', () => {
   it('login: calls loginUseCase with req.body and responds 200', async () => {
     const loginUseCase = { execute: jest.fn().mockResolvedValue({ token: 'jwt' }) };
-    const controller = new AuthController(loginUseCase as any, {} as any);
+    const controller = new AuthController(loginUseCase as any, {} as any, {} as any);
     const req = { body: { email: 'a@a.com', password: '123' } } as Request;
     const res = makeRes();
     await controller.login(req, res, jest.fn());
@@ -20,7 +20,7 @@ describe('AuthController', () => {
   it('register: calls registerUseCase with req.body and responds 201', async () => {
     const user = { id: 'u1', email: 'a@a.com', role: 'admin' };
     const registerUseCase = { execute: jest.fn().mockResolvedValue(user) };
-    const controller = new AuthController({} as any, registerUseCase as any);
+    const controller = new AuthController({} as any, registerUseCase as any, {} as any);
     const req = { body: { email: 'a@a.com', password: '123', role: 'admin' } } as Request;
     const res = makeRes();
     await controller.register(req, res, jest.fn());
@@ -29,9 +29,22 @@ describe('AuthController', () => {
     expect(res.json).toHaveBeenCalledWith(user);
   });
 
+  it('lookupCustomer: calls the use case with the cpf from the body and responds 200', async () => {
+    const result = { id: 'c1', name: 'Ana', active: true };
+    const lookupUseCase = { execute: jest.fn().mockResolvedValue(result) };
+    const controller = new AuthController({} as any, {} as any, lookupUseCase as any);
+    const res = makeRes();
+
+    await controller.lookupCustomer({ body: { cpf: '52998224725' } } as Request, res, jest.fn());
+
+    expect(lookupUseCase.execute).toHaveBeenCalledWith('52998224725');
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(result);
+  });
+
   it('login: calls next on error', async () => {
     const err = new Error('bad');
-    const controller = new AuthController({ execute: jest.fn().mockRejectedValue(err) } as any, {} as any);
+    const controller = new AuthController({ execute: jest.fn().mockRejectedValue(err) } as any, {} as any, {} as any);
     const next = jest.fn();
     await controller.login({ body: {} } as Request, makeRes(), next);
     expect(next).toHaveBeenCalledWith(err);
