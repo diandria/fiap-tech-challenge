@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { AuthController } from '../../../adapters/controllers/AuthController';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { requireRole } from '../middlewares/roleMiddleware';
+import { internalTokenMiddleware } from '../middlewares/internalTokenMiddleware';
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -10,8 +11,29 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts, please try again later' },
 });
 
+// Segunda barreira, caso o segredo compartilhado vaze. Mais apertado que o de
+// login: aqui o unico chamador legitimo e a function, e ela faz uma consulta
+// por autenticacao -- volume humano nao chega perto deste teto.
+const lookupLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Too many lookup attempts, please try again later' },
+});
+
 export function authRoutes(controller: AuthController): Router {
   const router = Router();
+
+  // Rota interna, consumida pela function emissora de token (ADR-002).
+  //
+  // Deliberadamente sem anotacao @openapi: documenta-la no Swagger publico
+  // contaria a qualquer visitante que ela existe, e o unico consumidor
+  // legitimo ja conhece o contrato pela RFC-003.
+  router.post(
+    '/customers/lookup',
+    lookupLimiter,
+    internalTokenMiddleware,
+    (req, res, next) => controller.lookupCustomer(req, res, next),
+  );
 
   /**
    * @openapi
