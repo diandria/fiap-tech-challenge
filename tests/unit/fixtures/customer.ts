@@ -29,6 +29,7 @@ export const makeCustomerRepo = (found: Customer | null = cpfCustomer): ICustome
   findAll: jest.fn().mockResolvedValue(found ? [found] : []),
   findById: jest.fn().mockResolvedValue(found),
   findByTaxId: jest.fn().mockResolvedValue(found),
+  findByTaxIdIncludingInactive: jest.fn().mockResolvedValue(found),
   create: jest.fn().mockResolvedValue(found ?? cpfCustomer),
   update: jest.fn().mockImplementation((_id: string, data: Partial<Customer>) =>
     Promise.resolve(found ? { ...found, ...data } : null)

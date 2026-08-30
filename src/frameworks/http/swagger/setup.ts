@@ -56,7 +56,15 @@ All other OS transitions go through \`PATCH /service-orders/{id}\` with the targ
   apis: [routesGlob],
 };
 
+/**
+ * Exposto para que os testes consigam afirmar o que o Swagger publico *nao*
+ * documenta. Sem isso a unica forma de verificar seria raspar o HTML da UI.
+ */
+export function buildSwaggerSpec(): object {
+  return swaggerJsdoc(options) as object;
+}
+
 export function setupSwagger(app: Application): void {
-  const spec = swaggerJsdoc(options);
+  const spec = buildSwaggerSpec();
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(spec));
 }

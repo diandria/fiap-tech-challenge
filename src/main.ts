@@ -22,6 +22,7 @@ import { RegisterUseCase } from './use-cases/auth/RegisterUseCase';
 import { CreateCustomerUseCase } from './use-cases/customers/CreateCustomerUseCase';
 import { GetCustomerByIdUseCase } from './use-cases/customers/GetCustomerByIdUseCase';
 import { GetCustomerByTaxIdUseCase } from './use-cases/customers/GetCustomerByTaxIdUseCase';
+import { LookupCustomerByCpfUseCase } from './use-cases/customers/LookupCustomerByCpfUseCase';
 import { ListCustomersUseCase } from './use-cases/customers/ListCustomersUseCase';
 import { UpdateCustomerUseCase } from './use-cases/customers/UpdateCustomerUseCase';
 import { DeleteCustomerUseCase } from './use-cases/customers/DeleteCustomerUseCase';
@@ -92,7 +93,11 @@ async function main(): Promise<void> {
   const notifier = new ConsoleNotificationService();
   const appLogger = new PinoLoggerAdapter(logger);
 
-  const authController = new AuthController(new LoginUseCase(userRepo), new RegisterUseCase(userRepo));
+  const authController = new AuthController(
+    new LoginUseCase(userRepo),
+    new RegisterUseCase(userRepo),
+    new LookupCustomerByCpfUseCase(customerRepo),
+  );
   const customerController = new CustomerController(
     new CreateCustomerUseCase(customerRepo), new GetCustomerByIdUseCase(customerRepo),
     new GetCustomerByTaxIdUseCase(customerRepo), new ListCustomersUseCase(customerRepo),
