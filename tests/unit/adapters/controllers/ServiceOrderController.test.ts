@@ -50,7 +50,7 @@ describe('ServiceOrderController', () => {
     const req = { params: { id: os.id } } as unknown as Request;
     const res = makeRes();
     await controller.getStatus(req, res, jest.fn());
-    expect(fns.getOS).toHaveBeenCalledWith(os.id);
+    expect(fns.getOS).toHaveBeenCalledWith({ osId: os.id });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ id: os.id, status: os.status, budgetTotal: os.budgetTotal });
   });
@@ -105,7 +105,7 @@ describe('ServiceOrderController', () => {
     const controller = makeController(fns);
     const req = { params: { id: os.id }, body: { status: 'APPROVED', code: '5299' } } as unknown as Request;
     await controller.budgetDecision(req, makeRes(), jest.fn());
-    expect(fns.approveBudget).toHaveBeenCalledWith(os.id, '5299');
+    expect(fns.approveBudget).toHaveBeenCalledWith({ osId: os.id, code: '5299' });
   });
 
   it('budgetDecision REJECTED: calls rejectBudget with code', async () => {
@@ -113,7 +113,7 @@ describe('ServiceOrderController', () => {
     const controller = makeController(fns);
     const req = { params: { id: os.id }, body: { status: 'REJECTED', code: '5299' } } as unknown as Request;
     await controller.budgetDecision(req, makeRes(), jest.fn());
-    expect(fns.rejectBudget).toHaveBeenCalledWith(os.id, '5299');
+    expect(fns.rejectBudget).toHaveBeenCalledWith({ osId: os.id, code: '5299' });
   });
 
   it('updateStatus with missing status: calls next with ValidationError', async () => {
