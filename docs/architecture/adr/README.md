@@ -20,8 +20,11 @@ antes da conclusão, e as consequências negativas escritas sem suavizar.
 | [ADR-005](ADR-005-observabilidade-self-hosted.md) | Observabilidade auto-hospedada | Aceito | 2026-08-28 |
 | [ADR-006](ADR-006-produto-api-gateway.md) | API Gateway gerenciado como implementação | Aceito | 2026-08-28 |
 | [ADR-007](ADR-007-telemetria-microsservicos.md) | Telemetria preparada para decomposição | Aceito | 2026-08-28 |
+| [ADR-008](ADR-008-escopo-autenticacao-cliente.md) | Escopo da autenticação de cliente | Aceito | 2026-08-30 |
 | [ADR-009](ADR-009-stack-da-aplicacao.md) | Stack da aplicação | Aceito | 2026-08-28 |
 | [ADR-010](ADR-010-biblioteca-de-log.md) | Biblioteca de registro estruturado | Aceito | 2026-08-28 |
+| [ADR-011](ADR-011-alcance-do-endpoint-de-lookup.md) | Como a function alcança o endpoint de lookup | Aceito | 2026-08-30 |
 
-O ADR-008 (escopo da autenticação de cliente) será escrito junto da implementação que o sustenta, no
-milestone de autenticação, porque depende do código que protege as rotas.
+O ADR-011 supersede uma restrição do plano do M7 — *"o endpoint interno de lookup não é exposto no
+API Gateway"* —, e não um ADR. A restrição era mais estrita que o ADR-002, que ela deveria
+implementar.
