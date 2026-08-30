@@ -2,6 +2,7 @@ import express, { Application, Request, Response, NextFunction, Router } from 'e
 import helmet from 'helmet';
 import { errorMiddleware } from './frameworks/http/middlewares/errorMiddleware';
 import { traceContextMiddleware } from './frameworks/http/middlewares/traceContextMiddleware';
+import { requestLoggerMiddleware } from './frameworks/http/middlewares/requestLoggerMiddleware';
 import { setupSwagger } from './frameworks/http/swagger/setup';
 import { healthRoutes } from './frameworks/http/routes/healthRoutes';
 
@@ -20,6 +21,7 @@ export function createApp(routes: AppRoutes): Application {
   // Primeiro de todos: todo evento posterior, inclusive o de erro, precisa do
   // contexto de rastreamento disponivel.
   app.use(traceContextMiddleware);
+  app.use(requestLoggerMiddleware());
 
   app.use(
     helmet({
