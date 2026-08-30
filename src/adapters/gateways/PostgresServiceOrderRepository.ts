@@ -5,7 +5,7 @@ import {
   ListServiceOrdersFilter,
   AvgExecutionResult,
 } from '../../use-cases/ports/IServiceOrderRepository';
-import { ServiceOrder, OSStatus, OSService, OSItem } from '../../entities/ServiceOrder';
+import { ServiceOrder, OSStatus, OSService } from '../../entities/ServiceOrder';
 
 const INCLUDE_RELATIONS = {
   services: { select: { serviceId: true, startedAt: true, finishedAt: true } },
