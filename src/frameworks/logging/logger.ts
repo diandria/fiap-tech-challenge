@@ -1,4 +1,5 @@
 import pino, { Logger, DestinationStream } from 'pino';
+import { getTraceContext } from './context';
 
 /**
  * Campos ocultados em todo evento. A lista fica declarada aqui, num lugar so,
@@ -39,6 +40,12 @@ export function buildLogger(opts: LoggerOptions = {}): Logger {
         'deployment.environment': process.env.NODE_ENV ?? 'development',
       },
       redact: { paths: REDACTED_PATHS, censor: '[Redacted]' },
+      // Com o mixin, nenhum ponto de registro precisa lembrar de incluir o rastro,
+      // o que significa que nenhum vai esquecer.
+      mixin() {
+        const ctx = getTraceContext();
+        return ctx ? { trace_id: ctx.traceId, span_id: ctx.spanId } : {};
+      },
       ...prettyInDevelopment,
     },
     opts.stream,
