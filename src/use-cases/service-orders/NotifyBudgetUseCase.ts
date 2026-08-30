@@ -1,6 +1,7 @@
 import { IServiceOrderRepository } from '../ports/IServiceOrderRepository';
 import { ICustomerRepository } from '../ports/ICustomerRepository';
 import { INotificationService } from '../ports/INotificationService';
+import { ILogger } from '../ports/ILogger';
 import { IBudgetNotifier } from '../ports/IBudgetNotifier';
 
 export class NotifyBudgetUseCase implements IBudgetNotifier {
@@ -8,6 +9,7 @@ export class NotifyBudgetUseCase implements IBudgetNotifier {
     private readonly osRepo: IServiceOrderRepository,
     private readonly customerRepo: ICustomerRepository,
     private readonly notifier: INotificationService,
+    private readonly logger: ILogger,
   ) {}
 
   async execute({ osId }: { osId: string }): Promise<void> {
@@ -16,12 +18,14 @@ export class NotifyBudgetUseCase implements IBudgetNotifier {
       if (!os) return;
       const customer = await this.customerRepo.findById(os.customerId);
       if (!customer) {
-        console.warn(`[NOTIFICATION] Customer not found for OS ${osId}`);
+        this.logger.warn('notification skipped: customer not found', { osId });
         return;
       }
       await this.notifier.notifyBudgetReady(customer, os);
     } catch (err) {
-      console.error(`[NOTIFICATION] Failed to notify customer for OS ${osId}`, err);
+      // Falha silenciosa por decisao: notificacao nao reverte transicao de status.
+      // O registro torna a falha visivel sem mudar o comportamento.
+      this.logger.error('notification delivery failed', { osId, err });
     }
   }
 }

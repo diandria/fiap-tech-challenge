@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { createApp } from './app';
 import { prisma, disconnectPrisma } from './frameworks/database/prismaClient';
+import { logger } from './frameworks/logging/logger';
+import { PinoLoggerAdapter } from './adapters/logging/PinoLoggerAdapter';
 import { seedDefaultAdmin } from './frameworks/database/seed';
 
 import { PostgresCustomerRepository } from './adapters/gateways/PostgresCustomerRepository';
@@ -81,6 +83,7 @@ async function main(): Promise<void> {
   const osRepo = new PostgresServiceOrderRepository(prisma);
   const userRepo = new PostgresUserRepository(prisma);
   const notifier = new ConsoleNotificationService();
+  const appLogger = new PinoLoggerAdapter(logger);
 
   const authController = new AuthController(new LoginUseCase(userRepo), new RegisterUseCase(userRepo));
   const customerController = new CustomerController(
@@ -102,8 +105,8 @@ async function main(): Promise<void> {
     new CreateItemUseCase(itemRepo), new GetItemByIdUseCase(itemRepo),
     new ListItemsUseCase(itemRepo), new UpdateItemUseCase(itemRepo), new DeleteItemUseCase(itemRepo),
   );
-  const notifyStatusChange = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier);
-  const notifyBudget = new NotifyBudgetUseCase(osRepo, customerRepo, notifier);
+  const notifyStatusChange = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier, appLogger);
+  const notifyBudget = new NotifyBudgetUseCase(osRepo, customerRepo, notifier, appLogger);
 
   const osController = new ServiceOrderController(
     new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo), new GetServiceOrderUseCase(osRepo),
@@ -130,7 +133,7 @@ async function main(): Promise<void> {
   });
 
   // HTTP server starts before DB connects so health probes are reachable during startup
-  const server = app.listen(PORT, () => { console.log(`Server running on port ${PORT}`); });
+  const server = app.listen(PORT, () => { logger.info({ port: PORT }, 'server started'); });
   // Drain in-flight requests before exiting so rollouts and HPA scale-downs
   // don't reset client connections; force-exit fallback stays within the pod's
   // 30s termination grace period.
@@ -143,4 +146,4 @@ async function main(): Promise<void> {
   await seedDefaultAdmin(userRepo);
 }
 
-main().catch((err) => { console.error(err); process.exit(1); });
+main().catch((err) => { logger.error({ err }, 'fatal error during startup'); process.exit(1); });
