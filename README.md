@@ -98,13 +98,27 @@ src/
 
 ## Papéis de usuário
 
+O sistema tem **dois fluxos de autenticação**, com emissores diferentes.
+
+**Funcionário** — `POST /auth/login` (e-mail e senha), emitido pela própria aplicação:
+
 | Role | Permissões |
 |---|---|
 | `attendant` | Abre OS; cadastra clientes e veículos; registra entrega |
 | `mechanic` | Executa diagnóstico; refina serviços e itens; executa e finaliza a OS |
 | `admin` | Acesso total — inclui gestão de catálogo, estoque e usuários |
 
-Aprovação e rejeição de orçamento usam endpoint **público** (`PATCH /service-orders/:id/budget`) confirmado com os primeiros 4 dígitos do CPF/CNPJ do cliente.
+**Cliente** — `POST /auth/cpf` no API Gateway, emitido pela function serverless. O cliente consulta o
+status e decide o orçamento **apenas da própria OS**: a titularidade é verificada dentro do caso de
+uso, e não só a autenticação.
+
+A confirmação com os primeiros 4 dígitos do CPF/CNPJ **permanece** em `PATCH
+/service-orders/:id/budget`. O token diz *quem* está agindo; o código diz que a pessoa quis aprovar
+*aquele* orçamento, e não clicou por engano.
+
+> **A matriz completa** de rotas, perfis e fluxos está em
+> [`docs/architecture/authorization-matrix.md`](docs/architecture/authorization-matrix.md) — todas as
+> 40 rotas, quem acessa cada uma, e o critério das que continuam públicas.
 
 ---
 
