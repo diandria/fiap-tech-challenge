@@ -3,6 +3,8 @@ import { INotificationService } from '../../../../src/use-cases/ports/INotificat
 import { makeOSRepo, baseOS } from '../../fixtures/serviceOrder';
 import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 
+const fakeLogger = () => ({ warn: jest.fn(), error: jest.fn() });
+
 const makeNotifier = (): INotificationService => ({
   notifyStatusChanged: jest.fn().mockResolvedValue(undefined),
   notifyBudgetReady: jest.fn().mockResolvedValue(undefined),
@@ -13,7 +15,7 @@ describe('NotifyStatusChangeUseCase', () => {
     const osRepo = makeOSRepo(baseOS);
     const customerRepo = makeCustomerRepo(cpfCustomer);
     const notifier = makeNotifier();
-    const useCase = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier);
+    const useCase = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier, fakeLogger());
 
     await useCase.execute({ osId: 'os-1' });
 
@@ -26,7 +28,7 @@ describe('NotifyStatusChangeUseCase', () => {
     const osRepo = makeOSRepo(null);
     const customerRepo = makeCustomerRepo(cpfCustomer);
     const notifier = makeNotifier();
-    const useCase = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier);
+    const useCase = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier, fakeLogger());
 
     await useCase.execute({ osId: 'missing' });
 
@@ -37,14 +39,16 @@ describe('NotifyStatusChangeUseCase', () => {
     const osRepo = makeOSRepo(baseOS);
     const customerRepo = makeCustomerRepo(null);
     const notifier = makeNotifier();
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const useCase = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier);
+    const log = fakeLogger();
+    const useCase = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier, log);
 
     await useCase.execute({ osId: 'os-1' });
 
     expect(notifier.notifyStatusChanged).not.toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
+    expect(log.warn).toHaveBeenCalledWith(
+      'notification skipped: customer not found',
+      expect.objectContaining({ osId: expect.any(String) }),
+    );
   });
 
   it('GIVEN notifier throws WHEN execute called THEN error is swallowed and method still resolves', async () => {
@@ -54,23 +58,27 @@ describe('NotifyStatusChangeUseCase', () => {
       notifyStatusChanged: jest.fn().mockRejectedValue(new Error('SMTP down')),
       notifyBudgetReady: jest.fn().mockResolvedValue(undefined),
     };
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const useCase = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier);
+    const log = fakeLogger();
+    const useCase = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier, log);
 
     await expect(useCase.execute({ osId: 'os-1' })).resolves.toBeUndefined();
     expect(notifier.notifyStatusChanged).toHaveBeenCalledTimes(1);
-    expect(errorSpy).toHaveBeenCalled();
-    errorSpy.mockRestore();
+    expect(log.error).toHaveBeenCalledWith(
+      'notification delivery failed',
+      expect.objectContaining({ osId: expect.any(String) }),
+    );
   });
 
   it('GIVEN osRepo throws WHEN execute called THEN error is swallowed and method still resolves', async () => {
     const osRepo = makeOSRepo(baseOS);
     (osRepo.findById as jest.Mock).mockRejectedValue(new Error('DB connection lost'));
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const useCase = new NotifyStatusChangeUseCase(osRepo, makeCustomerRepo(cpfCustomer), makeNotifier());
+    const log = fakeLogger();
+    const useCase = new NotifyStatusChangeUseCase(osRepo, makeCustomerRepo(cpfCustomer), makeNotifier(), log);
 
     await expect(useCase.execute({ osId: 'os-1' })).resolves.toBeUndefined();
-    expect(errorSpy).toHaveBeenCalled();
-    errorSpy.mockRestore();
+    expect(log.error).toHaveBeenCalledWith(
+      'notification delivery failed',
+      expect.objectContaining({ osId: expect.any(String) }),
+    );
   });
 });

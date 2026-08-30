@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { logger } from '../../src/frameworks/logging/logger';
 import { Application } from 'express';
 
 import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } from '../helpers/testSetup';
@@ -315,20 +316,27 @@ describe('Full OS lifecycle', () => {
     await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
     await request(app).post(`/service-orders/${osId}/services`).set(mechAuth).send({ serviceId });
 
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    // A notificacao agora emite evento estruturado em vez de texto livre, entao
+    // o teste verifica campos em vez de casar substring.
+    const emitted: Record<string, unknown>[] = [];
+    const infoSpy = jest
+      .spyOn(logger, 'info')
+      .mockImplementation(((payload: Record<string, unknown>) => {
+        emitted.push(payload);
+        return undefined;
+      }) as never);
+
     try {
       const res = await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
       expect(res.status).toBe(200);
 
-      const budgetLog = logSpy.mock.calls
-        .map((args) => String(args[0]))
-        .find((line) => line.startsWith('[Budget]'));
-      expect(budgetLog).toBeDefined();
-      expect(budgetLog).toContain(osId);
-      expect(budgetLog).toContain('R$ 80.00');
-      expect(budgetLog).toContain('j@t.com');
+      const budgetEvent = emitted.find((e) => e.event === 'budget_ready');
+      expect(budgetEvent).toBeDefined();
+      expect(budgetEvent?.osId).toBe(osId);
+      expect(budgetEvent?.budgetTotal).toBe(80);
+      expect(budgetEvent?.customerEmail).toBe('j@t.com');
     } finally {
-      logSpy.mockRestore();
+      infoSpy.mockRestore();
     }
   });
 

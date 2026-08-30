@@ -1,5 +1,6 @@
 import { IUserRepository } from '../../use-cases/ports/IUserRepository';
 import { RegisterUseCase } from '../../use-cases/auth/RegisterUseCase';
+import { logger } from '../logging/logger';
 
 /**
  * Recebe o repositorio ja construido: quem escolhe a implementacao concreta e o
@@ -10,7 +11,7 @@ export async function seedDefaultAdmin(repo: IUserRepository): Promise<void> {
   const password = process.env.ADMIN_PASSWORD;
 
   if (!password) {
-    console.warn('ADMIN_PASSWORD not set — skipping admin seed');
+    logger.warn('ADMIN_PASSWORD not set, skipping admin seed');
     return;
   }
 
@@ -19,5 +20,5 @@ export async function seedDefaultAdmin(repo: IUserRepository): Promise<void> {
 
   const register = new RegisterUseCase(repo);
   await register.execute({ email, password, role: 'admin' });
-  console.log(`Default admin created — email: "${email}"`);
+  logger.info({ email }, 'default admin created');
 }

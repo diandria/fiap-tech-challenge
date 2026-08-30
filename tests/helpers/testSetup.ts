@@ -11,6 +11,8 @@ import { PostgresItemRepository } from '../../src/adapters/gateways/PostgresItem
 import { PostgresServiceOrderRepository } from '../../src/adapters/gateways/PostgresServiceOrderRepository';
 import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { ConsoleNotificationService } from '../../src/adapters/services/ConsoleNotificationService';
+import { PinoLoggerAdapter } from '../../src/adapters/logging/PinoLoggerAdapter';
+import { logger } from '../../src/frameworks/logging/logger';
 
 import { LoginUseCase } from '../../src/use-cases/auth/LoginUseCase';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
@@ -109,6 +111,7 @@ export function createTestApp(): Application {
   const osRepo = new PostgresServiceOrderRepository(prisma);
   const userRepo = new PostgresUserRepository(prisma);
   const notifier = new ConsoleNotificationService();
+  const appLogger = new PinoLoggerAdapter(logger);
 
   const authController = new AuthController(new LoginUseCase(userRepo), new RegisterUseCase(userRepo));
   const customerController = new CustomerController(
@@ -130,8 +133,8 @@ export function createTestApp(): Application {
     new CreateItemUseCase(itemRepo), new GetItemByIdUseCase(itemRepo),
     new ListItemsUseCase(itemRepo), new UpdateItemUseCase(itemRepo), new DeleteItemUseCase(itemRepo),
   );
-  const notifyStatusChange = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier);
-  const notifyBudget = new NotifyBudgetUseCase(osRepo, customerRepo, notifier);
+  const notifyStatusChange = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier, appLogger);
+  const notifyBudget = new NotifyBudgetUseCase(osRepo, customerRepo, notifier, appLogger);
 
   const osController = new ServiceOrderController(
     new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo), new GetServiceOrderUseCase(osRepo),
