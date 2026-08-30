@@ -4,6 +4,7 @@ import 'dotenv/config';
 import './frameworks/tracing/start';
 import { createApp } from './app';
 import { prisma, disconnectPrisma } from './frameworks/database/prismaClient';
+import { databaseReadiness } from './frameworks/database/readinessProbe';
 import { logger } from './frameworks/logging/logger';
 import { PinoLoggerAdapter } from './adapters/logging/PinoLoggerAdapter';
 import { seedDefaultAdmin } from './frameworks/database/seed';
@@ -140,7 +141,7 @@ async function main(): Promise<void> {
     services: serviceRoutes(serviceController),
     items: itemRoutes(itemController),
     serviceOrders: serviceOrderRoutes(osController),
-  });
+  }, databaseReadiness(prisma));
 
   // HTTP server starts before DB connects so health probes are reachable during startup
   const server = app.listen(PORT, () => { logger.info({ port: PORT }, 'server started'); });

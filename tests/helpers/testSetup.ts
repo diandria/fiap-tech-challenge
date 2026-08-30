@@ -75,6 +75,7 @@ import { serviceOrderRoutes } from '../../src/frameworks/http/routes/serviceOrde
 import { MeasuredCreateServiceOrder } from '../../src/adapters/decorators/MeasuredCreateServiceOrder';
 import { MeasuredStatusTransition } from '../../src/adapters/decorators/MeasuredStatusTransition';
 import { MeasuredBudgetDecision } from '../../src/adapters/decorators/MeasuredBudgetDecision';
+import { databaseReadiness } from '../../src/frameworks/database/readinessProbe';
 
 let container: StartedPostgreSqlContainer;
 export let prisma: PrismaClient;
@@ -165,5 +166,5 @@ export function createTestApp(): Application {
     services: serviceRoutes(serviceController),
     items: itemRoutes(itemController),
     serviceOrders: serviceOrderRoutes(osController),
-  });
+  }, databaseReadiness(prisma));
 }
