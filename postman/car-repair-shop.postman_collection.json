@@ -946,7 +946,7 @@
           "response": []
         },
         {
-          "name": "[Public] Read Status",
+          "name": "[Cliente] Read Status (own OS)",
           "event": [
             {
               "listen": "test",
@@ -965,7 +965,12 @@
           ],
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}/status",
               "host": [
@@ -981,7 +986,7 @@
           "response": []
         },
         {
-          "name": "[Public] Approve Budget (code 5299)",
+          "name": "[Cliente] Approve Budget (code 5299)",
           "event": [
             {
               "listen": "test",
@@ -997,6 +1002,10 @@
           "request": {
             "method": "PATCH",
             "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -1386,7 +1395,7 @@
           "response": []
         },
         {
-          "name": "[Public] Reject Budget (code 5299)",
+          "name": "[Cliente] Reject Budget (code 5299)",
           "event": [
             {
               "listen": "test",
@@ -1402,6 +1411,10 @@
           "request": {
             "method": "PATCH",
             "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -1870,6 +1883,10 @@
           "request": {
             "method": "PATCH",
             "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -2735,6 +2752,308 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "09 - Cliente (CPF)",
+      "description": "Fluxo de autenticacao de cliente (M7). O cliente autentica por CPF na function, recebe um JWT com type=customer, e so enxerga e decide sobre a PROPRIA ordem de servico.\n\nA primeira requisicao so funciona contra o ambiente implantado, onde authBaseUrl aponta para o API Gateway: /auth/cpf e servida pela function, nao pela aplicacao. Nos ambientes locais o token e emitido pelo script de pre-requisicao da colecao, com o mesmo formato e o mesmo segredo.\n\nRequer que as pastas 00-03 tenham rodado (osId e customerId preenchidos).",
+      "item": [
+        {
+          "name": "Autenticar por CPF (function via API Gateway)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// So roda contra o gateway. Sem authBaseUrl, o token do pre-request vale.",
+                  "if (!pm.environment.get('authBaseUrl')) {",
+                  "    console.log('authBaseUrl vazio: usando o token emitido localmente.');",
+                  "} else {",
+                  "    pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "    const body = pm.response.json();",
+                  "    pm.test('devolve um token', () => pm.expect(body.token).to.be.a('string').and.not.empty);",
+                  "    pm.environment.set('customerToken', body.token);",
+                  "",
+                  "    // O payload e base64, nao e cifrado: da para conferir o contrato sem o segredo.",
+                  "    const claims = JSON.parse(atob(body.token.split('.')[1]));",
+                  "    pm.test('type e customer', () => pm.expect(claims.type).to.eql('customer'));",
+                  "    pm.test('sub e o customerId', () => pm.expect(claims.sub).to.eql(pm.environment.get('customerId')));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cpf\": \"{{customerTaxId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/auth/cpf",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "cpf"
+              ]
+            },
+            "description": "Emitida pela function (ADR-002). A aplicacao nao serve esta rota."
+          },
+          "response": []
+        },
+        {
+          "name": "[Cliente] Consultar a propria OS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('devolve a OS pedida', () => pm.expect(pm.response.json().id).to.eql(pm.environment.get('osId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders/{{osId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "401 - Sem token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A rota era publica ate a Fase 2. Este teste fixa que deixou de ser.",
+                  "pm.test('status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders/{{osId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "403 - Token de funcionario na rota de cliente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Sem `sub` nao ha dono contra quem comparar: deixar passar tornaria a",
+                  "// checagem de titularidade um no-op.",
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders/{{osId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "403 - Outro cliente tenta ler a OS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{otherCustomerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders/{{osId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "403 - Outro cliente tenta decidir o orcamento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// O que prova a protecao nao e o 403: e o orcamento nao ter mudado.",
+                  "pm.test('status 403', () => pm.response.to.have.status(403));",
+                  "",
+                  "const antes = pm.environment.get('osStatusBefore403');",
+                  "pm.sendRequest({",
+                  "    url: pm.environment.get('baseUrl') + '/service-orders/' + pm.environment.get('osId') + '/status',",
+                  "    method: 'GET',",
+                  "    header: { Authorization: 'Bearer ' + pm.environment.get('customerToken') },",
+                  "}, (err, res) => {",
+                  "    pm.test('a OS permanece intacta', () => {",
+                  "        pm.expect(res.json().status).to.not.eql('REJECTED');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{otherCustomerToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"REJECTED\",\n  \"code\": \"{{customerCode}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/service-orders/{{osId}}/budget",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "budget"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Emissao local do token de cliente.",
+          "//",
+          "// Contra o ambiente implantado, a pasta 09 obtem o token real em",
+          "// POST /auth/cpf, que passa pela function. Localmente nao existe function,",
+          "// e sem isto as rotas de cliente responderiam 401 em toda a colecao.",
+          "//",
+          "// So age quando `customerToken` ainda esta vazio: o token real, quando",
+          "// obtido, sobrescreve este e nao e substituido de volta.",
+          "(function () {",
+          "  const secret = pm.environment.get('jwtSecret');",
+          "  const customerId = pm.environment.get('customerId');",
+          "  if (!secret || !customerId) return;",
+          "  if (pm.environment.get('customerToken')) return;",
+          "",
+          "  const b64url = (w) => CryptoJS.enc.Base64.stringify(w)",
+          "    .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+          "",
+          "  const sign = (payload) => {",
+          "    const h = b64url(CryptoJS.enc.Utf8.parse(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));",
+          "    const b = b64url(CryptoJS.enc.Utf8.parse(JSON.stringify(payload)));",
+          "    return h + '.' + b + '.' + b64url(CryptoJS.HmacSHA256(h + '.' + b, secret));",
+          "  };",
+          "",
+          "  const now = Math.floor(Date.now() / 1000);",
+          "  const base = { iat: now, exp: now + 3600, iss: 'car-repair-shop-auth', type: 'customer' };",
+          "",
+          "  pm.environment.set('customerToken', sign(Object.assign({}, base, {",
+          "    sub: customerId,",
+          "    cpf: pm.environment.get('customerTaxId'),",
+          "    name: 'Postman Customer',",
+          "  })));",
+          "",
+          "  // Cliente que existe do ponto de vista do token, mas nao e dono de nenhuma",
+          "  // OS: e com ele que se demonstra o 403 de titularidade.",
+          "  pm.environment.set('otherCustomerToken', sign(Object.assign({}, base, {",
+          "    sub: '00000000-0000-0000-0000-000000000000',",
+          "    cpf: '11144477735',",
+          "    name: 'Outro Cliente',",
+          "  })));",
+          "})();"
+        ]
+      }
     }
   ]
 }
