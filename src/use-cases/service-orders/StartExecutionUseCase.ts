@@ -4,8 +4,9 @@ import { ServiceOrder } from '../../entities/ServiceOrder';
 import { NotFoundError, ValidationError } from '../../entities/errors/AppError';
 import { findOSOrThrow } from '../utils/serviceOrderUtils';
 import { IStatusChangeNotifier } from '../ports/IStatusChangeNotifier';
+import { IChangeServiceOrderStatus } from '../ports/input/IChangeServiceOrderStatus';
 
-export class StartExecutionUseCase {
+export class StartExecutionUseCase implements IChangeServiceOrderStatus {
   constructor(
     private readonly osRepo: IServiceOrderRepository,
     private readonly itemRepo: IItemRepository,

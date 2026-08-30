@@ -5,8 +5,9 @@ import { IBudgetNotifier } from '../ports/IBudgetNotifier';
 import { ServiceOrder } from '../../entities/ServiceOrder';
 import { assertTransition } from '../../entities/serviceOrderStateMachine';
 import { findOSOrThrow } from '../utils/serviceOrderUtils';
+import { IChangeServiceOrderStatus } from '../ports/input/IChangeServiceOrderStatus';
 
-export class FinishDiagnosisUseCase {
+export class FinishDiagnosisUseCase implements IChangeServiceOrderStatus {
   constructor(
     private readonly osRepo: IServiceOrderRepository,
     private readonly notifyStatusChange: IStatusChangeNotifier,
