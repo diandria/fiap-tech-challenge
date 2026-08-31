@@ -1,12 +1,14 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: oficina-pdb
-  namespace: oficina
+  name: car-repair-shop-api
+  namespace: car-repair-shop
   labels:
     app.kubernetes.io/part-of: fiap-tech-challenge
 spec:
+  # Com minReplicas 2, garantir 1 permite drenar um no de cada vez sem derrubar
+  # o servico inteiro.
   minAvailable: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: oficina-app
+      app: car-repair-shop-api

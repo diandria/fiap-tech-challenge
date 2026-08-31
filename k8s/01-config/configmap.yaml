@@ -1,15 +1,14 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: oficina-config
-  namespace: oficina
+  name: car-repair-shop-config
+  namespace: car-repair-shop
   labels:
     app.kubernetes.io/part-of: fiap-tech-challenge
 data:
   PORT: "3000"
-  CORS_ORIGIN: "http://localhost:3000"
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  OTEL_SERVICE_NAME: "car-repair-shop-api"
   ADMIN_EMAIL: "admin@master.com"
-  SMTP_HOST: "smtp.example.com"
-  SMTP_PORT: "587"
-  SMTP_SECURE: "false"
-  SMTP_FROM: "noreply@oficina.com"
+  CORS_ORIGIN: ""

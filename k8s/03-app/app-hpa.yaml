@@ -1,16 +1,27 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: oficina-hpa
-  namespace: oficina
+  name: car-repair-shop-api
+  namespace: car-repair-shop
   labels:
     app.kubernetes.io/part-of: fiap-tech-challenge
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: oficina-app
+    name: car-repair-shop-api
   minReplicas: 2
+  # Dez cabe na capacidade real, e isso foi medido -- nao estimado. Com dois
+  # t3.large, no momento da escrita:
+  #
+  #   vagas de pod livres   46  (70 no total, 24 ocupadas pela infraestrutura)
+  #   CPU requisitavel      2260m livres de 3860m
+  #
+  # Dez replicas pedem 1000m e dez vagas. Cabe, inclusive durante um rolling
+  # update com maxSurge de 25% (13 pods, 1300m).
+  #
+  # Prometer mais do que o cluster entrega aparece como falha na demonstracao,
+  # com pods em Pending e o HPA parado num numero que nao explica por que.
   maxReplicas: 10
   metrics:
   - type: Resource
