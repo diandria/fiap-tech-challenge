@@ -1,21 +1,12 @@
 import {
   runWithTraceContext,
   getTraceContext,
-  outboundTraceHeaders,
 } from '../../../../src/frameworks/logging/context';
 
 const ctx = { traceId: 'a'.repeat(32), spanId: 'b'.repeat(16) };
 
 describe('trace context propagation', () => {
-  it('should expose the current context as a traceparent header GIVEN an active scope', () => {
-    const headers = runWithTraceContext(ctx, () => outboundTraceHeaders());
 
-    expect(headers).toEqual({ traceparent: `00-${'a'.repeat(32)}-${'b'.repeat(16)}-01` });
-  });
-
-  it('should return an empty object GIVEN no active scope', () => {
-    expect(outboundTraceHeaders()).toEqual({});
-  });
 
   it('should survive an await GIVEN async code inside the scope', async () => {
     const seen = await runWithTraceContext(ctx, async () => {

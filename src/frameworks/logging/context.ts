@@ -25,16 +25,3 @@ export function getTraceContext(): TraceContext | undefined {
 export function toTraceparent(ctx: TraceContext): string {
   return `00-${ctx.traceId}-${ctx.spanId}-01`;
 }
-
-/**
- * Cabecalhos a injetar em toda chamada que sai da aplicacao: consulta de cliente
- * pela funcao de autenticacao, publicacao de evento, e chamadas entre servicos
- * quando existirem.
- *
- * Sem isso o rastro termina na fronteira do processo, que e justamente onde ele
- * passa a valer mais.
- */
-export function outboundTraceHeaders(): Record<string, string> {
-  const ctx = getTraceContext();
-  return ctx ? { traceparent: toTraceparent(ctx) } : {};
-}
