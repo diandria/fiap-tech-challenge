@@ -227,6 +227,32 @@ O deploy é automático: merge na `main` → CI → CD. Não há passo manual.
 O **runbook do ambiente efêmero** (subida completa a partir do zero, ordem obrigatória e descida)
 está em [`docs/runbook-ambiente.md`](docs/runbook-ambiente.md).
 
+### Ambiente único
+
+O projeto usa **um ambiente só**. Não há homologação: `main` é produção.
+
+```
+<tipo>/<slug>  →  PR  →  revisão  →  merge na main  →  CD  →  produção
+```
+
+Isso é consequência do contexto — entrega acadêmica, ambiente efêmero recriado a cada sessão do
+Learner Lab, com orçamento limitado. **Não é uma decisão de arquitetura, e por isso não tem ADR:**
+um ADR que defendesse a escolha estaria fabricando argumento técnico para uma restrição.
+
+O que substitui a rede de proteção que a homologação daria:
+
+| Rede de proteção | Como é coberta |
+|---|---|
+| Regressão funcional | Suíte de integração com Postgres real via Testcontainers, obrigatória no CI |
+| Erro de configuração de manifest | `kubeconform -strict` no CI, sem precisar de cluster |
+| Migration destrutiva | Job próprio, antes do rollout, com `backoffLimit: 0` |
+| Deploy quebrado | `rollout status` com **rollback automático**, e o workflow termina em vermelho |
+| Revisão | PR obrigatório; nenhum push direto na `main` |
+| Segredo divergente entre serviços | Todos leem o **mesmo parâmetro SSM** — não há cópias para divergir |
+
+O ponto fraco que permanece: **não há ensaio antes de produção**. Uma falha só descoberta em runtime
+chega ao ambiente real, e a mitigação é o rollback, não a prevenção.
+
 ### Manifests Kubernetes (`/k8s/`)
 
 | Arquivo | Conteúdo |
