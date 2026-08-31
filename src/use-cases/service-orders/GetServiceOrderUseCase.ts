@@ -6,8 +6,8 @@ import { assertOwnership } from '../utils/ownership';
 export interface GetServiceOrderInput {
   osId: string;
   /**
-   * Preenchido a partir do `sub` do token quando quem pede e um cliente.
-   * Ausente numa chamada de funcionario, que enxerga qualquer OS.
+   * Filled from the token's `sub` when the requester is a customer. Absent on
+   * an employee call, which may see any order.
    */
   requesterCustomerId?: string;
 }

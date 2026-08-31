@@ -3,11 +3,11 @@ import { integrationFailures } from '../metrics/integrationMetrics';
 import { isConnectivityError } from './isConnectivityError';
 
 /**
- * Conta indisponibilidade do banco em um lugar so.
+ * Counts database unavailability in a single place.
  *
- * Instrumentar aqui em vez de nos seis gateways evita repetir try/catch em cada
- * metodo e garante que nenhuma consulta futura escape da contagem. Relanca
- * sempre: quem decide o que fazer com o erro e a camada de cima.
+ * Instrumenting here instead of in the six gateways avoids repeating try/catch
+ * in every method and guarantees no future query escapes the count. It always
+ * rethrows: deciding what to do with the error belongs to the layer above.
  */
 export const countConnectivityFailures: Prisma.Middleware = async (params, next) => {
   try {

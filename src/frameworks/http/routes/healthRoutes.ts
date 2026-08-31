@@ -2,12 +2,12 @@ import { Router } from 'express';
 import { registry } from '../../metrics/registry';
 
 /**
- * Verificacao de dependencia para a sonda de prontidao. Lanca quando a
- * dependencia nao responde.
+ * Dependency check for the readiness probe. Throws when the dependency does not
+ * answer.
  *
- * E uma funcao, e nao o PrismaClient, para que a camada HTTP nao passe a
- * conhecer o banco: trocar a tecnologia de persistencia nao deveria alcancar as
- * rotas de sonda.
+ * It is a function, and not the PrismaClient, so the HTTP layer does not come
+ * to know the database: swapping the persistence technology should not reach
+ * the probe routes.
  */
 export type ReadinessCheck = () => Promise<unknown>;
 
@@ -24,13 +24,13 @@ function withTimeout(check: ReadinessCheck): Promise<unknown> {
 export function healthRoutes(checkDatabase: ReadinessCheck): Router {
   const router = Router();
 
-  // Vivacidade nao consulta o banco de proposito. Falhar aqui reinicia o pod, e
-  // reiniciar nao conserta um banco fora: o efeito seria um laco de reinicios
-  // durante o incidente.
+  // Liveness does not query the database on purpose. Failing here restarts the
+  // pod, and restarting does not fix a database that is down: the effect would
+  // be a restart loop for the duration of the incident.
   router.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
 
-  // Prontidao consulta: um pod que nao alcanca o banco nao deve receber
-  // trafego, e retirar do Service e exatamente o que o 503 faz.
+  // Readiness does query: a pod that cannot reach the database should not take
+  // traffic, and pulling it out of the Service is exactly what the 503 does.
   router.get('/ready', async (_req, res) => {
     try {
       await withTimeout(checkDatabase);
@@ -40,8 +40,8 @@ export function healthRoutes(checkDatabase: ReadinessCheck): Router {
     }
   });
 
-  // Sem autenticacao e sem rate limit: o Prometheus raspa de dentro do cluster,
-  // sem credencial, e em intervalo fixo.
+  // No authentication and no rate limit: Prometheus scrapes from inside the
+  // cluster, with no credential, at a fixed interval.
   router.get('/metrics', async (_req, res) => {
     res.set('Content-Type', registry.contentType);
     res.end(await registry.metrics());

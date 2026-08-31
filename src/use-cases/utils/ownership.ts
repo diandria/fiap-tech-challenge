@@ -2,21 +2,21 @@ import { ServiceOrder } from '../../entities/ServiceOrder';
 import { ForbiddenError } from '../../entities/errors/AppError';
 
 /**
- * Titularidade da ordem de servico.
+ * Service order ownership.
  *
- * Mora na camada de aplicacao, e nao num middleware, porque e regra de negocio.
- * Um middleware nao teria como saber de quem e a OS sem consultar o
- * repositorio -- e se consultasse, estaria fazendo trabalho de caso de uso
- * dentro da camada de frameworks.
+ * It lives in the application layer, and not in a middleware, because it is a
+ * business rule. A middleware would have no way of knowing who owns the order
+ * without querying the repository -- and if it did query, it would be doing use
+ * case work inside the frameworks layer.
  *
- * E e isso que a torna portatil: quando o contexto de ordens de servico virar
- * servico proprio, a regra viaja junto. Se morasse no gateway, ficaria para
- * tras na extracao, e o servico novo nasceria confiando que alguem antes dele
- * validou.
+ * That is also what makes it portable: when the service order context becomes
+ * its own service, the rule travels with it. Living in the gateway, it would be
+ * left behind by the extraction, and the new service would be born trusting
+ * that somebody upstream had validated.
  *
- * `requesterCustomerId` ausente significa chamada de funcionario, que ja passou
- * pelo `requireRole` da rota. Nao restringir aqui e deliberado: sem isso, toda
- * rota de staff precisaria informar um dono ficticio.
+ * A missing `requesterCustomerId` means an employee call, which has already
+ * passed the route's `requireRole`. Not restricting here is deliberate: without
+ * it, every staff route would have to supply a fictitious owner.
  */
 export function assertOwnership(os: ServiceOrder, requesterCustomerId?: string): void {
   if (requesterCustomerId && os.customerId !== requesterCustomerId) {

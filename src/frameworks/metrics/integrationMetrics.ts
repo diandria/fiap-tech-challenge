@@ -2,16 +2,16 @@ import { Counter } from '@prometheus-io/client';
 import { registry } from './registry';
 
 /**
- * Falhas em integracoes externas, separadas por integracao e operacao.
+ * Failures in external integrations, split by integration and operation.
  *
- * E o gatilho do alerta de falhas no processamento de ordens de servico: as
- * notificacoes sao best-effort e os casos de uso engolem o erro de proposito,
- * porque notificacao nao pode reverter transicao de status. Sem este contador,
- * uma integracao quebrada fica invisivel ate alguem reclamar.
+ * It is the trigger for the alert on service order processing failures:
+ * notifications are best-effort and the use cases swallow the error on purpose,
+ * because a notification must not roll back a status transition. Without this
+ * counter, a broken integration stays invisible until somebody complains.
  */
 export const integrationFailures = new Counter({
   name: 'integration_failures_total',
-  help: 'Falhas em integracoes externas',
+  help: 'Failures in external integrations',
   labelNames: ['integration', 'operation'],
   registers: [registry],
 });

@@ -3,12 +3,12 @@ import { UserRole } from '../../../entities/User';
 import { ForbiddenError } from '../../../entities/errors/AppError';
 
 /**
- * Autoriza por perfil de funcionario.
+ * Authorises by employee role.
  *
- * A recusa a token de cliente e explicita, e nao consequencia de ele nao ter
- * `role`. Sem a checagem de `type`, um cliente seria barrado por acidente --
- * cairia em `roles.includes(undefined)` -- e um refactor futuro poderia
- * dissolver o acidente sem ninguem perceber que a porta abriu.
+ * Rejecting a customer token is explicit, not a side effect of it having no
+ * `role`. Without the `type` check a customer would be blocked by accident --
+ * falling into `roles.includes(undefined)` -- and a future refactor could
+ * dissolve the accident with nobody noticing the door had opened.
  */
 export function requireRole(...roles: UserRole[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
@@ -20,15 +20,15 @@ export function requireRole(...roles: UserRole[]) {
 }
 
 /**
- * Autoriza rotas que so um cliente pode acessar.
+ * Authorises routes only a customer may reach.
  *
- * Recusa funcionario de proposito, e nao por descuido: as rotas de cliente
- * decidem sobre a *propria* OS, e a comparacao de titularidade precisa do `sub`
- * do token. Um admin nao tem `sub`, entao nao ha dono contra quem comparar --
- * deixa-lo passar seria transformar a checagem seguinte num no-op silencioso.
+ * Rejecting employees is deliberate, not an oversight: customer routes decide
+ * about the customer's *own* order, and the ownership comparison needs the
+ * token's `sub`. An admin has no `sub`, so there is no owner to compare
+ * against -- letting one through would turn the next check into a silent no-op.
  *
- * Funcionario que precise ver a OS de um cliente usa as rotas de staff, que
- * tem as proprias regras de perfil.
+ * An employee who needs to see a customer's order uses the staff routes, which
+ * carry their own role rules.
  */
 export function requireCustomer(req: Request, _res: Response, next: NextFunction): void {
   if (req.user?.type !== 'customer') {

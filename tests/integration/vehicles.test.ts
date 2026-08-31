@@ -10,8 +10,9 @@ let adminToken: string;
 let attendantToken: string;
 let mechanicToken: string;
 
-// O identificador do cliente e resolvido antes de cada teste: com integridade
-// referencial no banco, um valor inventado seria recusado pela chave estrangeira.
+// The customer identifier is resolved before each test: with referential
+// integrity in the database, an invented value would be refused by the foreign
+// key.
 let customerId: string;
 
 const baseVehicle = {
@@ -62,7 +63,7 @@ beforeAll(async () => {
 
 afterAll(async () => { await disconnectTestDB(); });
 afterEach(async () => { await clearTestDB(); });
-// Recriado a cada teste porque o clear apaga tambem o cliente.
+// Recreated on each test because the clear wipes the customer too.
 beforeEach(async () => { await seedCustomer(); });
 
 describe('POST /vehicles', () => {

@@ -72,14 +72,14 @@ describe('logger', () => {
 
     const { lines, stream } = capture();
     const logger = buildLogger({ stream });
-    logger.info('nao deve aparecer');
+    logger.info('must not appear');
     logger.warn('deve aparecer');
 
     expect(lines).toHaveLength(1);
     expect(JSON.parse(lines[0]).msg).toBe('deve aparecer');
 
-    // Atribuir undefined a uma variavel de ambiente grava a string "undefined",
-    // o que envenena os testes seguintes. Precisa ser removida de fato.
+    // Assigning undefined to an environment variable stores the string
+    // "undefined", which poisons the tests that follow. It has to be deleted.
     if (previous === undefined) delete process.env.LOG_LEVEL;
     else process.env.LOG_LEVEL = previous;
   });

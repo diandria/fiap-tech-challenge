@@ -16,7 +16,7 @@ import { ListServicesUseCase } from '../src/use-cases/services/ListServicesUseCa
 import { ListItemsUseCase } from '../src/use-cases/items/ListItemsUseCase';
 import { TaxType } from '../src/entities/Customer';
 
-const DATABASE_URL = process.env.DATABASE_URL || '(nao definido em .env)';
+const DATABASE_URL = process.env.DATABASE_URL || '(not set in .env)';
 
 interface SeedCustomer {
   name: string;

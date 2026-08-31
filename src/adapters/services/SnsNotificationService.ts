@@ -10,16 +10,16 @@ const INTEGRATION = 'sns';
 type EventType = 'SERVICE_ORDER_STATUS_CHANGED' | 'BUDGET_READY';
 
 /**
- * Entrega de notificacao publicando evento num topico SNS.
+ * Notification delivery by publishing an event to an SNS topic.
  *
- * E a segunda implementacao de um port que existe desde a Fase 2: trocar
- * `console.log` por publicacao nao abriu nenhum caso de uso. A escolha entre
- * este e o ConsoleNotificationService acontece no Composition Root, por
- * NOTIFICATION_CHANNEL.
+ * It is the second implementation of a port that has existed since Phase 2:
+ * swapping `console.log` for a publish opened no use case. The choice between
+ * this and ConsoleNotificationService happens in the Composition Root, driven
+ * by NOTIFICATION_CHANNEL.
  *
- * O formato do payload e o contrato do ADR-003, implementado tambem -- e
- * separadamente -- pela function que consome o topico. Os dois repositorios
- * nao compartilham codigo de proposito; o acoplamento e o contrato escrito.
+ * The payload shape is the ADR-003 contract, implemented separately by the
+ * function that consumes the topic as well. The two repositories share no code
+ * on purpose; the coupling is the written contract.
  */
 export class SnsNotificationService implements INotificationService {
   constructor(
@@ -55,9 +55,9 @@ export class SnsNotificationService implements INotificationService {
         ...(os.budgetTotal !== undefined && { budgetTotal: os.budgetTotal }),
       },
 
-      // Apenas o que o consumidor usa para montar a mensagem. Documento e
-      // telefone nao entram: dado que nao trafega nao vaza, e o topico e uma
-      // fronteira de confianca a mais.
+      // Only what the consumer uses to build the message. Tax id and phone
+      // stay out: data that does not travel cannot leak, and the topic is one
+      // more trust boundary.
       customer: {
         id: customer.id,
         name: customer.name,
@@ -67,9 +67,10 @@ export class SnsNotificationService implements INotificationService {
   }
 
   /**
-   * Conta a falha e relanca, no mesmo padrao do ConsoleNotificationService: o
-   * erro segue chegando ao catch do caso de uso, que nao reverte a transicao
-   * de status. Engolir aqui mudaria a semantica para ganhar nada.
+   * Counts the failure and rethrows, in the same pattern as
+   * ConsoleNotificationService: the error still reaches the use case's catch,
+   * which does not roll back the status transition. Swallowing it here would
+   * change the semantics and gain nothing.
    */
   private async publish(
     eventType: EventType,

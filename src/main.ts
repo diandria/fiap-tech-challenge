@@ -1,6 +1,6 @@
 import 'dotenv/config';
-// Primeira importacao de runtime: a auto-instrumentacao precisa aplicar
-// monkey-patch em http, express e pg antes de esses modulos carregarem.
+// First runtime import: auto-instrumentation has to monkey-patch http, express
+// and pg before those modules load.
 import './frameworks/tracing/start';
 import { createApp } from './app';
 import { prisma, disconnectPrisma } from './frameworks/database/prismaClient';

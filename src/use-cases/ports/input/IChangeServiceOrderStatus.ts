@@ -1,12 +1,12 @@
 import { ServiceOrder } from '../../../entities/ServiceOrder';
 
 /**
- * Transicao de status que so precisa da ordem de servico.
+ * A status transition that needs nothing but the service order.
  *
- * Atende StartDiagnosis, FinishDiagnosis, StartExecution, FinishOS e DeliverOS,
- * que sao exatamente as cinco entradas do mapa statusHandlers do controller.
- * As decisoes de orcamento ficam de fora porque exigem um segundo argumento;
- * ver IDecideBudget.
+ * It serves StartDiagnosis, FinishDiagnosis, StartExecution, FinishOS and
+ * DeliverOS, which are exactly the five entries of the controller's
+ * statusHandlers map. Budget decisions stay out because they require a second
+ * argument; see IDecideBudget.
  */
 export interface IChangeServiceOrderStatus {
   execute(osId: string): Promise<ServiceOrder>;

@@ -3,8 +3,8 @@ import { RegisterUseCase } from '../../use-cases/auth/RegisterUseCase';
 import { logger } from '../logging/logger';
 
 /**
- * Recebe o repositorio ja construido: quem escolhe a implementacao concreta e o
- * Composition Root, nao o seed.
+ * Receives the repository already built: choosing the concrete implementation
+ * belongs to the Composition Root, not to the seed.
  */
 export async function seedDefaultAdmin(repo: IUserRepository): Promise<void> {
   const email = process.env.ADMIN_EMAIL ?? 'admin@master.com';

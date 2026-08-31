@@ -44,7 +44,7 @@ describe('GET /services', () => {
     expect(res.body.length).toBe(1);
   });
 
-  // O catalogo carrega precos. Deixou de ser publico nesta fase.
+  // The catalogue carries prices. It stopped being public in this phase.
   it('GIVEN no Authorization header WHEN GET /services THEN returns 401', async () => {
     const res = await request(app).get('/services');
     expect(res.status).toBe(401);

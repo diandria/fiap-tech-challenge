@@ -19,9 +19,9 @@ describe('isConnectivityError', () => {
     expect(isConnectivityError(err)).toBe(true);
   });
 
-  // A distincao que faz o alerta valer: violacao de unicidade e comportamento
-  // esperado da aplicacao, nao integracao quebrada. Contar P2xxx encheria o
-  // painel de ruido e o alerta dispararia por CPF duplicado.
+  // The distinction that makes the alert worth having: a unique violation is
+  // expected application behaviour, not a broken integration. Counting P2xxx
+  // would fill the panel with noise and fire the alert over a duplicate tax id.
   it('should not classify a unique constraint violation GIVEN P2002 WHEN checked', () => {
     expect(isConnectivityError(knownError('P2002'))).toBe(false);
   });

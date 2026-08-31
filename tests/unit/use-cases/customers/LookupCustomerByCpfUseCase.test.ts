@@ -35,8 +35,9 @@ describe('LookupCustomerByCpfUseCase', () => {
     await expect(useCase.execute('11111111111')).rejects.toBeInstanceOf(ValidationError);
   });
 
-  // Sem esta guarda, um corpo sem cpf chegaria ao repositorio como "undefined"
-  // e a falha apareceria como 404, apontando para o lugar errado.
+  // Without this guard, a body with no cpf would reach the repository as
+  // "undefined" and the failure would surface as a 404, pointing at the wrong
+  // place.
   it('should throw ValidationError GIVEN a missing cpf WHEN looking up', async () => {
     const useCase = new LookupCustomerByCpfUseCase(makeCustomerRepo(cpfCustomer));
 

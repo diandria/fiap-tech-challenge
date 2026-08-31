@@ -5,22 +5,22 @@ export interface DecideBudgetInput {
   /** Confirmacao do cliente: os primeiros digitos do CPF/CNPJ. */
   code: string;
   /**
-   * Preenchido a partir do `sub` do token quando quem decide e um cliente.
-   * Ausente numa chamada de funcionario.
+   * Filled from the token's `sub` when the decision comes from a customer.
+   * Absent on an employee call.
    */
   requesterCustomerId?: string;
 }
 
 /**
- * Aprovacao e recusa de orcamento.
+ * Budget approval and rejection.
  *
- * Separado de IChangeServiceOrderStatus por causa do codigo de confirmacao, que
- * identifica quem decidiu. Juntar os dois num port so exigiria um parametro
- * opcional que metade dos implementadores ignoraria.
+ * Kept apart from IChangeServiceOrderStatus because of the confirmation code,
+ * which identifies who decided. Merging both into one port would require an
+ * optional parameter that half the implementations would ignore.
  *
- * O input e objeto nomeado, e nao parametros posicionais, porque tres strings
- * em sequencia sao exatamente a forma que convida a troca silenciosa: inverter
- * `osId` e `code` compilaria sem reclamacao.
+ * The input is a named object, not positional parameters, because three
+ * strings in a row are exactly the shape that invites a silent swap: reversing
+ * `osId` and `code` would compile without complaint.
  */
 export interface IDecideBudget {
   execute(input: DecideBudgetInput): Promise<ServiceOrder>;

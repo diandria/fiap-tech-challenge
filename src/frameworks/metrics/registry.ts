@@ -2,15 +2,15 @@ import { Registry, collectDefaultMetrics } from '@prometheus-io/client';
 
 export const registry = new Registry();
 
-// A identidade do servico vive em rotulo, nunca no nome da metrica (ADR-007):
-// o nome fica generico (http_request_duration_seconds) e serve para comparar
-// servicos diferentes no mesmo painel quando isto virar mais de um servico.
+// The service identity lives in a label, never in the metric name (ADR-007):
+// the name stays generic (http_request_duration_seconds) and serves to compare
+// different services on the same panel once this becomes more than one service.
 //
-// O rotulo e service_name, com underscore. Nome de rotulo do Prometheus aceita
-// apenas [a-zA-Z_][a-zA-Z0-9_]*, entao service.name sairia como
-// {service.name="..."} e quebraria o parsing do scrape. E a mesma normalizacao
-// que o exportador Prometheus do OpenTelemetry aplica. Nos logs e traces o
-// atributo continua service.name, onde o ponto e valido.
+// The label is service_name, with an underscore. A Prometheus label name only
+// accepts [a-zA-Z_][a-zA-Z0-9_]*, so service.name would come out as
+// {service.name="..."} and break scrape parsing. It is the same normalisation
+// OpenTelemetry's Prometheus exporter applies. In logs and traces the attribute
+// remains service.name, where the dot is valid.
 registry.setDefaultLabels({
   service_name: process.env.OTEL_SERVICE_NAME ?? 'car-repair-shop-api',
 });

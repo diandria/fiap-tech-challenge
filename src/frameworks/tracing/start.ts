@@ -1,13 +1,13 @@
 import { startTracing } from './otel';
 
 /**
- * Efeito de importacao, de proposito.
+ * Import for its side effect, on purpose.
  *
- * A auto-instrumentacao precisa aplicar monkey-patch em http, express e pg
- * antes de esses modulos serem carregados. O TypeScript compila para CommonJS,
- * onde os import viram require na ordem em que aparecem: importar este modulo na
- * primeira linha de main.ts garante a inicializacao antes dos demais. Chamar
- * startTracing() depois da lista de imports rodaria tarde demais, e o sintoma
- * seria trace vazio, sem erro nenhum.
+ * Auto-instrumentation has to monkey-patch http, express and pg before those
+ * modules are loaded. TypeScript compiles to CommonJS, where imports become
+ * requires in the order they appear: importing this module on the first line of
+ * main.ts guarantees initialisation ahead of the rest. Calling startTracing()
+ * after the import list would run too late, and the symptom would be an empty
+ * trace, with no error at all.
  */
 startTracing();

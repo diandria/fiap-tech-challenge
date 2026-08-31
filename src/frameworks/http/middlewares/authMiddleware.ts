@@ -4,7 +4,7 @@ import { UserRole } from '../../../entities/User';
 import { UnauthorizedError } from '../../../entities/errors/AppError';
 
 /**
- * Funcionario da oficina, autenticado por e-mail e senha em `POST /auth/login`.
+ * Shop employee, authenticated with e-mail and password at `POST /auth/login`.
  */
 export interface StaffJwtPayload {
   type: 'staff';
@@ -13,9 +13,9 @@ export interface StaffJwtPayload {
 }
 
 /**
- * Cliente, autenticado por CPF na function emissora (ADR-002). `sub` e o
- * `customerId`, e e a unica origem aceita dele: vindo do corpo ou da query, a
- * validacao de titularidade seria decorativa.
+ * Customer, authenticated by CPF in the issuing function (ADR-002). `sub` is
+ * the `customerId`, and it is the only accepted source for it: taken from the
+ * body or the query string, the ownership check would be decorative.
  */
 export interface CustomerJwtPayload {
   type: 'customer';
@@ -25,9 +25,9 @@ export interface CustomerJwtPayload {
 }
 
 /**
- * Uniao discriminada por `type`. Discriminar em vez de somar campos opcionais
- * faz o compilador exigir o narrowing antes de qualquer acesso: nao ha como ler
- * `role` de um token de cliente sem que ele reclame.
+ * Union discriminated by `type`. Discriminating instead of piling up optional
+ * fields makes the compiler demand narrowing before any access: there is no way
+ * to read `role` off a customer token without it complaining.
  */
 export type JwtPayload = StaffJwtPayload | CustomerJwtPayload;
 
@@ -41,13 +41,13 @@ declare global {
 }
 
 /**
- * Normaliza o que foi assinado para a uniao, ou devolve null quando o token nao
- * descreve nenhum dos dois atores.
+ * Normalises whatever was signed into the union, or returns null when the token
+ * describes neither actor.
  */
 function toPayload(raw: Record<string, unknown>): JwtPayload | null {
-  // Tokens emitidos antes desta mudanca nao tem `type`, e todos eles eram de
-  // funcionario. Sem este padrao, cada um deles deixaria de funcionar de uma
-  // vez -- inclusive os da suite de integracao.
+  // Tokens issued before this change carry no `type`, and every one of them was
+  // an employee token. Without this default, all of them would stop working at
+  // once -- including the ones in the integration suite.
   const type = raw.type ?? 'staff';
 
   if (type === 'staff') {
@@ -56,9 +56,9 @@ function toPayload(raw: Record<string, unknown>): JwtPayload | null {
   }
 
   if (type === 'customer') {
-    // Sem `sub` a checagem de titularidade compararia contra undefined. Recusar
-    // na porta e mais barato que descobrir depois por que um cliente enxergou a
-    // OS de outro.
+    // Without `sub` the ownership check would compare against undefined.
+    // Refusing at the door is cheaper than working out later why one customer
+    // saw another customer's order.
     if (typeof raw.sub !== 'string') return null;
     return {
       type: 'customer',

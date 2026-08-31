@@ -52,8 +52,8 @@ describe('internalTokenMiddleware', () => {
     expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
   });
 
-  // Um deploy sem a variavel nao pode abrir a rota. Aceitar string vazia
-  // transformaria uma configuracao faltando numa porta destrancada.
+  // A deploy without the variable must not open the route. Accepting an empty
+  // string would turn a missing configuration into an unlocked door.
   it('should reject every request GIVEN the secret is not configured WHEN validating', () => {
     delete process.env.INTERNAL_TOKEN;
     const next = jest.fn() as NextFunction;

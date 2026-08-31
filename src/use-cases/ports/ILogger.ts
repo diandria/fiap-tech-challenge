@@ -1,13 +1,13 @@
 /**
- * Output Port de registro, definido pela camada de casos de uso.
+ * Logging output port, defined by the use cases layer.
  *
- * Existe porque dois casos de uso de notificacao precisam relatar falha de
- * entrega. Enquanto o registro acontecia so em middlewares e adaptadores,
- * depender da biblioteca diretamente era legitimo e este port seria cerimonia
- * sem inversao. A partir do momento em que a camada interna precisa registrar,
- * a inversao passa a ser necessaria (ADR-010).
+ * It exists because two notification use cases need to report a delivery
+ * failure. While logging happened only in middlewares and adapters, depending
+ * on the library directly was legitimate and this port would have been ceremony
+ * without inversion. From the moment the inner layer needs to log, the
+ * inversion becomes necessary (ADR-010).
  *
- * Enxuto de proposito: so os dois niveis que a camada interna usa.
+ * Deliberately narrow: only the two levels the inner layer uses.
  */
 export interface ILogger {
   warn(message: string, context?: Record<string, unknown>): void;

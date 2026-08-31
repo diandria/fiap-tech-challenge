@@ -2,10 +2,11 @@ import { PrismaClient } from '@prisma/client';
 import { ReadinessCheck } from '../http/routes/healthRoutes';
 
 /**
- * Consulta trivial so para provar que a conexao responde.
+ * A trivial query, just to prove the connection answers.
  *
- * SELECT 1 nao toca tabela nenhuma: a sonda nao deve depender do esquema estar
- * migrado, senao ela passa a reprovar por motivo diferente do que se quer medir.
+ * SELECT 1 touches no table: the probe must not depend on the schema being
+ * migrated, otherwise it starts failing for a reason other than the one it is
+ * meant to measure.
  */
 export function databaseReadiness(prisma: PrismaClient): ReadinessCheck {
   return () => prisma.$queryRaw`SELECT 1`;

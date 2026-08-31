@@ -16,12 +16,12 @@ let adminToken: string;
 let mechanicToken: string;
 
 /**
- * Reproduz o que a function faz depois do lookup: assina o JWT de cliente com o
- * mesmo segredo da aplicacao, no formato da RFC-003.
+ * Reproduces what the function does after the lookup: signs the customer JWT
+ * with the application's own secret, in the RFC-003 shape.
  *
- * Esta duplicacao e proposital. O teste nao importa o codigo da function --
- * ela vive em outro repositorio --, entao ele verifica o *contrato*: se os dois
- * lados divergirem, este teste quebra, que e exatamente o sinal que se quer.
+ * This duplication is deliberate. The test does not import the function's code
+ * -- it lives in another repository -- so it checks the *contract*: if the two
+ * sides diverge, this test breaks, which is exactly the signal we want.
  */
 function signCustomerToken(customerId: string, name: string): string {
   return jwt.sign(
@@ -39,7 +39,7 @@ async function seedStaffTokens(): Promise<void> {
   mechanicToken = (await request(app).post('/auth/login').send({ email: 'mech@flow.com', password: 'mechpass' })).body.token;
 }
 
-/** Abre uma OS e a leva ate WAITING_APPROVAL, que e onde o cliente entra. */
+/** Opens an order and drives it to WAITING_APPROVAL, where the customer comes in. */
 async function osWaitingApproval(customerId: string): Promise<string> {
   const auth = { Authorization: `Bearer ${adminToken}` };
   const veh = await request(app).post('/vehicles').set(auth)
@@ -93,17 +93,17 @@ describe('Customer authentication flow', () => {
     const customerId = await createCustomer();
     const osId = await osWaitingApproval(customerId);
 
-    // 1. A function consulta o cliente pelo endpoint interno.
+    // 1. The function looks the customer up through the internal endpoint.
     const lookup = await request(app).post('/auth/customers/lookup')
       .set('x-internal-token', INTERNAL_TOKEN).send({ cpf: CPF });
 
     expect(lookup.status).toBe(200);
     expect(lookup.body).toEqual({ id: customerId, name: 'John', active: true });
 
-    // 2. A function emite o token com o mesmo segredo da aplicacao.
+    // 2. The function issues the token with the application's own secret.
     const token = signCustomerToken(lookup.body.id, lookup.body.name);
 
-    // 3. O cliente consulta a propria OS.
+    // 3. The customer reads their own order.
     const status = await request(app).get(`/service-orders/${osId}/status`)
       .set('Authorization', `Bearer ${token}`);
 
@@ -146,8 +146,8 @@ describe('Customer authentication flow', () => {
     expect(after.body.status).toBe('WAITING_APPROVAL');
   });
 
-  // Divergencia de segredo entre a aplicacao e a function e o risco R4. O
-  // sintoma e um 401 sem mensagem util, e este teste o nomeia.
+  // A secret diverging between the application and the function is risk R4. The
+  // symptom is a 401 with no useful message, and this test names it.
   it('should return 401 GIVEN a token signed with a different secret WHEN reading the order', async () => {
     const customerId = await createCustomer();
     const osId = await osWaitingApproval(customerId);

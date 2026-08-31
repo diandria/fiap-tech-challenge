@@ -102,7 +102,7 @@ export async function disconnectTestDB(): Promise<void> {
 }
 
 export async function clearTestDB(): Promise<void> {
-  // CASCADE respeita as chaves estrangeiras; sem ele o TRUNCATE falha por dependencia.
+  // CASCADE honours the foreign keys; without it the TRUNCATE fails on a dependency.
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE service_order_items, service_order_services, service_orders,
                    vehicles, customers, items, services, users
