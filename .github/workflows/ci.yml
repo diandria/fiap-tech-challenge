@@ -90,6 +90,52 @@ jobs:
           retention-days: 3
           if-no-files-found: error
 
+  sonar:
+    name: SonarQube
+    needs: [build, test]
+    runs-on: ubuntu-latest
+
+    # Declarados no nivel do job para que os passos possam decidir por
+    # presenca: `secrets` nao existe no `if` de um job, mas `env` existe.
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+    steps:
+      # Historico completo: sem ele o Sonar nao consegue atribuir autoria e
+      # perde o conceito de "codigo novo", que e sobre o que os portoes de
+      # qualidade dele decidem.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # A analise le o lcov; sem rodar a cobertura antes, o Sonar reporta 0%
+      # e o portao de qualidade reprova por um motivo que nao existe.
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: SonarQube scan
+        if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@v4
+
+      # Avisa em vez de falhar quando o servidor nao esta configurado. Falhar
+      # aqui deixaria o CI vermelho por falta de credencial, e um CI que vive
+      # vermelho para de ser lido.
+      - name: Report missing configuration
+        if: env.SONAR_TOKEN == ''
+        run: |
+          echo "::warning::SONAR_TOKEN nao configurado — analise do SonarQube pulada."
+          echo "Para habilitar: defina os secrets SONAR_TOKEN e SONAR_HOST_URL no repositorio."
+
   manifests:
     name: Validate Kubernetes manifests
     runs-on: ubuntu-latest
