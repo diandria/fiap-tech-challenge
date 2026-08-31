@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: car-repair-shop-migrate
+  namespace: car-repair-shop
+  labels:
+    app.kubernetes.io/part-of: fiap-tech-challenge
+    app.kubernetes.io/component: migration
+spec:
+  # Zero, e nao o padrao 6: uma migration que falha nao deve ser reexecutada
+  # automaticamente. Se falhou por conflito de schema, repetir produz o mesmo
+  # erro; se falhou no meio, repetir pode piorar o estado.
+  backoffLimit: 0
+  # O Job some sozinho uma hora depois. Sem isto, Jobs concluidos se acumulam
+  # e ocupam vagas de pod no cluster.
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: migration
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+      - name: migrate
+        # Substituida no deploy pela mesma tag da aplicacao. Rodar migration
+        # com imagem diferente da que vai servir significa aplicar um schema
+        # que o codigo em producao pode nao conhecer.
+        image: car-repair-shop:latest
+        command: ["npx", "prisma", "migrate", "deploy"]
+        envFrom:
+        - secretRef:
+            name: car-repair-shop-secret
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
