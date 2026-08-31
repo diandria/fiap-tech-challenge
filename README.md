@@ -3,68 +3,134 @@
 ![CI](https://github.com/diandria/fiap-tech-challenge/actions/workflows/ci.yml/badge.svg)
 ![CD](https://github.com/diandria/fiap-tech-challenge/actions/workflows/cd.yml/badge.svg)
 
-REST API para gerenciar ordens de serviço de uma oficina mecânica — FIAP Tech Challenge Fase 2.
+REST API para gerenciar ordens de serviço de uma oficina mecânica — FIAP Tech Challenge Fase 3.
 
-**Vídeo demonstrativo:** [assistir](https://drive.google.com/file/d/12GHq4ZRI1nZ-8uK1CyrCQ5obYXaEJFox/view?usp=sharing)
+**Vídeo demonstrativo:** _a publicar_ — o roteiro está em
+[`docs/roteiro-video.md`](docs/roteiro-video.md).
+
+> **Ambiente efêmero.** O sistema é provisionado do zero a cada sessão do Learner Lab e derrubado
+> depois, para não consumir orçamento. A URL do API Gateway **muda a cada recriação** — a que
+> aparece no vídeo não responde mais. Para subir tudo de novo, siga o
+> [runbook do ambiente](docs/runbook-ambiente.md) (~38 min).
 
 ---
 
 ## Sumário
 
-1. [Sobre a Fase 2](#sobre-a-fase-2)
-2. [Arquitetura](#arquitetura)
-3. [Stack](#stack)
-4. [Papéis de usuário](#papéis-de-usuário)
-5. [Execução local — Docker Compose](#execução-local--docker-compose)
-6. [Implantação na AWS](#implantação-na-aws)
-7. [Infraestrutura com Terraform](#infraestrutura-com-terraform)
-8. [CI/CD](#cicd)
-9. [Testes](#testes)
-10. [Postman](#postman)
-11. [API Reference (Swagger)](#api-reference-swagger)
+1. [Sobre a Fase 3](#sobre-a-fase-3)
+2. [Documentação arquitetural](#documentação-arquitetural)
+3. [Os quatro repositórios](#os-quatro-repositórios)
+4. [Arquitetura](#arquitetura)
+5. [Stack](#stack)
+6. [Papéis de usuário](#papéis-de-usuário)
+7. [Execução local — Docker Compose](#execução-local--docker-compose)
+8. [Implantação na AWS](#implantação-na-aws)
+9. [Observabilidade](#observabilidade)
+10. [CI/CD](#cicd)
+11. [Testes](#testes)
+12. [Postman](#postman)
+13. [API Reference (Swagger)](#api-reference-swagger)
 
 ---
 
-## Sobre a Fase 2
+## Sobre a Fase 3
 
-A Fase 2 evoluiu a aplicação da Fase 1 com foco em qualidade, resiliência e escalabilidade:
+A Fase 3 levou a aplicação do Minikube local para a AWS, decompôs a autenticação e a notificação em
+functions serverless, e instrumentou o sistema para observabilidade:
 
-- **Clean Architecture + SOLID**: refatoração com separação de camadas, ports/interfaces e eliminação de violações de DIP, SRP e OCP.
-- **Testes automatizados**: cobertura de unitários e integração para todos os fluxos críticos (threshold ≥ 80%).
-- **Containerização**: Dockerfile otimizado e docker-compose para desenvolvimento local.
-- **Kubernetes**: manifests YAML com Deployment, Service (LoadBalancer), HPA (escala por CPU), PDB e StatefulSet do MongoDB.
-- **IaC com Terraform**: provisionamento do cluster e aplicação dos manifests via provider `gavinbunney/kubectl`.
-- **CI/CD**: pipeline completo no GitHub Actions — build, lint, teste, validação de manifests, imagem no ECR e deploy automatizado no EKS, com rollback se o rollout falhar.
+- **Banco relacional**: Postgres no RDS, com Prisma e migrations aplicadas como Job antes do rollout.
+- **Serverless**: autenticação por CPF e notificação por e-mail em Lambdas próprias, com o API
+  Gateway como ponto único de entrada.
+- **Comunicação híbrida**: síncrona onde há resposta a devolver, assíncrona via tópico SNS onde não
+  há — a transição de status não espera o e-mail.
+- **Observabilidade**: log estruturado, métricas de negócio e HTTP, tracing distribuído com
+  propagação W3C, e o mesmo `trace_id` atravessando a fronteira assíncrona.
+- **Dashboards e alertas**: quatro dashboards versionados como código e quatro regras de alerta.
+- **Infraestrutura em três repositórios**: banco, cluster e functions, cada um com seu ciclo próprio.
+
+O que veio da Fase 2 continua valendo: Clean Architecture, SOLID, testes com threshold de 80%,
+CI/CD no GitHub Actions e HPA por CPU.
+
+---
+
+## Documentação arquitetural
+
+| Documento | Conteúdo |
+|---|---|
+| [Diagrama de componentes](docs/architecture/components.md) | Visão dos componentes e das fronteiras |
+| [Sequência — autenticação por CPF](docs/architecture/sequence-auth-cpf.md) | Gateway, function e lookup |
+| [Sequência — ordem de serviço](docs/architecture/sequence-service-order.md) | Ciclo de vida da OS |
+| [Modelo ER](docs/architecture/data-model.md) | Esquema relacional e restrições |
+| [Matriz de autorização](docs/architecture/authorization-matrix.md) | As 40 rotas, quem acessa cada uma |
+| [Índice de ADRs](docs/architecture/adr/README.md) | 11 decisões de arquitetura |
+| [Índice de RFCs](docs/architecture/rfc/README.md) | 5 propostas técnicas |
+
+Operacional: [runbook do ambiente](docs/runbook-ambiente.md),
+[checklist de gravação](docs/checklist-gravacao.md),
+[política de branches](docs/branching-policy.md).
+
+---
+
+## Os quatro repositórios
+
+| Repositório | Responsabilidade |
+|---|---|
+| [`fiap-tech-challenge`](https://github.com/diandria/fiap-tech-challenge) | Aplicação (este) |
+| [`fiap-tech-challenge-infra-db`](https://github.com/diandria/fiap-tech-challenge-infra-db) | VPC, RDS, segredos no SSM |
+| [`fiap-tech-challenge-infra-k8s`](https://github.com/diandria/fiap-tech-challenge-infra-k8s) | EKS, API Gateway, ECR, observabilidade |
+| [`fiap-tech-challenge-lambda`](https://github.com/diandria/fiap-tech-challenge-lambda) | Functions de autenticação e notificação, tópico SNS |
 
 ---
 
 ## Arquitetura
 
-> **Documentação em reconstrução.** A documentação arquitetural das fases anteriores foi removida.
-> A da Fase 3 — diagrama de componentes, diagramas de sequência, RFCs, ADRs e modelo ER — será
-> produzida na milestone M0 (ver `docs/phase-3-milestones.md`) e linkada aqui.
-
 ### Visão geral da arquitetura
 
 ```mermaid
 flowchart TB
+    user(["Cliente / Funcionário"])
+
+    subgraph aws["AWS"]
+        gw["API Gateway\nponto único de entrada\nthrottling 100 req/s"]
+
+        subgraph serverless["Lambdas"]
+            authfn["auth\nPOST /auth/cpf"]
+            notifyfn["notifications\nenvia o e-mail"]
+        end
+
+        subgraph k8s["EKS — namespace car-repair-shop"]
+            svc["Service\nNLB interno"]
+            app["car-repair-shop-api\n2–10 réplicas\nHPA (CPU 70%)"]
+            svc --> app
+        end
+
+        rds[("RDS PostgreSQL")]
+        sns(["Tópico SNS"])
+
+        gw -->|"VPC Link"| svc
+        gw --> authfn
+        authfn -->|"lookup interno"| gw
+        app --> rds
+        app -->|"publica evento"| sns
+        sns --> notifyfn
+    end
+
     subgraph gha["GitHub Actions"]
-        ci["CI (ubuntu-latest)\nbuild → lint → test"]
-        cd["CD (GitHub Actions)\ndocker build + push ECR\nJob de migration\nkubectl set image + rollout"]
+        ci["CI\nbuild → lint → test → kubeconform"]
+        cd["CD\nimagem no ECR → Job de migration\nset image → rollout → rollback"]
         ci --> cd
     end
 
-    subgraph k8s["Kubernetes — namespace: oficina"]
-        app["oficina-app\nDeployment\n2–10 réplicas\nHPA (CPU 70%)"]
-        mongo["mongo-0\nStatefulSet\nPVC: 5 Gi"]
-        svc["Service\nLoadBalancer :8080"]
-        app -->|":27017"| mongo
-        svc --> app
-    end
-
-    gha --> k8s
-    user["API Gateway"] -->|"VPC Link + NLB interno"| svc
+    user --> gw
+    cd --> k8s
 ```
+
+A autenticação por CPF **não passa pela aplicação**: o gateway roteia `POST /auth/cpf` direto para a
+Lambda, que consulta o cliente por um endpoint interno e emite o token
+([ADR-002](docs/architecture/adr/ADR-002-function-emissora-de-token.md)).
+
+A notificação é **assíncrona**: a aplicação publica no tópico e segue. A transição de status não
+espera o e-mail ([ADR-003](docs/architecture/adr/ADR-003-padrao-de-comunicacao.md)).
 
 ### Clean Architecture — camadas
 
@@ -83,16 +149,23 @@ src/
 
 | Tema | Escolha |
 |---|---|
-| Runtime | Node.js 20 + TypeScript |
+| Runtime | Node.js 22 LTS + TypeScript |
 | HTTP | Express |
 | Banco | PostgreSQL 16 + Prisma |
 | Auth | JWT (jsonwebtoken) + bcryptjs |
+| Log | pino — JSON estruturado ([ADR-010](docs/architecture/adr/ADR-010-biblioteca-de-log.md)) |
+| Métricas | prom-client — HTTP, negócio e falhas de integração |
+| Tracing | OpenTelemetry, propagação W3C `traceparent` |
+| Notificações | AWS SDK v3 (SNS) em produção; console em desenvolvimento |
 | Docs API | swagger-ui-express + swagger-jsdoc |
 | Testes | Jest + ts-jest + Supertest + Testcontainers |
 | Container | Docker + docker-compose |
 | Orquestração | Kubernetes (Amazon EKS) |
-| IaC | Terraform (`gavinbunney/kubectl` provider) |
-| CI/CD | GitHub Actions (CI em ubuntu-latest, CD em self-hosted) |
+| IaC | Terraform — nos três repositórios de infraestrutura |
+| CI/CD | GitHub Actions, ambos em runner hospedado |
+
+> **Node 22, e não 20.** O `testcontainers` adotado na migração para Postgres arrasta `undici@8`,
+> que exige `>=22.19.0`, e o Node 20 saiu de suporte em abril de 2026.
 
 ---
 
@@ -127,7 +200,7 @@ A confirmação com os primeiros 4 dígitos do CPF/CNPJ **permanece** em `PATCH
 ### Pré-requisitos
 
 - Docker + docker-compose
-- Node.js 20+ (apenas para `npm install` e `seed:dev`)
+- Node.js 22+ (apenas para `npm install` e `seed:dev`)
 
 ### 1. Variáveis de ambiente
 
@@ -175,6 +248,22 @@ curl http://localhost:3000/health
 docker-compose down          # mantém dados
 docker-compose down -v       # remove volumes
 ```
+
+### O que **não** roda localmente
+
+Ser explícito aqui vale mais que fingir cobertura total: quem tentar e travar vai concluir que a
+documentação está errada, e vai estar certo.
+
+| Componente | Local | Observação |
+|---|---|---|
+| API + Postgres | sim | `docker-compose up -d` |
+| Notificações | sim, no console | `NOTIFICATION_CHANNEL=console` imprime a mensagem em vez de publicar no SNS |
+| **Autenticação por CPF** | **não** | `POST /auth/cpf` é servida pela Lambda, atrás do API Gateway — nenhum dos dois existe localmente |
+| Observabilidade | não | Loki, Tempo, Prometheus e Grafana vivem no cluster; localmente os logs saem em JSON no stdout e as métricas ficam em `/metrics` |
+
+**Como testar rotas de cliente sem o gateway:** autentique como `admin` em `POST /auth/login` e use
+esse token. A titularidade é verificada dentro do caso de uso, então o comportamento de negócio é o
+mesmo; o que não dá para exercitar localmente é a emissão do token pela function.
 
 ---
 
@@ -275,19 +364,32 @@ k6 run scripts/load-test.js
 ```
 
 
-## Infraestrutura com Terraform
+## Observabilidade
 
-Provider: `gavinbunney/kubectl ~> 1.14` — aplica manifests YAML sem conversão para recursos Terraform nativos.
+Três sinais, correlacionados pelo mesmo `trace_id`.
 
-Os recursos usam `fileset` + `for_each` agrupados por diretório, com um recurso individual para o Secret (usa `templatefile()` para injetar as variáveis sensíveis).
-
-| Recurso Terraform | Manifests aplicados | Depende de |
+| Sinal | Onde | O que expõe |
 |---|---|---|
-| `kubectl_manifest.namespaces[*]` | `k8s/00-namespaces/*.yaml` | — |
-| `kubectl_manifest.config[*]` | `k8s/01-config/*.yaml` | namespaces |
-| `kubectl_manifest.mongo[*]` | `k8s/02-mongo/*.yaml` | config |
-| `kubectl_manifest.secret` | `k8s/secret.yaml` (templatefile) | namespaces |
-| `kubectl_manifest.app[*]` | `k8s/03-app/*.yaml` | mongo, secret |
+| Log | Loki | JSON estruturado com `trace_id`, `span_id`, rota, status e duração |
+| Métrica | Prometheus | latência HTTP por rota, OS abertas, tempo até cada status, falhas de integração |
+| Trace | Tempo | spans da requisição, com propagação W3C `traceparent` |
+
+O `trace_id` **atravessa a fronteira assíncrona**: a aplicação publica o `traceparent` no evento SNS
+e a function de notificações o registra no próprio log. O mesmo identificador aparece dos dois lados,
+apesar de não haver chamada síncrona entre eles.
+
+Os dashboards e as regras de alerta são versionados como código no
+[`infra-k8s`](https://github.com/diandria/fiap-tech-challenge-infra-k8s) — painel montado pela UI se
+perderia no teardown do cluster.
+
+| Dashboard | Conteúdo |
+|---|---|
+| Volume de ordens de serviço | Contagem e taxa de abertura |
+| Tempo até cada status | Percentis e média por transição |
+| Latência, healthchecks e uptime | p50/p95/p99 por rota, taxa de erro, uptime |
+| Recursos do Kubernetes | CPU e memória contra requests e limites, réplicas contra o HPA |
+
+Endpoint de métricas da aplicação: `GET /metrics`.
 
 ---
 
@@ -316,17 +418,28 @@ Os segredos vêm do **SSM**, não de secrets do GitHub: `JWT_SECRET` e `INTERNAL
 
 | Secret | Descrição |
 |---|---|
-| `JWT_SECRET` | Segredo para assinar tokens JWT |
-| `ADMIN_PASSWORD` | Senha do usuário administrador |
-| `MONGO_ROOT_USERNAME` | Usuário root do MongoDB |
-| `MONGO_ROOT_PASSWORD` | Senha root do MongoDB |
+| `AWS_ACCESS_KEY_ID` | Credencial do Learner Lab |
+| `AWS_SECRET_ACCESS_KEY` | Credencial do Learner Lab |
+| `AWS_SESSION_TOKEN` | Credencial do Learner Lab — expira em ~4h |
+
+São só esses três. `JWT_SECRET`, `INTERNAL_TOKEN` e a senha do admin **não** são secrets do GitHub:
+vêm do SSM, escritos pelo Terraform. Mantê-los aqui recriaria duas cópias do que deve ser um valor
+só.
+
+As credenciais do Learner Lab expiram junto com a sessão. Para renová-las nos quatro repositórios:
+
+```bash
+~/dev/fiap-tech-challenge-lambda/scripts/refresh-aws-secrets.sh --todos
+```
+
+Cada deploy fica registrado em **Deployments → production**.
 
 ---
 
 ## Testes
 
 ```bash
-npm test                  # todos os testes (sem MongoDB externo)
+npm test                  # unitários e integração (Testcontainers sobe um Postgres real)
 npm run test:coverage     # com relatório de cobertura (threshold ≥ 80%)
 ```
 
@@ -372,7 +485,7 @@ Veja [`postman/README.md`](postman/README.md) para o fluxo detalhado.
 | Ambiente | URL |
 |---|---|
 | Docker Compose | <http://localhost:3000/docs> |
-| Kubernetes | <http://localhost:8080/docs> |
+| AWS | `<url-do-api-gateway>/docs` — obtenha com `terraform output -raw api_gateway_url` no `infra-k8s` |
 
 ### Autenticar no Swagger UI
 
