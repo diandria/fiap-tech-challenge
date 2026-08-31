@@ -15,7 +15,7 @@ import { PostgresServiceRepository } from './adapters/gateways/PostgresServiceRe
 import { PostgresItemRepository } from './adapters/gateways/PostgresItemRepository';
 import { PostgresServiceOrderRepository } from './adapters/gateways/PostgresServiceOrderRepository';
 import { PostgresUserRepository } from './adapters/gateways/PostgresUserRepository';
-import { ConsoleNotificationService } from './adapters/services/ConsoleNotificationService';
+import { createNotificationService } from './frameworks/notifications/notificationFactory';
 
 import { LoginUseCase } from './use-cases/auth/LoginUseCase';
 import { RegisterUseCase } from './use-cases/auth/RegisterUseCase';
@@ -90,7 +90,7 @@ async function main(): Promise<void> {
   const itemRepo = new PostgresItemRepository(prisma);
   const osRepo = new PostgresServiceOrderRepository(prisma);
   const userRepo = new PostgresUserRepository(prisma);
-  const notifier = new ConsoleNotificationService();
+  const notifier = createNotificationService();
   const appLogger = new PinoLoggerAdapter(logger);
 
   const authController = new AuthController(
