@@ -2,8 +2,8 @@ import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { Customer } from '../../entities/Customer';
 import { ServiceOrder } from '../../entities/ServiceOrder';
 import { INotificationService } from '../../use-cases/ports/INotificationService';
-import { getTraceContext, toTraceparent } from '../../frameworks/logging/context';
-import { integrationFailures } from '../../frameworks/metrics/integrationMetrics';
+import { IIntegrationFailures } from '../../use-cases/ports/IIntegrationFailures';
+import { ITraceContext } from '../../use-cases/ports/ITraceContext';
 
 const INTEGRATION = 'sns';
 
@@ -25,6 +25,8 @@ export class SnsNotificationService implements INotificationService {
   constructor(
     private readonly sns: SNSClient,
     private readonly topicArn: string,
+    private readonly failures: IIntegrationFailures,
+    private readonly traceContext: ITraceContext,
   ) {}
 
   async notifyStatusChanged(customer: Customer, os: ServiceOrder): Promise<void> {
@@ -36,16 +38,16 @@ export class SnsNotificationService implements INotificationService {
   }
 
   private buildPayload(eventType: EventType, customer: Customer, os: ServiceOrder): string {
-    const ctx = getTraceContext();
+    const traceparent = this.traceContext.currentTraceparent();
 
     return JSON.stringify({
       eventType,
       occurredAt: new Date().toISOString(),
 
-      // Omitido fora de uma requisicao HTTP, onde nao ha rastro. Publicar um
-      // traceparent invalido seria pior que omitir: o consumidor o registraria
-      // e o Grafana juntaria eventos sem relacao nenhuma.
-      ...(ctx && { traceparent: toTraceparent(ctx) }),
+      // Omitted outside an HTTP request, where there is no trace. Publishing
+      // an invalid traceparent would be worse than omitting it: the consumer
+      // would record it and Grafana would stitch unrelated events together.
+      ...(traceparent && { traceparent }),
 
       serviceOrder: {
         id: os.id,
@@ -83,7 +85,7 @@ export class SnsNotificationService implements INotificationService {
         }),
       );
     } catch (err) {
-      integrationFailures.inc({ integration: INTEGRATION, operation });
+      this.failures.record(INTEGRATION, operation);
       throw err;
     }
   }

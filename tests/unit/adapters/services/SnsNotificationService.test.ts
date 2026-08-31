@@ -1,6 +1,8 @@
 import { SnsNotificationService } from '../../../../src/adapters/services/SnsNotificationService';
 import { runWithTraceContext } from '../../../../src/frameworks/logging/context';
-import { integrationFailures } from '../../../../src/frameworks/metrics/integrationMetrics';
+import { FakeIntegrationFailures } from '../../../support/FakeBusinessMetrics';
+import { ITraceContext } from '../../../../src/use-cases/ports/ITraceContext';
+import { AsyncLocalStorageTraceContext } from '../../../../src/frameworks/logging/AsyncLocalStorageTraceContext';
 import { cpfCustomer } from '../../fixtures/customer';
 import { waitingApprovalOS } from '../../fixtures/serviceOrder';
 
@@ -16,17 +18,23 @@ function publishedPayload(sns: { send: jest.Mock }): Record<string, never> {
   return JSON.parse(sns.send.mock.calls[0][0].input.Message);
 }
 
+let failures: FakeIntegrationFailures;
+
+// The real implementation, so the test also covers the AsyncLocalStorage
+// reading. A stub here would leave the ambient path untested.
+const traceContext: ITraceContext = new AsyncLocalStorageTraceContext();
+
 beforeEach(() => {
-  integrationFailures.reset();
+  failures = new FakeIntegrationFailures();
 });
 
 describe('SnsNotificationService', () => {
-  // Este teste valida o contrato do ADR-003 campo a campo. E a unica defesa
-  // automatizada contra a divergencia entre publicador (aqui) e consumidor (a
-  // function de notificacoes), que vivem em repositorios diferentes.
+  // This test validates the ADR-003 contract field by field. It is the only
+  // automated defence against divergence between publisher (here) and consumer
+  // (the notifications function), which live in different repositories.
   it('should publish a payload matching the adr-003 contract GIVEN a status change', async () => {
     const sns = makeSns();
-    const service = new SnsNotificationService(sns as never, TOPIC);
+    const service = new SnsNotificationService(sns as never, TOPIC, failures, traceContext);
 
     await runWithTraceContext({ traceId: TRACE_ID, spanId: SPAN_ID }, () =>
       service.notifyStatusChanged(cpfCustomer, waitingApprovalOS),
@@ -48,14 +56,14 @@ describe('SnsNotificationService', () => {
 
   it('should target the configured topic GIVEN any notification', async () => {
     const sns = makeSns();
-    await new SnsNotificationService(sns as never, TOPIC).notifyStatusChanged(cpfCustomer, waitingApprovalOS);
+    await new SnsNotificationService(sns as never, TOPIC, failures, traceContext).notifyStatusChanged(cpfCustomer, waitingApprovalOS);
 
     expect(sns.send.mock.calls[0][0].input.TopicArn).toBe(TOPIC);
   });
 
   it('should emit BUDGET_READY with the amount GIVEN a budget notification', async () => {
     const sns = makeSns();
-    const service = new SnsNotificationService(sns as never, TOPIC);
+    const service = new SnsNotificationService(sns as never, TOPIC, failures, traceContext);
 
     await service.notifyBudgetReady(cpfCustomer, { ...waitingApprovalOS, budgetTotal: 1234.56 });
 
@@ -69,29 +77,29 @@ describe('SnsNotificationService', () => {
   // Grafana juntaria eventos sem relacao.
   it('should omit traceparent GIVEN no trace context WHEN publishing', async () => {
     const sns = makeSns();
-    await new SnsNotificationService(sns as never, TOPIC).notifyStatusChanged(cpfCustomer, waitingApprovalOS);
+    await new SnsNotificationService(sns as never, TOPIC, failures, traceContext).notifyStatusChanged(cpfCustomer, waitingApprovalOS);
 
     expect(publishedPayload(sns)).not.toHaveProperty('traceparent');
   });
 
   it('should increment the failure counter GIVEN sns is unavailable', async () => {
     const sns = { send: jest.fn().mockRejectedValue(new Error('down')) };
-    const service = new SnsNotificationService(sns as never, TOPIC);
+    const service = new SnsNotificationService(sns as never, TOPIC, failures, traceContext);
 
     await expect(service.notifyStatusChanged(cpfCustomer, waitingApprovalOS)).rejects.toThrow();
 
-    const labels = (await integrationFailures.get()).values[0].labels as Record<string, string>;
+    const labels = failures.recorded[0];
     expect(labels.integration).toBe('sns');
     expect(labels.operation).toBe('status_changed');
   });
 
   it('should label the failure as budget_ready GIVEN the budget notification fails', async () => {
     const sns = { send: jest.fn().mockRejectedValue(new Error('down')) };
-    const service = new SnsNotificationService(sns as never, TOPIC);
+    const service = new SnsNotificationService(sns as never, TOPIC, failures, traceContext);
 
     await expect(service.notifyBudgetReady(cpfCustomer, waitingApprovalOS)).rejects.toThrow();
 
-    const labels = (await integrationFailures.get()).values[0].labels as Record<string, string>;
+    const labels = failures.recorded[0];
     expect(labels.operation).toBe('budget_ready');
   });
 });

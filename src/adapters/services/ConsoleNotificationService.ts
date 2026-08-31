@@ -1,18 +1,31 @@
-import { Logger } from 'pino';
 import { Customer } from '../../entities/Customer';
 import { ServiceOrder } from '../../entities/ServiceOrder';
 import { INotificationService } from '../../use-cases/ports/INotificationService';
-import { logger as defaultLogger } from '../../frameworks/logging/logger';
-import { integrationFailures } from '../../frameworks/metrics/integrationMetrics';
+import { IIntegrationFailures } from '../../use-cases/ports/IIntegrationFailures';
+
+/**
+ * The subset of a logger this adapter needs.
+ *
+ * `ILogger` deliberately carries only `warn` and `error`, which is what the
+ * inner layers use. Widening it to satisfy this adapter would hand use cases a
+ * method they never call.
+ */
+export interface INotificationLogger {
+  info(context: Record<string, unknown>, message: string): void;
+}
 
 const INTEGRATION = 'notification';
 
 /**
- * Implementacao de desenvolvimento: registra a notificacao em vez de entrega-la.
- * A entrega real fica com a funcao serverless, acionada por evento (ADR-003).
+ * Development implementation: records the notification instead of delivering
+ * it. Real delivery belongs to the serverless function, triggered by an event
+ * (ADR-003).
  */
 export class ConsoleNotificationService implements INotificationService {
-  constructor(private readonly logger: Logger = defaultLogger) {}
+  constructor(
+    private readonly logger: INotificationLogger,
+    private readonly failures: IIntegrationFailures,
+  ) {}
 
   async notifyStatusChanged(customer: Customer, os: ServiceOrder): Promise<void> {
     await this.dispatch('status_changed', () => {
@@ -33,17 +46,17 @@ export class ConsoleNotificationService implements INotificationService {
   }
 
   /**
-   * Conta a falha e relanca.
+   * Counts the failure and rethrows.
    *
-   * Relancar mantem o comportamento intacto: o erro continua chegando ao catch
-   * do caso de uso, que segue nao revertendo a transicao de status. Engolir
-   * aqui mudaria a semantica para ganhar nada.
+   * Rethrowing keeps the behaviour intact: the error still reaches the use
+   * case's catch, which goes on not rolling back the status transition.
+   * Swallowing it here would change the semantics and gain nothing.
    */
   private async dispatch(operation: string, send: () => void): Promise<void> {
     try {
       send();
     } catch (err) {
-      integrationFailures.inc({ integration: INTEGRATION, operation });
+      this.failures.record(INTEGRATION, operation);
       throw err;
     }
   }

@@ -77,6 +77,7 @@ import { serviceRoutes } from './frameworks/http/routes/serviceRoutes';
 import { itemRoutes } from './frameworks/http/routes/itemRoutes';
 import { serviceOrderRoutes } from './frameworks/http/routes/serviceOrderRoutes';
 import { MeasuredCreateServiceOrder } from './adapters/decorators/MeasuredCreateServiceOrder';
+import { PrometheusBusinessMetrics } from './frameworks/metrics/PrometheusBusinessMetrics';
 import { MeasuredStatusTransition } from './adapters/decorators/MeasuredStatusTransition';
 import { MeasuredBudgetDecision } from './adapters/decorators/MeasuredBudgetDecision';
 
@@ -120,22 +121,34 @@ async function main(): Promise<void> {
   const notifyStatusChange = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier, appLogger);
   const notifyBudget = new NotifyBudgetUseCase(osRepo, customerRepo, notifier, appLogger);
 
+  const businessMetrics = new PrometheusBusinessMetrics();
+
   const osController = new ServiceOrderController(
-    new MeasuredCreateServiceOrder(new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo)),
+    new MeasuredCreateServiceOrder(
+      new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo),
+      businessMetrics,
+    ),
     new GetServiceOrderUseCase(osRepo),
     new ListServiceOrdersUseCase(osRepo),
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
     new AddItemToOSUseCase(osRepo, itemRepo), new RemoveItemFromOSUseCase(osRepo, itemRepo),
-    new MeasuredStatusTransition(new StartDiagnosisUseCase(osRepo, notifyStatusChange)),
+    new MeasuredStatusTransition(new StartDiagnosisUseCase(osRepo, notifyStatusChange), businessMetrics),
     new MeasuredStatusTransition(
       new FinishDiagnosisUseCase(osRepo, notifyStatusChange, notifyBudget, new CalculateBudgetUseCase(serviceRepo, itemRepo)),
+      businessMetrics,
     ),
-    new MeasuredBudgetDecision(new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange)),
-    new MeasuredBudgetDecision(new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange)),
-    new MeasuredStatusTransition(new StartExecutionUseCase(osRepo, itemRepo, notifyStatusChange)),
+    new MeasuredBudgetDecision(new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange), businessMetrics),
+    new MeasuredBudgetDecision(
+      new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
+      businessMetrics,
+    ),
+    new MeasuredStatusTransition(
+      new StartExecutionUseCase(osRepo, itemRepo, notifyStatusChange),
+      businessMetrics,
+    ),
     new StartServiceUseCase(osRepo), new FinishServiceUseCase(osRepo),
-    new MeasuredStatusTransition(new FinishOSUseCase(osRepo, notifyStatusChange)),
-    new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange)),
+    new MeasuredStatusTransition(new FinishOSUseCase(osRepo, notifyStatusChange), businessMetrics),
+    new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange), businessMetrics),
     new GetAvgExecutionTimeUseCase(osRepo),
   );
 
