@@ -37,9 +37,9 @@ describe('traceContextMiddleware with an active OpenTelemetry span', () => {
     await provider.shutdown();
   });
 
-  // Sem isto, o registro carregaria um identificador proprio e o Tempo outro:
-  // os dois existiriam e nenhum casaria com o outro, que e pior que nao ter
-  // correlacao nenhuma, porque parece funcionar.
+  // Without this, the log would carry one identifier and Tempo another: both
+  // would exist and neither would match, which is worse than having no
+  // correlation at all, because it looks like it works.
   it('should adopt the active span ids GIVEN the sdk is running WHEN a request arrives', async () => {
     const seen: { traceId?: string; spanId?: string } = {};
     const app = appCapturing(seen);
@@ -57,8 +57,8 @@ describe('traceContextMiddleware with an active OpenTelemetry span', () => {
 });
 
 describe('traceContextMiddleware without an active span', () => {
-  // Desenvolvimento local e a suite de testes rodam sem coletor. O
-  // comportamento do M2 precisa continuar valendo ali.
+  // Local development and the test suite run with no collector. The M2
+  // behaviour has to keep holding there.
   it('should generate its own ids GIVEN no active span WHEN a request arrives', async () => {
     const seen: { traceId?: string; spanId?: string } = {};
 

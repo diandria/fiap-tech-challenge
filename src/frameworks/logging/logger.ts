@@ -2,10 +2,10 @@ import pino, { Logger, DestinationStream } from 'pino';
 import { getTraceContext } from './context';
 
 /**
- * Campos ocultados em todo evento. A lista fica declarada aqui, num lugar so,
- * porque a alternativa (omitir em cada chamada) depende de ninguem esquecer.
- * O sistema registra requisicoes que carregam CPF, cabecalho de autorizacao e o
- * segredo do endpoint interno.
+ * Fields redacted from every event. The list is declared here, in one place,
+ * because the alternative -- omitting at each call site -- depends on nobody
+ * ever forgetting. The system logs requests carrying tax ids, the authorization
+ * header and the internal endpoint's secret.
  */
 const REDACTED_PATHS = [
   'cpf',
@@ -19,7 +19,7 @@ const REDACTED_PATHS = [
 ];
 
 export interface LoggerOptions {
-  /** Injetavel para teste: sem essa costura, verificar ocultacao exigiria capturar a saida do processo. */
+  /** Injectable for tests: without this seam, checking redaction would mean capturing process output. */
   stream?: DestinationStream;
 }
 
@@ -32,16 +32,16 @@ export function buildLogger(opts: LoggerOptions = {}): Logger {
   return pino(
     {
       level: process.env.LOG_LEVEL ?? 'info',
-      // Convencoes semanticas abertas (ADR-007): um servico novo, em qualquer
-      // linguagem, emite telemetria comparavel sem combinar nada.
+      // Open semantic conventions (ADR-007): a new service, in any language,
+      // emits comparable telemetry without anyone agreeing on anything.
       base: {
         'service.name': process.env.OTEL_SERVICE_NAME ?? 'car-repair-shop-api',
         'service.version': process.env.SERVICE_VERSION ?? '0.0.0',
         'deployment.environment': process.env.NODE_ENV ?? 'development',
       },
       redact: { paths: REDACTED_PATHS, censor: '[Redacted]' },
-      // Com o mixin, nenhum ponto de registro precisa lembrar de incluir o rastro,
-      // o que significa que nenhum vai esquecer.
+      // With the mixin, no log call has to remember to include the trace, which
+      // means no log call will forget.
       mixin() {
         const ctx = getTraceContext();
         return ctx ? { trace_id: ctx.traceId, span_id: ctx.spanId } : {};

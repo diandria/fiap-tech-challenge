@@ -16,13 +16,14 @@ import { ValidationError } from '../../entities/errors/AppError';
 import { ServiceOrder, OSStatus } from '../../entities/ServiceOrder';
 
 /**
- * Extrai o dono da requisicao **do token**, nunca do corpo ou da query.
+ * Reads the request's owner **from the token**, never from the body or the
+ * query string.
  *
- * Se viesse do cliente, a validacao de titularidade seria decorativa: bastaria
- * informar o ID de quem se quisesse consultar. Concentrar a leitura aqui deixa
- * um unico lugar para auditar essa garantia.
+ * Coming from the client, the ownership check would be decorative: you would
+ * just pass the id of whoever you wanted to read. Concentrating the read here
+ * leaves a single place to audit that guarantee.
  *
- * Devolve undefined para funcionario, que nao e restrito por titularidade.
+ * Returns undefined for employees, who are not restricted by ownership.
  */
 function requesterCustomerId(req: Request): string | undefined {
   return req.user?.type === 'customer' ? req.user.sub : undefined;

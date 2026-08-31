@@ -1,29 +1,30 @@
 import { Counter, Histogram } from '@prometheus-io/client';
 import { registry } from './registry';
 
-// Nomeadas pelo contexto delimitado (ordens de servico), nao pelo servico que
-// hoje as expoe: quando isto virar mais de um servico, o nome continua valendo.
+// Named after the bounded context (service orders), not after the service that
+// exposes them today: when this becomes more than one service, the name holds.
 export const serviceOrdersCreated = new Counter({
   name: 'service_orders_created_total',
-  help: 'Total de ordens de servico abertas',
+  help: 'Total service orders opened',
   registers: [registry],
 });
 
 /**
- * Tempo entre a abertura da ordem e o momento em que ela atinge cada status.
+ * Time between the order being opened and the moment it reaches each status.
  *
- * Nao e o tempo de permanencia em cada status: a entidade so grava timestamp
- * para EXECUTION, FINISHED e DELIVERED, entao DIAGNOSIS e WAITING_APPROVAL nao
- * teriam de onde derivar o inicio. O que da para medir com honestidade e o
- * tempo decorrido desde a abertura, que e o prazo de cada etapa visto pelo
- * cliente. Subtrair percentis de dois status vizinhos aproxima a permanencia.
+ * It is not the time spent in each status: the entity only stores timestamps
+ * for EXECUTION, FINISHED and DELIVERED, so DIAGNOSIS and WAITING_APPROVAL
+ * would have no start to derive. What can be measured honestly is the time
+ * elapsed since the order was opened, which is each stage's wait as the
+ * customer perceives it. Subtracting the percentiles of two neighbouring
+ * statuses approximates the time spent in one.
  *
- * Buckets de 1 minuto a 1 dia: a escala de uma oficina, nao a de uma
- * requisicao HTTP.
+ * Buckets from 1 minute to 1 day: the scale of a repair shop, not that of an
+ * HTTP request.
  */
 export const serviceOrderTimeToStatus = new Histogram({
   name: 'service_orders_time_to_status_seconds',
-  help: 'Tempo desde a abertura da ordem de servico ate atingir cada status',
+  help: 'Time from the service order being opened until it reaches each status',
   labelNames: ['to_status'],
   buckets: [60, 300, 900, 3600, 14400, 86400],
   registers: [registry],

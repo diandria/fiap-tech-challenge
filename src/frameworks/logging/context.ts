@@ -1,13 +1,13 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 export interface TraceContext {
-  /** Identificador do rastro, propagado entre servicos pelo cabecalho padronizado. */
+  /** Trace identifier, propagated between services by the standard header. */
   traceId: string;
-  /** Identificador desta unidade de trabalho dentro do rastro. */
+  /** Identifier of this unit of work inside the trace. */
   spanId: string;
   /**
-   * Identificador de negocio, opcional e distinto do rastro. Serve para amarrar
-   * uma requisicao a um protocolo de atendimento, nao para correlacionar servicos.
+   * Business identifier, optional and distinct from the trace. It ties a
+   * request to a service ticket, not services to each other.
    */
   correlationId?: string;
 }

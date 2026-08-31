@@ -53,8 +53,8 @@ describe('POST /auth/customers/lookup', () => {
     expect(res.status).toBe(401);
   });
 
-  // Um token de tamanho igual e conteudo diferente e o caso que uma comparacao
-  // ingenua por tamanho deixaria passar.
+  // A token of equal length and different content is the case a naive
+  // length-based comparison would let through.
   it('should return 401 GIVEN a token of the same length but different content WHEN called', async () => {
     const res = await request(app)
       .post('/auth/customers/lookup')
@@ -85,8 +85,8 @@ describe('POST /auth/customers/lookup', () => {
     expect(res.body).toEqual({ id: customer.id, name: customer.name, active: true });
   });
 
-  // O corpo e contrato com a function: qualquer campo a mais aqui vaza dado
-  // pessoal para fora da aplicacao sem ninguem decidir por isso.
+  // The body is a contract with the function: any extra field here leaks
+  // personal data out of the application without anyone deciding to.
   it('should not expose personal data beyond the contract GIVEN a found customer WHEN called', async () => {
     await createCustomer();
 

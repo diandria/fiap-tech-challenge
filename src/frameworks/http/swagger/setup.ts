@@ -40,14 +40,14 @@ All other OS transitions go through \`PATCH /service-orders/{id}\` with the targ
           bearerFormat: 'JWT',
           description: 'Token de funcionario, emitido por POST /auth/login.',
         },
-        // Esquema separado de proposito. Os dois sao Bearer JWT, mas tem
-        // emissores e publicos diferentes: manter um so esconderia que existem
-        // dois fluxos de autenticacao no sistema.
+        // A separate scheme on purpose. Both are Bearer JWT, but they have
+        // different issuers and audiences: keeping only one would hide that the
+        // system has two authentication flows.
         customerBearerAuth: {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'Token de cliente, emitido pela function em POST /auth/cpf.',
+          description: 'Customer token, issued by the function at POST /auth/cpf.',
         },
       },
     },
@@ -57,8 +57,8 @@ All other OS transitions go through \`PATCH /service-orders/{id}\` with the targ
 };
 
 /**
- * Exposto para que os testes consigam afirmar o que o Swagger publico *nao*
- * documenta. Sem isso a unica forma de verificar seria raspar o HTML da UI.
+ * Exposed so the tests can assert on what the public Swagger does *not*
+ * document. Without it the only way to check would be scraping the UI's HTML.
  */
 export function buildSwaggerSpec(): object {
   return swaggerJsdoc(options) as object;

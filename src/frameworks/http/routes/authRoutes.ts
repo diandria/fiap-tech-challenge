@@ -11,9 +11,9 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts, please try again later' },
 });
 
-// Segunda barreira, caso o segredo compartilhado vaze. Mais apertado que o de
-// login: aqui o unico chamador legitimo e a function, e ela faz uma consulta
-// por autenticacao -- volume humano nao chega perto deste teto.
+// Second barrier, in case the shared secret leaks. Tighter than the login one:
+// here the only legitimate caller is the function, and it makes one lookup per
+// authentication -- human traffic never comes close to this ceiling.
 const lookupLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
@@ -23,11 +23,11 @@ const lookupLimiter = rateLimit({
 export function authRoutes(controller: AuthController): Router {
   const router = Router();
 
-  // Rota interna, consumida pela function emissora de token (ADR-002).
+  // Internal route, consumed by the token-issuing function (ADR-002).
   //
-  // Deliberadamente sem anotacao @openapi: documenta-la no Swagger publico
-  // contaria a qualquer visitante que ela existe, e o unico consumidor
-  // legitimo ja conhece o contrato pela RFC-003.
+  // Deliberately without an @openapi annotation: documenting it in the public
+  // Swagger would tell any visitor that it exists, and the only legitimate
+  // consumer already knows the contract from RFC-003.
   router.post(
     '/customers/lookup',
     lookupLimiter,

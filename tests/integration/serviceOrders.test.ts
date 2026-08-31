@@ -35,8 +35,8 @@ async function seedTokens(): Promise<void> {
 }
 
 /**
- * Emite um token de cliente com o mesmo formato que a function emite (RFC-003).
- * Assinado com o segredo da aplicacao, que e o mesmo dos dois lados.
+ * Issues a customer token in the same shape the function issues (RFC-003).
+ * Signed with the application's secret, which is the same on both sides.
  */
 function customerToken(id: string, cpf = '52998224725'): string {
   return jwt.sign(
@@ -237,8 +237,8 @@ describe('Full OS lifecycle', () => {
       expect(res.status).toBe(403);
     });
 
-    // Um token de funcionario tambem nao passa: sem `sub` nao ha dono contra
-    // quem comparar, e deixa-lo passar tornaria a checagem um no-op.
+    // An employee token does not pass either: with no `sub` there is no owner
+    // to compare against, and letting it through would make the check a no-op.
     it('GIVEN a staff token WHEN GET /service-orders/:id/status THEN returns 403', async () => {
       const osId = await osWaitingApproval();
       const res = await request(app).get(`/service-orders/${osId}/status`)
@@ -253,7 +253,8 @@ describe('Full OS lifecycle', () => {
       expect(res.status).toBe(401);
     });
 
-    // O teste que prova a protecao: nao basta o 403, o status nao pode mudar.
+    // The test that proves the protection: a 403 is not enough, the status must
+    // not change.
     it('GIVEN another customer token WHEN PATCH /budget THEN returns 403 AND keeps the status', async () => {
       const osId = await osWaitingApproval();
 
@@ -399,8 +400,8 @@ describe('Full OS lifecycle', () => {
     await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
     await request(app).post(`/service-orders/${osId}/services`).set(mechAuth).send({ serviceId });
 
-    // A notificacao agora emite evento estruturado em vez de texto livre, entao
-    // o teste verifica campos em vez de casar substring.
+    // The notification now emits a structured event instead of free text, so
+    // the test checks fields rather than matching a substring.
     const emitted: Record<string, unknown>[] = [];
     const infoSpy = jest
       .spyOn(logger, 'info')
@@ -449,9 +450,9 @@ describe('POST /service-orders — creation with services and items', () => {
     expect(res.body.items).toEqual([]);
   });
 
-  // Prova a cadeia inteira: requisicao HTTP, controller recebendo o port,
-  // decorator do Composition Root e metrica. Os testes unitarios do decorator
-  // usam dublê, entao nao pegariam uma fiacao errada em main.ts.
+  // Proves the whole chain: HTTP request, controller receiving the port,
+  // Composition Root decorator and metric. The decorator's unit tests use a
+  // double, so they would not catch wrong wiring in main.ts.
   it('GIVEN a successful creation WHEN POST /service-orders THEN increments the business counter', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
     const before = (await serviceOrdersCreated.get()).values[0].value;

@@ -32,9 +32,9 @@ describe('requireRole', () => {
     expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
   });
 
-  // A recusa precisa ser por decisao, nao por o token de cliente nao ter
-  // `role`. Este teste fixa a intencao: se um refactor futuro dissolver o
-  // acidente, ele quebra.
+  // The refusal must come from a decision, not from a customer token happening
+  // to have no `role`. This test pins the intent: if a future refactor
+  // dissolves the accident, it breaks.
   it('should reject a customer token GIVEN a staff-only route WHEN authorizing', () => {
     const next = jest.fn() as NextFunction;
 
@@ -61,8 +61,8 @@ describe('requireCustomer', () => {
     expect(next).toHaveBeenCalledWith();
   });
 
-  // Simetria deliberada: um admin tambem nao passa. A rota e do dono da OS, e
-  // quem nao tem `sub` nao tem dono para comparar.
+  // Deliberate symmetry: an admin does not pass either. The route belongs to
+  // the order's owner, and whoever has no `sub` has no owner to compare.
   it('should reject a staff token GIVEN a customer-only route WHEN authorizing', () => {
     const next = jest.fn() as NextFunction;
 

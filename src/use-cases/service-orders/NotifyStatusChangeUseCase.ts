@@ -23,8 +23,8 @@ export class NotifyStatusChangeUseCase implements IStatusChangeNotifier {
       }
       await this.notifier.notifyStatusChanged(customer, os);
     } catch (err) {
-      // Falha silenciosa por decisao: notificacao nao reverte transicao de status.
-      // O registro torna a falha visivel sem mudar o comportamento.
+      // Silent failure by decision: a notification does not roll back a status
+      // transition. The log makes the failure visible without changing that.
       this.logger.error('notification delivery failed', { osId, err });
     }
   }

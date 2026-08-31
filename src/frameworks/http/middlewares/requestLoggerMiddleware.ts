@@ -5,19 +5,19 @@ import { getTraceContext } from '../../logging/context';
 import { httpRequestDuration } from '../../metrics/httpMetrics';
 
 /**
- * Sondas e raspagem de metricas sao chamadas a cada poucos segundos. Em nivel
- * informativo, afogariam o registro util.
+ * Probes and metric scrapes are called every few seconds. At info level they
+ * would drown the useful log.
  */
 const QUIET_PATHS = new Set(['/health', '/ready', '/metrics']);
 
 /**
- * Template da rota, com o prefixo de montagem.
+ * Route template, including the mount prefix.
  *
- * `req.route.path` traz apenas o trecho declarado dentro do router: os routers
- * do projeto sao montados com prefixo e declaram '/:id' dentro, entao sem
- * `req.baseUrl` os endpoints de clientes e de ordens de servico virariam o mesmo
- * rotulo. Devolve undefined quando nenhuma rota casou, porque ai nao existe
- * template.
+ * `req.route.path` carries only the fragment declared inside the router: this
+ * project's routers are mounted with a prefix and declare '/:id' inside, so
+ * without `req.baseUrl` the customer and service order endpoints would collapse
+ * into the same label. Returns undefined when no route matched, because then
+ * there is no template.
  */
 function routeTemplate(req: Request): string | undefined {
   if (!req.route) return undefined;
@@ -36,8 +36,8 @@ export function requestLoggerMiddleware(log: Logger = defaultLogger) {
 
       const event = {
         method: req.method,
-        // No registro, o caminho concreto de uma rota nao encontrada e a
-        // informacao util: diz o que o cliente tentou chamar.
+        // In the log, the concrete path of an unmatched route is the useful
+        // information: it says what the client tried to call.
         route: template ?? req.path,
         statusCode: res.statusCode,
         durationMs,
@@ -45,8 +45,8 @@ export function requestLoggerMiddleware(log: Logger = defaultLogger) {
         ...(ctx?.correlationId ? { correlationId: ctx.correlationId } : {}),
       };
 
-      // Na metrica, nao: cada caminho concreto viraria uma serie temporal, e uma
-      // varredura de URLs bastaria para inflar o Prometheus.
+      // In the metric it is not: every concrete path would become its own time
+      // series, and a URL scan would be enough to blow Prometheus up.
       httpRequestDuration.observe(
         { method: req.method, route: template ?? 'unmatched', status_code: res.statusCode },
         durationMs / 1000,

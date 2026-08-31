@@ -2,8 +2,9 @@ import { PrismaClient } from '@prisma/client';
 import { countConnectivityFailures } from './connectivityMetricsMiddleware';
 
 /**
- * Instancia unica do client. Apenas o Composition Root (main.ts) e o setup de
- * testes conhecem este modulo: os gateways recebem o client por construtor.
+ * Single client instance. Only the Composition Root (main.ts) and the test
+ * setup know this module: the gateways receive the client through their
+ * constructor.
  */
 export const prisma = new PrismaClient({
   log: process.env.NODE_ENV === 'production' ? ['warn', 'error'] : ['warn', 'error'],

@@ -7,8 +7,8 @@ export interface ICustomerRepository {
   findById(id: string): Promise<Customer | null>;
   findByTaxId(taxId: string): Promise<Customer | null>;
   /**
-   * Inclui clientes removidos. Existe para o lookup de autenticacao, que
-   * precisa distinguir "nao existe" de "existe e esta desativado".
+   * Includes removed customers. It exists for the authentication lookup, which
+   * has to tell "does not exist" apart from "exists and is deactivated".
    */
   findByTaxIdIncludingInactive(taxId: string): Promise<Customer | null>;
   create(data: Omit<Customer, ManagedFields>): Promise<Customer>;

@@ -40,8 +40,8 @@ describe('authMiddleware', () => {
     );
   });
 
-  // Sem este fallback, todo token emitido antes desta mudanca deixaria de
-  // funcionar de uma vez -- inclusive os da suite de integracao.
+  // Without this fallback, every token issued before this change would stop
+  // working at once -- including the ones in the integration suite.
   it('should default to staff GIVEN a legacy token without type WHEN authenticating', () => {
     const req = reqWithToken({ userId: 'u1', role: 'admin' });
 

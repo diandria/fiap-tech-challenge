@@ -18,8 +18,8 @@ interface AppRoutes {
 export function createApp(routes: AppRoutes, checkDatabase: ReadinessCheck): Application {
   const app = express();
 
-  // Primeiro de todos: todo evento posterior, inclusive o de erro, precisa do
-  // contexto de rastreamento disponivel.
+  // First of all: every later event, the error one included, needs the trace
+  // context to be available.
   app.use(traceContextMiddleware);
   app.use(requestLoggerMiddleware());
 

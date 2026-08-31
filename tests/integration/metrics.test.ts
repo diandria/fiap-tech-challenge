@@ -11,9 +11,9 @@ describe('GET /metrics', () => {
     expect(res.text).toContain('nodejs_eventloop_lag_seconds');
   });
 
-  // O Prometheus raspa de dentro do cluster, sem credencial. Se alguem mover a
-  // rota para tras do authMiddleware, o alvo fica DOWN e o sintoma e um painel
-  // vazio, que nao aponta para a causa.
+  // Prometheus scrapes from inside the cluster, with no credential. If somebody
+  // moves this route behind the authMiddleware, the target goes DOWN and the
+  // symptom is an empty panel, which does not point at the cause.
   it('should not require authentication GIVEN no token WHEN scraped', async () => {
     const res = await request(createTestApp()).get('/metrics');
 

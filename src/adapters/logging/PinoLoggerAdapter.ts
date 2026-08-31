@@ -2,8 +2,8 @@ import { Logger } from 'pino';
 import { ILogger } from '../../use-cases/ports/ILogger';
 
 /**
- * Implementacao concreta do Output Port de registro. Fica na camada de
- * adaptadores, que e onde e legitimo conhecer a biblioteca.
+ * Concrete implementation of the logging output port. It sits in the adapters
+ * layer, which is where knowing the library is legitimate.
  */
 export class PinoLoggerAdapter implements ILogger {
   constructor(private readonly logger: Logger) {}

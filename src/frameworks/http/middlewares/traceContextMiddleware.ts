@@ -6,13 +6,14 @@ import { runWithTraceContext, toTraceparent, TraceContext } from '../../logging/
 const TRACEPARENT = /^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$/;
 
 /**
- * Identificadores do span que o SDK ja abriu para esta requisicao, quando ha um.
+ * Identifiers of the span the SDK already opened for this request, when there
+ * is one.
  *
- * A auto-instrumentacao do OpenTelemetry cria o span antes de qualquer
- * middleware da aplicacao rodar. Adotar os identificadores dele e o que faz o
- * registro e o trace apontarem para a mesma coisa: gerar os proprios aqui
- * produziria dois identificadores validos que nunca se encontram, o que e pior
- * que nao ter correlacao, porque parece funcionar.
+ * OpenTelemetry's auto-instrumentation creates the span before any application
+ * middleware runs. Adopting its identifiers is what makes the log and the trace
+ * point at the same thing: minting our own here would produce two valid
+ * identifiers that never meet, which is worse than having no correlation at
+ * all, because it looks like it works.
  */
 function activeSpanIds(): { traceId: string; spanId: string } | undefined {
   const spanContext = trace.getSpan(context.active())?.spanContext();
@@ -21,12 +22,12 @@ function activeSpanIds(): { traceId: string; spanId: string } | undefined {
 }
 
 /**
- * A correlacao primaria e o cabecalho padronizado, nao um identificador proprio
- * (ADR-007). Um identificador caseiro funciona dentro de um processo e morre na
- * primeira fronteira de servico, porque nenhuma biblioteca o propaga sozinha.
+ * The primary correlation is the standard header, not a home-grown identifier
+ * (ADR-007). A custom identifier works inside one process and dies at the first
+ * service boundary, because no library propagates it on its own.
  *
- * Sem coletor configurado o SDK nao sobe, e ai a geracao propria continua
- * valendo: desenvolvimento local e a suite de testes nao precisam de um.
+ * With no collector configured the SDK does not start, and then minting our own
+ * still applies: local development and the test suite need no collector.
  */
 export function traceContextMiddleware(req: Request, res: Response, next: NextFunction): void {
   const active = activeSpanIds();

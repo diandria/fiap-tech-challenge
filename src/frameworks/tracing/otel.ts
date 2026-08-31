@@ -7,29 +7,30 @@ import { PrismaInstrumentation } from '@prisma/instrumentation';
 let sdk: NodeSDK | undefined;
 
 /**
- * Inicializa o SDK quando existe um coletor configurado.
+ * Starts the SDK when a collector is configured.
  *
- * Sem OTEL_EXPORTER_OTLP_ENDPOINT nao inicializa: desenvolvimento local e a
- * suite de testes nao precisam subir um coletor, e o middleware de contexto
- * continua gerando identificadores por conta propria nesse cenario.
+ * With no OTEL_EXPORTER_OTLP_ENDPOINT it does not start: local development and
+ * the test suite do not need to bring a collector up, and the context
+ * middleware keeps minting identifiers on its own in that scenario.
  */
 export function startTracing(): NodeSDK | undefined {
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
   if (!endpoint || sdk) return sdk;
 
   sdk = new NodeSDK({
-    // Os tres atributos sao exatamente os que o logger emite (M2.T1). E essa
-    // igualdade que deixa registro, metrica e trace falando do mesmo servico.
+    // These three attributes are exactly the ones the logger emits (M2.T1).
+    // That sameness is what keeps log, metric and trace talking about the same
+    // service.
     resource: new Resource({
       'service.name': process.env.OTEL_SERVICE_NAME ?? 'car-repair-shop-api',
       'service.version': process.env.SERVICE_VERSION ?? '0.0.0',
       'deployment.environment': process.env.NODE_ENV ?? 'development',
     }),
     traceExporter: new OTLPTraceExporter({ url: `${endpoint}/v1/traces` }),
-    // O Prisma precisa de instrumentacao propria: ele nao usa o driver pg, fala
-    // com o proprio query engine, entao a auto-instrumentacao sozinha entrega
-    // traces sem nenhum span de banco. Um trace que nao mostra o tempo gasto em
-    // consulta perde justamente o que se vai procurar nele.
+    // Prisma needs its own instrumentation: it does not use the pg driver, it
+    // talks to its own query engine, so auto-instrumentation alone delivers
+    // traces with no database span at all. A trace that does not show time
+    // spent in queries loses exactly what people open it to find.
     instrumentations: [getNodeAutoInstrumentations(), new PrismaInstrumentation()],
   });
 

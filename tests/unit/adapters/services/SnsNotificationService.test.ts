@@ -72,9 +72,9 @@ describe('SnsNotificationService', () => {
     expect((payload.serviceOrder as Record<string, number>).budgetTotal).toBe(1234.56);
   });
 
-  // Fora de uma requisicao HTTP nao ha contexto de rastro. Publicar um
-  // traceparent invalido seria pior que omitir: o consumidor o registraria e o
-  // Grafana juntaria eventos sem relacao.
+  // Outside an HTTP request there is no trace context. Publishing an invalid
+  // traceparent would be worse than omitting it: the consumer would record it
+  // and Grafana would stitch unrelated events together.
   it('should omit traceparent GIVEN no trace context WHEN publishing', async () => {
     const sns = makeSns();
     await new SnsNotificationService(sns as never, TOPIC, failures, traceContext).notifyStatusChanged(cpfCustomer, waitingApprovalOS);

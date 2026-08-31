@@ -4,8 +4,9 @@ import { AppError } from '../../../entities/errors/AppError';
 import { logger as defaultLogger } from '../../logging/logger';
 
 /**
- * Erro operacional esperado (4xx) e aviso; erro inesperado e erro, com pilha.
- * Sem essa distincao, todo "nao encontrado" vira alerta e o sinal se perde.
+ * An expected operational error (4xx) is a warning; an unexpected one is an
+ * error, with a stack. Without that distinction every "not found" becomes an
+ * alert and the signal is lost.
  */
 export function buildErrorMiddleware(log: Logger = defaultLogger) {
   return (err: Error, req: Request, res: Response, _next: NextFunction): void => {

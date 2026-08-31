@@ -25,8 +25,8 @@ export class LoginUseCase {
     if (!valid) throw new UnauthorizedError('Invalid credentials');
 
     const secret = process.env.JWT_SECRET!;
-    // `type` explicito desde a emissao: o middleware ate assume 'staff' quando
-    // ele falta, mas isso e compatibilidade com tokens antigos, nao contrato.
+    // `type` explicit from issue time: the middleware does assume 'staff' when
+    // it is missing, but that is compatibility with old tokens, not contract.
     const token = jwt.sign(
       { type: 'staff', userId: user.id, role: user.role },
       secret,

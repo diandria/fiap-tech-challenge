@@ -35,8 +35,8 @@ describe('service order ownership on read', () => {
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
-  // Ausencia de requester significa chamada de funcionario, que ja passou pelo
-  // requireRole da rota.
+  // A missing requester means an employee call, which has already passed the
+  // route's requireRole.
   it('should not restrict GIVEN no requester WHEN getting', async () => {
     const useCase = new GetServiceOrderUseCase(makeOSRepo(waitingApprovalOS));
 
@@ -45,9 +45,9 @@ describe('service order ownership on read', () => {
 });
 
 describe('service order ownership on budget decision', () => {
-  // O teste que prova que a protecao funciona de verdade. Nao basta a
-  // requisicao ser recusada: o efeito colateral nao pode acontecer. Um teste
-  // que so olhasse o status HTTP passaria mesmo com a OS ja aprovada.
+  // The test that proves the protection really works. The request being
+  // refused is not enough: the side effect must not happen. A test that only
+  // looked at the HTTP status would pass even with the order already approved.
   it('should not change the status GIVEN a non-owner approves WHEN deciding the budget', async () => {
     const repo = makeOSRepo(waitingApprovalOS);
     const useCase = new ApproveBudgetUseCase(repo, makeCustomerRepo(cpfCustomer), notifier);
@@ -69,8 +69,8 @@ describe('service order ownership on budget decision', () => {
     expect(repo.update).toHaveBeenCalledWith('os-1', { status: 'APPROVED' });
   });
 
-  // Na recusa o efeito colateral inclui devolver o estoque reservado. Um 403
-  // tardio devolveria peca de uma OS que continua de pe.
+  // On rejection the side effect includes returning the reserved stock. A late
+  // 403 would return parts belonging to an order that is still standing.
   it('should not release reserved stock GIVEN a non-owner rejects WHEN deciding the budget', async () => {
     const repo = makeOSRepo(waitingApprovalOS);
     const itemRepo = makeItemRepo();
