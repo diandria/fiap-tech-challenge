@@ -80,6 +80,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
+    # Ambiente unico: `main` e producao, e nao ha homologacao. Declarar o
+    # Environment aqui e o que faz o GitHub registrar cada deploy em
+    # Deployments > production, com o historico de quem subiu o que e quando.
+    # Sem esta linha o Environment existe e nunca e usado.
+    #
+    # Sem regra de protecao de proposito: revisor obrigatorio aqui travaria o
+    # CD esperando aprovacao humana, e a rede de protecao deste projeto e outra
+    # -- PR obrigatorio antes do merge, e rollback automatico depois dele.
+    # A URL sai do proprio deploy, e nao fixa aqui: o ambiente e efemero e o
+    # gateway ganha um id novo a cada recriacao. Fixar deixaria o link do
+    # Deployments apontando para um gateway que nao existe mais.
+    environment:
+      name: production
+      url: ${{ steps.smoke.outputs.url }}
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -228,11 +243,13 @@ jobs:
           exit 1
 
       - name: Smoke check through the gateway
+        id: smoke
         run: |
           set -euo pipefail
           URL=$(aws apigatewayv2 get-apis \
             --query "Items[?Name=='car-repair-shop'].ApiEndpoint | [0]" --output text)
           echo "gateway: $URL"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
 
           for i in $(seq 1 12); do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL/health" || true)
