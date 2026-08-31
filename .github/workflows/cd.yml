@@ -73,3 +73,176 @@ jobs:
             --repository-name car-repair-shop \
             --image-ids imageTag="$TAG" \
             --query 'imageDetails[0].imagePushedAt' --output text
+
+  deploy:
+    name: Deploy to EKS
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Connect to the cluster
+        run: aws eks update-kubeconfig --name car-repair-shop --region us-east-1
+
+      - name: Resolve image reference
+        id: meta
+        run: |
+          set -euo pipefail
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          REPO=$(aws ecr describe-repositories --repository-names car-repair-shop \
+            --query 'repositories[0].repositoryUri' --output text)
+          echo "image=$REPO" >> "$GITHUB_OUTPUT"
+
+      # Os segredos vem do SSM, e nao de secrets do GitHub.
+      #
+      # E o que elimina o risco R4 por construcao: JWT_SECRET e INTERNAL_TOKEN
+      # sao escritos ali pelo Terraform das functions, e a aplicacao le o mesmo
+      # parametro. Nao existem dois valores para divergir, entao nao ha hash a
+      # comparar -- e o mesmo valor, e nao dois valores iguais.
+      - name: Read configuration from SSM and AWS
+        run: |
+          set -euo pipefail
+
+          DB_HOST=$(aws rds describe-db-instances --db-instance-identifier car-repair-shop-db \
+            --query 'DBInstances[0].Endpoint.Address' --output text)
+          # Usuario e nome do banco vem do proprio RDS, que e a fonte
+          # autoritativa. Um valor fixo aqui produz um DATABASE_URL invalido e
+          # um CrashLoop cuja causa nao aparece no sintoma.
+          DB_USER=$(aws rds describe-db-instances --db-instance-identifier car-repair-shop-db \
+            --query 'DBInstances[0].MasterUsername' --output text)
+          DB_NAME=$(aws rds describe-db-instances --db-instance-identifier car-repair-shop-db \
+            --query 'DBInstances[0].DBName' --output text)
+          DB_PASS=$(aws ssm get-parameter --name /car-repair-shop/db/password \
+            --with-decryption --query 'Parameter.Value' --output text)
+          JWT=$(aws ssm get-parameter --name /car-repair-shop/auth/jwt-secret \
+            --with-decryption --query 'Parameter.Value' --output text)
+          INTERNAL=$(aws ssm get-parameter --name /car-repair-shop/auth/internal-token \
+            --with-decryption --query 'Parameter.Value' --output text)
+          # Sem esta senha a aplicacao sobe saudavel, passa nas sondas, e nao
+          # cria nenhum usuario -- ninguem consegue autenticar, e o unico sinal
+          # e um aviso no log que o deploy verde nao mostra.
+          ADMIN=$(aws ssm get-parameter --name /car-repair-shop/app/admin-password \
+            --with-decryption --query 'Parameter.Value' --output text)
+          TOPIC=$(aws sns list-topics \
+            --query "Topics[?contains(TopicArn, 'car-repair-shop-service-order-events')].TopicArn | [0]" \
+            --output text)
+
+          # Falhar aqui, e nao adiante com um pod em CrashLoop cuja causa esta
+          # a tres camadas de distancia do sintoma.
+          for name in DB_HOST DB_USER DB_NAME DB_PASS JWT INTERNAL ADMIN TOPIC; do
+            value="${!name}"
+            if [ -z "$value" ] || [ "$value" = "None" ]; then
+              echo "::error::valor obrigatorio ausente ou vazio: $name"
+              exit 1
+            fi
+          done
+
+          echo "::add-mask::$DB_PASS"
+          echo "::add-mask::$JWT"
+          echo "::add-mask::$INTERNAL"
+          echo "::add-mask::$ADMIN"
+
+          {
+            echo "DATABASE_URL=postgresql://$DB_USER:$DB_PASS@$DB_HOST:5432/$DB_NAME?schema=public"
+            echo "JWT_SECRET=$JWT"
+            echo "INTERNAL_TOKEN=$INTERNAL"
+            echo "ADMIN_PASSWORD=$ADMIN"
+            echo "SNS_TOPIC_ARN=$TOPIC"
+          } >> "$GITHUB_ENV"
+
+      - name: Apply configuration and secrets
+        run: |
+          set -euo pipefail
+
+          kubectl create configmap car-repair-shop-runtime -n car-repair-shop \
+            --from-literal=NOTIFICATION_CHANNEL=sns \
+            --from-literal=SNS_TOPIC_ARN="$SNS_TOPIC_ARN" \
+            --from-literal=OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo.observability.svc.cluster.local:4318 \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl create secret generic car-repair-shop-secret -n car-repair-shop \
+            --from-literal=DATABASE_URL="$DATABASE_URL" \
+            --from-literal=JWT_SECRET="$JWT_SECRET" \
+            --from-literal=INTERNAL_TOKEN="$INTERNAL_TOKEN" \
+            --from-literal=ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl apply -f k8s/01-config/ -f k8s/03-app/
+
+      # Job antes do rollout, e nao initContainer: roda uma vez, e a falha fica
+      # visivel antes de qualquer pod novo receber trafego. Com initContainer,
+      # cada replica subindo tentaria migrar em paralelo.
+      - name: Run database migrations
+        run: |
+          set -euo pipefail
+          IMAGE="${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha }}"
+
+          # Job e imutavel: sem apagar o anterior, o apply falha.
+          kubectl delete job car-repair-shop-migrate -n car-repair-shop --ignore-not-found --wait=true
+
+          # A mesma imagem da aplicacao. Migrar com imagem diferente da que vai
+          # servir aplica um schema que o codigo em producao pode nao conhecer.
+          sed "s|image: car-repair-shop:latest|image: $IMAGE|" k8s/04-jobs/migrate.yaml \
+            | kubectl apply -f -
+
+          if ! kubectl wait --for=condition=complete --timeout=180s \
+               job/car-repair-shop-migrate -n car-repair-shop; then
+            echo "::error::a migration falhou; nenhum pod novo foi implantado"
+            kubectl logs job/car-repair-shop-migrate -n car-repair-shop --tail=50 || true
+            exit 1
+          fi
+
+          kubectl logs job/car-repair-shop-migrate -n car-repair-shop --tail=20
+
+      - name: Deploy the new image
+        id: rollout
+        run: |
+          set -euo pipefail
+          IMAGE="${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha }}"
+
+          kubectl set image deployment/car-repair-shop-api api="$IMAGE" -n car-repair-shop
+          kubectl rollout status deployment/car-repair-shop-api -n car-repair-shop --timeout=300s
+
+      # Um rollback que funciona mas deixa o workflow verde e pior que nao ter
+      # rollback: o ambiente volta e ninguem fica sabendo que o deploy falhou.
+      # Por isso este passo termina com `exit 1` depois de desfazer.
+      - name: Roll back on failure
+        if: failure() && steps.rollout.outcome == 'failure'
+        run: |
+          echo "::error::rollout falhou; desfazendo para a revisao anterior"
+          kubectl rollout undo deployment/car-repair-shop-api -n car-repair-shop
+          kubectl rollout status deployment/car-repair-shop-api -n car-repair-shop --timeout=180s
+          kubectl get pods -n car-repair-shop -o wide
+          exit 1
+
+      - name: Smoke check through the gateway
+        run: |
+          set -euo pipefail
+          URL=$(aws apigatewayv2 get-apis \
+            --query "Items[?Name=='car-repair-shop'].ApiEndpoint | [0]" --output text)
+          echo "gateway: $URL"
+
+          for i in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL/health" || true)
+            if [ "$code" = "200" ]; then
+              echo "health respondeu 200 pelo gateway"
+              exit 0
+            fi
+            echo "tentativa $i: $code"
+            sleep 10
+          done
+
+          echo "::error::a aplicacao nao respondeu 200 em /health pelo gateway"
+          exit 1
