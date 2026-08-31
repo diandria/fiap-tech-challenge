@@ -6,14 +6,14 @@ Collection Postman com o fluxo completo da API de ponta a ponta: autenticação,
 
 - `car-repair-shop.postman_collection.json` — collection v2.1.0 com todas as chamadas organizadas em pastas numeradas.
 - `car-repair-shop.postman_environment.json` — environment para **local / Docker Compose** (`baseUrl = http://localhost:3000`).
-- `car-repair-shop-k8s.postman_environment.json` — environment para **Kubernetes / Minikube** (`baseUrl = http://localhost:8080`). Veja a configuração abaixo.
+- `car-repair-shop-k8s.postman_environment.json` — environment para o **ambiente na AWS**. Preencha `baseUrl` e `authBaseUrl` com a URL do API Gateway.
 
 ## Environments
 
 | Arquivo | Ambiente | `baseUrl` |
 |------|--------|-----------|
 | `car-repair-shop.postman_environment.json` | Local / Docker Compose | `http://localhost:3000` |
-| `car-repair-shop-k8s.postman_environment.json` | Kubernetes / Minikube | `http://localhost:8080` |
+| `car-repair-shop-k8s.postman_environment.json` | AWS (EKS + API Gateway) | URL do API Gateway |
 
 Todas as demais variáveis (credenciais, IDs persistidos) são idênticas entre os environments — apenas o `baseUrl` muda.
 
@@ -28,13 +28,17 @@ Todas as demais variáveis (credenciais, IDs persistidos) são idênticas entre 
    - `adminPassword`: `change-me-in-production`
    Atualize-as para corresponder ao `ADMIN_PASSWORD` do seu `.env`.
 
-### Kubernetes / Minikube
+### AWS (EKS + API Gateway)
 
-O Service é do tipo `LoadBalancer` na porta `8080`. No WSL2 com o driver Docker do Minikube, execute `minikube tunnel` uma vez em um terminal separado para expor `localhost:8080`:
+A aplicação não é alcançável diretamente: o NLB é interno e o único caminho de entrada é o API
+Gateway (ADR-001). Descubra a URL e preencha o environment:
 
 ```bash
-minikube tunnel
+cd ~/dev/fiap-tech-challenge-infra-k8s && terraform output api_gateway_url
 ```
+
+Preencha **`baseUrl`** e **`authBaseUrl`** com esse valor. O `authBaseUrl` é usado por
+`POST /auth/cpf`, servida pela function e não pela aplicação.
 
 Mantenha esse terminal aberto. Em seguida:
 
@@ -114,7 +118,7 @@ npx newman run postman/car-repair-shop.postman_collection.json \
   -e postman/car-repair-shop.postman_environment.json
 ```
 
-Kubernetes (com `minikube tunnel` ativo):
+AWS (pelo API Gateway):
 ```bash
 npx newman run postman/car-repair-shop.postman_collection.json \
   -e postman/car-repair-shop-k8s.postman_environment.json

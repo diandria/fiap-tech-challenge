@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check } from 'k6';
 
-// BASE_URL: API under test (default: K8s LoadBalancer via minikube tunnel)
+// BASE_URL: API under test (aponte para a URL do API Gateway)
 // OS_ID: optional service order id — adds a DB-backed public read to the mix
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const OS_ID = __ENV.OS_ID || '';
