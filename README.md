@@ -16,7 +16,7 @@ REST API para gerenciar ordens de serviço de uma oficina mecânica — FIAP Tec
 3. [Stack](#stack)
 4. [Papéis de usuário](#papéis-de-usuário)
 5. [Execução local — Docker Compose](#execução-local--docker-compose)
-6. [Kubernetes + Minikube](#kubernetes--minikube)
+6. [Implantação na AWS](#implantação-na-aws)
 7. [Infraestrutura com Terraform](#infraestrutura-com-terraform)
 8. [CI/CD](#cicd)
 9. [Testes](#testes)
@@ -34,7 +34,7 @@ A Fase 2 evoluiu a aplicação da Fase 1 com foco em qualidade, resiliência e e
 - **Containerização**: Dockerfile otimizado e docker-compose para desenvolvimento local.
 - **Kubernetes**: manifests YAML com Deployment, Service (LoadBalancer), HPA (escala por CPU), PDB e StatefulSet do MongoDB.
 - **IaC com Terraform**: provisionamento do cluster e aplicação dos manifests via provider `gavinbunney/kubectl`.
-- **CI/CD**: pipeline completo no GitHub Actions — build, lint, teste, build de imagem Docker e deploy automatizado no cluster Minikube via self-hosted runner.
+- **CI/CD**: pipeline completo no GitHub Actions — build, lint, teste, validação de manifests, imagem no ECR e deploy automatizado no EKS, com rollback se o rollout falhar.
 
 ---
 
@@ -50,7 +50,7 @@ A Fase 2 evoluiu a aplicação da Fase 1 com foco em qualidade, resiliência e e
 flowchart TB
     subgraph gha["GitHub Actions"]
         ci["CI (ubuntu-latest)\nbuild → lint → test"]
-        cd["CD (self-hosted / Minikube)\ndocker build\nterraform apply\nkubectl rollout"]
+        cd["CD (GitHub Actions)\ndocker build + push ECR\nJob de migration\nkubectl set image + rollout"]
         ci --> cd
     end
 
@@ -63,7 +63,7 @@ flowchart TB
     end
 
     gha --> k8s
-    user["http://localhost:8080"] -->|"minikube tunnel"| svc
+    user["API Gateway"] -->|"VPC Link + NLB interno"| svc
 ```
 
 ### Clean Architecture — camadas
@@ -90,7 +90,7 @@ src/
 | Docs API | swagger-ui-express + swagger-jsdoc |
 | Testes | Jest + ts-jest + Supertest + Testcontainers |
 | Container | Docker + docker-compose |
-| Orquestração | Kubernetes (Minikube) |
+| Orquestração | Kubernetes (Amazon EKS) |
 | IaC | Terraform (`gavinbunney/kubectl` provider) |
 | CI/CD | GitHub Actions (CI em ubuntu-latest, CD em self-hosted) |
 
@@ -178,138 +178,76 @@ docker-compose down -v       # remove volumes
 
 ---
 
-## Kubernetes + Minikube
+## Implantação na AWS
 
-Ambiente que replica o pipeline de CD. Usa os manifests em `/k8s` e a IaC em `/infra`.
+A aplicação roda em **Amazon EKS**, com Postgres no **RDS**, imagem no **ECR** e o **API Gateway**
+como ponto único de entrada (ADR-001). O ambiente da Fase 2 (Minikube local, com runner
+self-hosted) foi removido.
 
-### Pré-requisitos
+### Topologia
 
-- [Minikube](https://minikube.sigs.k8s.io/docs/start/)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [Terraform ≥ 1.0](https://developer.hashicorp.com/terraform/install)
-
-### Início rápido (WSL2 / Linux)
-
-O script `start.sh` faz tudo em sequência — DNS, Minikube, tunnel e runner:
-
-```bash
-./scripts/start.sh
+```
+        internet
+            │
+    ┌───────▼────────┐
+    │  API Gateway   │  throttling, rotas enumeradas
+    └───────┬────────┘
+            │ VPC Link
+    ┌───────▼────────┐
+    │  NLB interno   │  nunca público
+    └───────┬────────┘
+            │
+    ┌───────▼────────┐      ┌──────────────┐
+    │  EKS  (2 pods) │─────▶│  RDS Postgres│
+    └───────┬────────┘      └──────────────┘
+            │ SNS
+    ┌───────▼────────────────┐
+    │ Lambda de notificações │
+    └────────────────────────┘
 ```
 
-Após a conclusão, a API estará em `http://localhost:8080`.
+`POST /auth/cpf` é servida pela **Lambda de autenticação**, não pela aplicação.
 
-### Passo a passo manual
+### Repositórios de infraestrutura
 
-#### 1. Iniciar o Minikube
+| Repositório | Responsabilidade |
+|---|---|
+| `fiap-tech-challenge-infra-db` | VPC, RDS, segredos no SSM |
+| `fiap-tech-challenge-infra-k8s` | EKS, API Gateway, ECR, observabilidade |
+| `fiap-tech-challenge-lambda` | Functions de autenticação e notificação, tópico SNS |
 
-```bash
-minikube start --driver=docker
-minikube addons enable metrics-server   # necessário para o HPA
-```
+O **Namespace** e o **Service** da aplicação são criados pelo `infra-k8s`, e não pelos manifests
+deste repositório: é o Service que faz nascer o NLB, e o API Gateway precisa do ARN do listener
+dele. Se viessem junto do deploy, o endereço público mudaria a cada redeploy.
 
-#### 2. Iniciar o tunnel (terminal separado, manter aberto)
+### Como implantar
 
-```bash
-minikube tunnel
-```
+O deploy é automático: merge na `main` → CI → CD. Não há passo manual.
 
-#### 3. Configurar o Terraform
-
-```bash
-cp infra/terraform.tfvars.example infra/terraform.tfvars
-```
-
-Edite `infra/terraform.tfvars`:
-
-```hcl
-kubeconfig_path    = "~/.kube/config"
-kubeconfig_context = "minikube"
-
-jwt_secret          = "<string longa e aleatória>"
-admin_password      = "<senha do admin>"
-mongo_root_username = "admin"
-mongo_root_password = "<senha root do MongoDB>"
-```
-
-> `terraform.tfvars` está no `.gitignore` — nunca commite credenciais reais.
-
-#### 4. Aplicar infraestrutura
-
-```bash
-cd infra/
-terraform init
-terraform apply
-cd ..
-```
-
-#### 5. Verificar
-
-```bash
-kubectl get pods -n oficina       # todos Running
-kubectl get hpa -n oficina        # status do autoscaler
-curl http://localhost:8080/health
-```
-
-- API: <http://localhost:8080>
-- Swagger: <http://localhost:8080/docs>
-
-### Popular o banco no cluster (opcional)
-
-```bash
-kubectl port-forward svc/mongo-service 27017:27017 -n oficina &
-MONGODB_URI=mongodb://root:<senha>@localhost:27017/car-repair-shop?authSource=admin npm run seed:dev
-```
-
-### Demonstrar o HPA (teste de carga com k6)
-
-O script [`scripts/load-test.js`](scripts/load-test.js) gera carga sustentada (100 VUs por ~4 min) contra a API para forçar o autoscaling. Requer o [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) instalado e o `minikube tunnel` ativo.
-
-Em um terminal, acompanhe o HPA e as réplicas:
-
-```bash
-watch kubectl get hpa,pods -n oficina
-```
-
-Em outro, dispare a carga:
-
-```bash
-k6 run scripts/load-test.js
-```
-
-Com CPU acima de 70% do request, o HPA escala o deployment de 2 até 10 réplicas; ao fim da carga, as réplicas voltam ao mínimo após a janela de estabilização (~5 min). Variáveis opcionais:
-
-```bash
-# API em outro endereço (ex.: docker-compose)
-k6 run -e BASE_URL=http://localhost:3000 scripts/load-test.js
-
-# Incluir leitura pública de uma OS real no mix de carga
-k6 run -e OS_ID=<id-da-os> scripts/load-test.js
-```
+O **runbook do ambiente efêmero** (subida completa a partir do zero, ordem obrigatória e descida)
+está em [`docs/runbook-ambiente.md`](docs/runbook-ambiente.md).
 
 ### Manifests Kubernetes (`/k8s/`)
 
-| Arquivo | Kind | O que faz |
-|---|---|---|
-| `namespace.yaml` | Namespace | Isola todos os recursos no namespace `oficina` |
-| `configmap.yaml` | ConfigMap | Vars não-sensíveis: `PORT`, `CORS_ORIGIN`, `ADMIN_EMAIL`, SMTP |
-| `secret.yaml` | Secret | Vars sensíveis: `MONGODB_URI`, `JWT_SECRET`, credenciais MongoDB e admin |
-| `mongo-headless-service.yaml` | Service (headless) | DNS estável por Pod para o StatefulSet |
-| `mongo-service.yaml` | Service (ClusterIP) | Acesso interno da aplicação ao MongoDB |
-| `mongo-statefulset.yaml` | StatefulSet | MongoDB com volume persistente de 5 Gi |
-| `app-deployment.yaml` | Deployment | API Node.js com rolling update e probes de saúde |
-| `app-service.yaml` | Service (LoadBalancer :8080) | Expõe a API via `minikube tunnel` em `localhost:8080` |
-| `app-hpa.yaml` | HorizontalPodAutoscaler | Escala entre 2 e 10 réplicas (CPU > 70%) |
-| `app-pdb.yaml` | PodDisruptionBudget | Garante mínimo de 1 réplica durante manutenção de nó |
+| Arquivo | Conteúdo |
+|---|---|
+| `01-config/configmap.yaml` | Configuração estática |
+| `03-app/app-deployment.yaml` | Deployment, sondas, requests e limits |
+| `03-app/app-hpa.yaml` | HPA, 2 a 10 réplicas, 70% de CPU |
+| `03-app/app-pdb.yaml` | PodDisruptionBudget |
+| `04-jobs/migrate.yaml` | Job de migration, executado antes do rollout |
 
-### Destruir o ambiente
+A configuração que vem da infraestrutura (endereço do Tempo, ARN do tópico) é criada pelo CD num
+ConfigMap separado, `car-repair-shop-runtime`. Ela muda a cada ambiente recriado, e versioná-la
+deixaria no repositório um valor que já não existe.
+
+### Demonstrar o HPA (teste de carga com k6)
 
 ```bash
-cd infra/ && terraform destroy && cd ..
-kubectl delete pvc mongo-data-mongo-0 -n oficina   # PVC não removido pelo Terraform
-minikube stop
+kubectl get hpa -n car-repair-shop -w
+k6 run scripts/load-test.js
 ```
 
----
 
 ## Infraestrutura com Terraform
 
@@ -342,9 +280,11 @@ Dispara em push e pull request para `main`. Roda em `ubuntu-latest`.
 
 ### CD (`.github/workflows/cd.yml`)
 
-Dispara via `workflow_run` quando o CI conclui com sucesso em `main`. Roda em `self-hosted` (máquina com Minikube).
+Dispara via `workflow_run` quando o CI conclui com sucesso em `main`. Roda em runner hospedado do GitHub.
 
-Passos: checkout no SHA exato → `docker build` no daemon do Minikube → patch da tag de imagem no manifest → `terraform apply` → verificação de rollout.
+Passos: checkout no SHA exato → build e push da imagem no ECR com tag do SHA → leitura da configuração do SSM e do RDS → ConfigMap e Secret → **Job de migration** → `kubectl set image` → `rollout status` → **rollback automático** se falhar → verificação de fumaça em `/health` pelo gateway.
+
+Os segredos vêm do **SSM**, não de secrets do GitHub: `JWT_SECRET` e `INTERNAL_TOKEN` são escritos ali pelo Terraform das functions, e a aplicação lê o mesmo parâmetro. Não existem duas cópias para divergir.
 
 **GitHub Secrets necessários** (`Settings → Secrets and variables → Actions`):
 
@@ -384,11 +324,11 @@ A pasta `postman/` contém a coleção e os environments para cada ambiente.
 | Environment | Arquivo | `baseUrl` |
 |---|---|---|
 | Local / Docker Compose | `car-repair-shop.postman_environment.json` | `http://localhost:3000` |
-| Kubernetes / Minikube | `car-repair-shop-k8s.postman_environment.json` | `http://localhost:8080` |
+| Kubernetes / AWS | `car-repair-shop-k8s.postman_environment.json` | URL do API Gateway |
 
 Importar: **Import → Upload Files** → selecione a collection + o environment desejado.
 
-Para o ambiente K8s, o `minikube tunnel` deve estar rodando (`./scripts/start.sh` já faz isso automaticamente).
+Para o ambiente na AWS, preencha `baseUrl` e `authBaseUrl` com a URL do API Gateway (`terraform output api_gateway_url` no `infra-k8s`).
 
 Via CLI com Newman:
 
