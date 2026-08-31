@@ -1,29 +1,37 @@
 import { SNSClient } from '@aws-sdk/client-sns';
 import { INotificationService } from '../../use-cases/ports/INotificationService';
+import { IIntegrationFailures } from '../../use-cases/ports/IIntegrationFailures';
+import { ITraceContext } from '../../use-cases/ports/ITraceContext';
 import { ConsoleNotificationService } from '../../adapters/services/ConsoleNotificationService';
 import { SnsNotificationService } from '../../adapters/services/SnsNotificationService';
+import { PrometheusIntegrationFailures } from '../metrics/PrometheusIntegrationFailures';
+import { AsyncLocalStorageTraceContext } from '../logging/AsyncLocalStorageTraceContext';
+import { logger } from '../logging/logger';
 
 /**
- * Escolhe a implementacao de notificacao pelo ambiente.
+ * Picks the notification implementation from the environment.
  *
- * A escolha mora aqui, e nao dentro de um caso de uso: para quem publica um
- * evento, `console` e `sns` sao intercambiaveis atras do mesmo port. Nenhum
- * caso de uso sabe que existe SNS.
+ * The choice lives here, not inside a use case: to whoever publishes an event,
+ * `console` and `sns` are interchangeable behind the same port. No use case
+ * knows that SNS exists.
  */
-export function createNotificationService(): INotificationService {
+export function createNotificationService(
+  failures: IIntegrationFailures = new PrometheusIntegrationFailures(),
+  traceContext: ITraceContext = new AsyncLocalStorageTraceContext(),
+): INotificationService {
   if (process.env.NOTIFICATION_CHANNEL !== 'sns') {
-    return new ConsoleNotificationService();
+    return new ConsoleNotificationService(logger, failures);
   }
 
   const topicArn = process.env.SNS_TOPIC_ARN;
 
-  // Falha na subida, e nao na primeira notificacao. Sem esta guarda a
-  // aplicacao sobe saudavel, passa nas sondas, e so descobre a configuracao
-  // faltando quando um cliente deveria ser avisado -- que e quando a falha
-  // custa mais e a causa esta mais longe do sintoma.
+  // Fails on startup, not on the first notification. Without this guard the
+  // application comes up healthy, passes the probes, and only discovers the
+  // missing configuration when a customer should have been warned -- which is
+  // when the failure costs most and the cause is furthest from the symptom.
   if (!topicArn) {
-    throw new Error('NOTIFICATION_CHANNEL=sns requer SNS_TOPIC_ARN');
+    throw new Error('NOTIFICATION_CHANNEL=sns requires SNS_TOPIC_ARN');
   }
 
-  return new SnsNotificationService(new SNSClient({}), topicArn);
+  return new SnsNotificationService(new SNSClient({}), topicArn, failures, traceContext);
 }

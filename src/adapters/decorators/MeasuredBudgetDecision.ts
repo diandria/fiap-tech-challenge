@@ -1,13 +1,17 @@
 import { IDecideBudget, DecideBudgetInput } from '../../use-cases/ports/input/IDecideBudget';
 import { ServiceOrder } from '../../entities/ServiceOrder';
+import { IBusinessMetrics } from '../../use-cases/ports/IBusinessMetrics';
 import { observeTimeToStatus } from './observeTimeToStatus';
 
 export class MeasuredBudgetDecision implements IDecideBudget {
-  constructor(private readonly inner: IDecideBudget) {}
+  constructor(
+    private readonly inner: IDecideBudget,
+    private readonly metrics: IBusinessMetrics,
+  ) {}
 
   async execute(input: DecideBudgetInput): Promise<ServiceOrder> {
     const result = await this.inner.execute(input);
-    observeTimeToStatus(result);
+    observeTimeToStatus(result, this.metrics);
     return result;
   }
 }

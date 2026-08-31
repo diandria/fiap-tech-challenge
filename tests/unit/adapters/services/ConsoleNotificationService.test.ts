@@ -1,6 +1,8 @@
-import { Logger } from 'pino';
-import { ConsoleNotificationService } from '../../../../src/adapters/services/ConsoleNotificationService';
-import { integrationFailures } from '../../../../src/frameworks/metrics/integrationMetrics';
+import {
+  ConsoleNotificationService,
+  INotificationLogger,
+} from '../../../../src/adapters/services/ConsoleNotificationService';
+import { FakeIntegrationFailures } from '../../../support/FakeBusinessMetrics';
 import { Customer } from '../../../../src/entities/Customer';
 import { ServiceOrder } from '../../../../src/entities/ServiceOrder';
 
@@ -16,57 +18,58 @@ const order = {
   createdAt: new Date(),
 } as ServiceOrder;
 
-function loggerThatWorks(): Logger {
-  return { info: jest.fn() } as unknown as Logger;
+function loggerThatWorks(): INotificationLogger {
+  return { info: jest.fn() };
 }
 
-function loggerThatFails(): Logger {
+function loggerThatFails(): INotificationLogger {
   return {
     info: jest.fn(() => {
-      throw new Error('transporte indisponivel');
+      throw new Error('transport unavailable');
     }),
-  } as unknown as Logger;
-}
-
-async function labelsOf(): Promise<Record<string, string | number>[]> {
-  return (await integrationFailures.get()).values.map((v) => v.labels);
+  };
 }
 
 describe('ConsoleNotificationService', () => {
-  beforeEach(() => integrationFailures.reset());
+  let failures: FakeIntegrationFailures;
+
+  beforeEach(() => {
+    failures = new FakeIntegrationFailures();
+  });
 
   it('should not count a failure GIVEN the dispatch succeeds WHEN notifying', async () => {
-    const service = new ConsoleNotificationService(loggerThatWorks());
+    const service = new ConsoleNotificationService(loggerThatWorks(), failures);
 
     await service.notifyStatusChanged(customer, order);
 
-    expect(await labelsOf()).toHaveLength(0);
+    expect(failures.recorded).toHaveLength(0);
   });
 
   it('should count a failure GIVEN the dispatch throws WHEN notifying a status change', async () => {
-    const service = new ConsoleNotificationService(loggerThatFails());
+    const service = new ConsoleNotificationService(loggerThatFails(), failures);
 
     await expect(service.notifyStatusChanged(customer, order)).rejects.toThrow();
 
-    expect(await labelsOf()).toEqual([{ integration: 'notification', operation: 'status_changed' }]);
+    expect(failures.recorded).toEqual([{ integration: 'notification', operation: 'status_changed' }]);
   });
 
   it('should count a failure GIVEN the dispatch throws WHEN notifying a ready budget', async () => {
-    const service = new ConsoleNotificationService(loggerThatFails());
+    const service = new ConsoleNotificationService(loggerThatFails(), failures);
 
     await expect(service.notifyBudgetReady(customer, order)).rejects.toThrow();
 
-    expect(await labelsOf()).toEqual([{ integration: 'notification', operation: 'budget_ready' }]);
+    expect(failures.recorded).toEqual([{ integration: 'notification', operation: 'budget_ready' }]);
   });
 
-  // O comportamento nao muda: a notificacao continua best-effort e o erro segue
-  // subindo para o catch do caso de uso, que ja decidiu nao reverter a
-  // transicao de status. O que muda e a falha deixar de ser invisivel.
+  // The behaviour does not change: the notification stays best-effort and the
+  // error still travels up to the use case's catch, which already decided not
+  // to roll back the status transition. What changes is the failure no longer
+  // being invisible.
   it('should rethrow the original error GIVEN the dispatch throws WHEN notifying', async () => {
-    const service = new ConsoleNotificationService(loggerThatFails());
+    const service = new ConsoleNotificationService(loggerThatFails(), failures);
 
     await expect(service.notifyStatusChanged(customer, order)).rejects.toThrow(
-      'transporte indisponivel',
+      'transport unavailable',
     );
   });
 });
