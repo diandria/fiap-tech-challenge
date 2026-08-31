@@ -89,3 +89,20 @@ jobs:
           path: coverage/
           retention-days: 3
           if-no-files-found: error
+
+  manifests:
+    name: Validate Kubernetes manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Os manifests moram neste repositorio, entao o lint deles e
+      # responsabilidade deste CI. Roda sem cluster, em segundos, e pega o
+      # campo escrito errado que so apareceria no `kubectl apply` do deploy.
+      - name: Install kubeconform
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | sudo tar xz -C /usr/local/bin kubeconform
+
+      - name: Validate
+        run: kubeconform -strict -summary k8s/
