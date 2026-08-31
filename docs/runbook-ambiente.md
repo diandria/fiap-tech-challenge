@@ -12,21 +12,39 @@ procedimento para subir, verificar e derrubar.
 
 | Etapa | Tempo |
 |---|---|
-| `infra-db` (VPC + RDS) | ~10 min |
-| `infra-k8s` (EKS + addons + observabilidade) | ~20 min |
+| `infra-db` (VPC + RDS) | ~7 min |
+| `infra-k8s` — primeira fase (EKS + addons + observabilidade) | ~22 min |
 | `lambda` (duas functions + tópico) | ~2 min |
-| Deploy da aplicação (build, push, migration, rollout) | ~5 min |
+| `infra-k8s` — segunda fase (rota da Lambda) | ~1 min |
+| Deploy da aplicação (build, push, migration, rollout) | ~3 min |
 | Verificação de fumaça | ~3 min |
-| **Total** | **~40 min** |
+| **Total** | **~38 min** |
 
-O deploy da aplicação foi cronometrado em execução real. As três primeiras etapas seguem a estimativa
-dos milestones correspondentes.
+**Todos os tempos foram cronometrados num ciclo completo do zero em 31/08/2026.** Não são
+estimativa.
 
 ---
 
 ## Subida
 
-### 1. Credenciais
+### 1. Todos os repositórios na `main`
+
+**Antes de qualquer apply.** Aplicar de uma branch de PR sobe a versão que aquela branch tinha
+quando nasceu, não a atual.
+
+```bash
+for r in fiap-tech-challenge fiap-tech-challenge-lambda \
+         fiap-tech-challenge-infra-k8s fiap-tech-challenge-infra-db; do
+  git -C ~/dev/$r checkout main && git -C ~/dev/$r pull
+done
+```
+
+> Isto já custou uma sessão: o repositório de lambda estava numa branch criada antes do merge da
+> propagação de trace. As notificações chegavam normalmente, e o log da function saía **sem
+> `trace_id`** — o rastro atravessando a fronteira assíncrona, que é o ponto da demonstração,
+> simplesmente não existia. Nada no ambiente indicava erro.
+
+### 2. Credenciais
 
 No Learner Lab: **Start Lab** → aguarde o círculo verde → **AWS Details** → **AWS CLI** → **Show**.
 Cole o bloco em `~/.aws/credentials`.
@@ -39,7 +57,7 @@ aws ec2 describe-vpcs --max-items 1 >/dev/null && echo "credencial ok"
 > sessão mantendo o `get-caller-identity` respondendo. A diferença aparece vinte minutos adiante,
 > com uma mensagem que não aponta para a causa.
 
-### 2. Publicar as credenciais nos quatro repositórios
+### 3. Publicar as credenciais nos quatro repositórios
 
 ```bash
 ~/dev/fiap-tech-challenge-lambda/scripts/refresh-aws-secrets.sh --todos
@@ -47,7 +65,7 @@ aws ec2 describe-vpcs --max-items 1 >/dev/null && echo "credencial ok"
 
 Sem isso, o CD falha ao tocar a AWS.
 
-### 3. `infra-db` — VPC e banco (~10 min)
+### 4. `infra-db` — VPC e banco (~7 min)
 
 ```bash
 cd ~/dev/fiap-tech-challenge-infra-db
@@ -56,20 +74,46 @@ terraform init -input=false && terraform apply -auto-approve
 
 Cria a VPC, o RDS e os parâmetros no SSM: senha do banco e **senha do admin da aplicação**.
 
-### 4. `infra-k8s` — cluster e gateway (~20 min)
+### 5. `infra-k8s` — primeira fase, sem a rota da Lambda (~22 min)
+
+**O `infra-k8s` é aplicado em duas fases, com o lambda no meio.** Não é preciosismo: existe um ciclo
+entre os dois repositórios.
+
+- a rota `POST /auth/cpf` precisa do ARN da function, que só existe depois do apply do lambda
+- o lambda precisa do `api_gateway_url`, que só existe depois do apply do `infra-k8s`
+
+Aplicar tudo de uma vez com o ambiente zerado falha assim:
+
+```
+Error: Unsupported attribute
+  on api-gateway-auth-route.tf line 9:
+  integration_uri = data.terraform_remote_state.lambda.outputs.auth_lambda_invoke_arn
+  data.terraform_remote_state.lambda.outputs is object with no attributes
+```
+
+Tire a rota do caminho para esta fase:
 
 ```bash
 cd ~/dev/fiap-tech-challenge-infra-k8s
+mv api-gateway-auth-route.tf /tmp/api-gateway-auth-route.tf
 terraform init -input=false && terraform apply -auto-approve
 ```
-
-É a etapa mais longa: EKS, addons, ALB controller, observabilidade, ECR e o API Gateway.
 
 > Se o apply falhar no meio, **não interrompa um novo apply pela metade**. Aplies interrompidos
 > deixam inconsistência de três camadas (estado do Terraform, release do Helm e o Secret que guarda
 > o release), e reconciliar isso leva mais tempo que deixar terminar.
 
-### 5. `lambda` — functions e tópico (~2 min)
+**Este passo não vale só pelo `Apply complete!`.** Confira que a observabilidade subiu de verdade:
+
+```bash
+kubectl get pods -n observability
+```
+
+Os onze pods precisam estar `Running`. O `tempo-0` é o que costuma cair, em `CrashLoopBackOff` por
+`OOMKilled` — e quando ele cai a aplicação continua exportando spans para um coletor inexistente,
+**sem nenhum erro no log**. Tudo parece certo e a aba de traces do Grafana fica vazia.
+
+### 6. `lambda` — functions e tópico (~2 min)
 
 ```bash
 cd ~/dev/fiap-tech-challenge-lambda
@@ -81,13 +125,39 @@ terraform -chdir=terraform init -input=false && terraform -chdir=terraform apply
 Gera `JWT_SECRET` e `INTERNAL_TOKEN` no SSM. A aplicação lê **os mesmos parâmetros** — não há duas
 cópias para divergir.
 
-### 6. Aplicação
+### 7. `infra-k8s` — segunda fase, com a rota da Lambda (~1 min)
 
-Merge na `main` dispara o CD. Para forçar sem um commit novo:
+Agora o remote state do lambda tem os outputs que faltavam:
 
 ```bash
-gh workflow run CI --repo diandria/fiap-tech-challenge --ref main
+cd ~/dev/fiap-tech-challenge-infra-k8s
+mv /tmp/api-gateway-auth-route.tf .
+terraform apply -auto-approve
 ```
+
+Confirme que a rota existe antes de seguir:
+
+```bash
+aws apigatewayv2 get-routes --api-id $(terraform output -raw api_gateway_id) \
+  --query "Items[?RouteKey=='POST /auth/cpf'].RouteKey"
+```
+
+> **Devolva o arquivo mesmo se algo falhar entre as duas fases.** Esquecê-lo fora do lugar faz o
+> apply seguinte destruir a rota, e o `/auth/cpf` passa a responder 404 sem motivo aparente.
+
+### 8. Aplicação (~3 min)
+
+Merge na `main` dispara o CD. Para forçar sem um commit novo, **reexecute o último CI da `main`** —
+o CD escuta o evento `workflow_run` do CI:
+
+```bash
+cd ~/dev/fiap-tech-challenge
+gh run rerun $(gh run list --workflow CI --branch main --limit 1 --json databaseId \
+  --jq '.[0].databaseId')
+```
+
+> `gh workflow run CI --ref main` **não funciona**: o CI só tem gatilho de `push` e `pull_request`,
+> e a chamada devolve `HTTP 422: Workflow does not have 'workflow_dispatch' trigger`.
 
 O CD constrói a imagem, publica no ECR, roda a migration como Job, faz `set image` e verifica o
 rollout — com rollback se falhar.
@@ -138,9 +208,28 @@ aws logs filter-log-events --log-group-name /aws/lambda/car-repair-shop-notifica
 ```
 
 ```bash
-# 5. Grafana com dados
+# 5. Observabilidade com dados
+#    Antes do Grafana, confirme que o coletor esta de pe -- um Tempo caido nao
+#    produz erro em lugar nenhum, so um painel vazio.
+kubectl get pods -n observability | grep -v Running   # so o cabecalho deve sobrar
+
+kubectl port-forward -n observability svc/tempo 3200:3200 &
+curl -s localhost:3200/ready                          # ready
+curl -s localhost:3200/metrics | grep tempo_distributor_spans_received_total
+
 kubectl port-forward -n observability svc/kube-prometheus-stack-grafana 3000:80
 ```
+
+No Grafana, confira as três fontes, e não só que a página abre:
+
+| Fonte | O que precisa aparecer |
+|---|---|
+| Loki | logs da aplicação com `trace_id`, e os da function de notificações |
+| Tempo | um trace da aplicação, buscado pelo `trace_id` de um dos logs |
+| Prometheus | as métricas de negócio e o histograma de latência HTTP |
+
+O contador de spans precisa estar **subindo** entre duas leituras. Um Tempo que responde `ready` mas
+não recebe span nenhum é o mesmo painel vazio, com aparência de saúde.
 
 ---
 
