@@ -11,6 +11,8 @@ import { PostgresItemRepository } from '../../src/adapters/gateways/PostgresItem
 import { PostgresServiceOrderRepository } from '../../src/adapters/gateways/PostgresServiceOrderRepository';
 import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { ConsoleNotificationService } from '../../src/adapters/services/ConsoleNotificationService';
+import { PrometheusBusinessMetrics } from '../../src/frameworks/metrics/PrometheusBusinessMetrics';
+import { PrometheusIntegrationFailures } from '../../src/frameworks/metrics/PrometheusIntegrationFailures';
 import { PinoLoggerAdapter } from '../../src/adapters/logging/PinoLoggerAdapter';
 import { logger } from '../../src/frameworks/logging/logger';
 
@@ -115,7 +117,9 @@ export function createTestApp(): Application {
   const itemRepo = new PostgresItemRepository(prisma);
   const osRepo = new PostgresServiceOrderRepository(prisma);
   const userRepo = new PostgresUserRepository(prisma);
-  const notifier = new ConsoleNotificationService();
+  const businessMetrics = new PrometheusBusinessMetrics();
+  const integrationFailures = new PrometheusIntegrationFailures();
+  const notifier = new ConsoleNotificationService(logger, integrationFailures);
   const appLogger = new PinoLoggerAdapter(logger);
 
   const authController = new AuthController(
@@ -146,21 +150,31 @@ export function createTestApp(): Application {
   const notifyBudget = new NotifyBudgetUseCase(osRepo, customerRepo, notifier, appLogger);
 
   const osController = new ServiceOrderController(
-    new MeasuredCreateServiceOrder(new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo)),
+    new MeasuredCreateServiceOrder(
+      new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo),
+      businessMetrics,
+    ),
     new GetServiceOrderUseCase(osRepo),
     new ListServiceOrdersUseCase(osRepo),
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
     new AddItemToOSUseCase(osRepo, itemRepo), new RemoveItemFromOSUseCase(osRepo, itemRepo),
-    new MeasuredStatusTransition(new StartDiagnosisUseCase(osRepo, notifyStatusChange)),
+    new MeasuredStatusTransition(new StartDiagnosisUseCase(osRepo, notifyStatusChange), businessMetrics),
     new MeasuredStatusTransition(
       new FinishDiagnosisUseCase(osRepo, notifyStatusChange, notifyBudget, new CalculateBudgetUseCase(serviceRepo, itemRepo)),
+      businessMetrics,
     ),
-    new MeasuredBudgetDecision(new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange)),
-    new MeasuredBudgetDecision(new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange)),
-    new MeasuredStatusTransition(new StartExecutionUseCase(osRepo, itemRepo, notifyStatusChange)),
+    new MeasuredBudgetDecision(new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange), businessMetrics),
+    new MeasuredBudgetDecision(
+      new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
+      businessMetrics,
+    ),
+    new MeasuredStatusTransition(
+      new StartExecutionUseCase(osRepo, itemRepo, notifyStatusChange),
+      businessMetrics,
+    ),
     new StartServiceUseCase(osRepo), new FinishServiceUseCase(osRepo),
-    new MeasuredStatusTransition(new FinishOSUseCase(osRepo, notifyStatusChange)),
-    new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange)),
+    new MeasuredStatusTransition(new FinishOSUseCase(osRepo, notifyStatusChange), businessMetrics),
+    new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange), businessMetrics),
     new GetAvgExecutionTimeUseCase(osRepo),
   );
 
