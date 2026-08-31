@@ -1,10 +1,10 @@
 import 'dotenv/config';
-import { connectDB, disconnectDB } from '../src/frameworks/database/connection';
-import { MongoCustomerRepository } from '../src/adapters/gateways/MongoCustomerRepository';
-import { MongoVehicleRepository } from '../src/adapters/gateways/MongoVehicleRepository';
-import { MongoServiceRepository } from '../src/adapters/gateways/MongoServiceRepository';
-import { MongoItemRepository } from '../src/adapters/gateways/MongoItemRepository';
-import { MongoUserRepository } from '../src/adapters/gateways/MongoUserRepository';
+import { prisma, disconnectPrisma } from '../src/frameworks/database/prismaClient';
+import { PostgresCustomerRepository } from '../src/adapters/gateways/PostgresCustomerRepository';
+import { PostgresVehicleRepository } from '../src/adapters/gateways/PostgresVehicleRepository';
+import { PostgresServiceRepository } from '../src/adapters/gateways/PostgresServiceRepository';
+import { PostgresItemRepository } from '../src/adapters/gateways/PostgresItemRepository';
+import { PostgresUserRepository } from '../src/adapters/gateways/PostgresUserRepository';
 import { RegisterUseCase } from '../src/use-cases/auth/RegisterUseCase';
 import { ConflictError } from '../src/entities/errors/AppError';
 import { UserRole } from '../src/entities/User';
@@ -16,7 +16,7 @@ import { ListServicesUseCase } from '../src/use-cases/services/ListServicesUseCa
 import { ListItemsUseCase } from '../src/use-cases/items/ListItemsUseCase';
 import { TaxType } from '../src/entities/Customer';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/car-repair-shop';
+const DATABASE_URL = process.env.DATABASE_URL || '(nao definido em .env)';
 
 interface SeedCustomer {
   name: string;
@@ -98,7 +98,7 @@ interface Result {
 }
 
 async function seedServices(): Promise<Result> {
-  const repo = new MongoServiceRepository();
+  const repo = new PostgresServiceRepository(prisma);
   const list = new ListServicesUseCase(repo);
   const create = new CreateServiceUseCase(repo);
   const existing = await list.execute();
@@ -117,7 +117,7 @@ async function seedServices(): Promise<Result> {
 }
 
 async function seedItems(): Promise<Result> {
-  const repo = new MongoItemRepository();
+  const repo = new PostgresItemRepository(prisma);
   const list = new ListItemsUseCase(repo);
   const create = new CreateItemUseCase(repo);
   const existing = await list.execute();
@@ -136,8 +136,8 @@ async function seedItems(): Promise<Result> {
 }
 
 async function seedCustomersAndVehicles(): Promise<{ customers: Result; vehicles: Result }> {
-  const customerRepo = new MongoCustomerRepository();
-  const vehicleRepo = new MongoVehicleRepository();
+  const customerRepo = new PostgresCustomerRepository(prisma);
+  const vehicleRepo = new PostgresVehicleRepository(prisma);
   const createCustomer = new CreateCustomerUseCase(customerRepo);
   const createVehicle = new CreateVehicleUseCase(vehicleRepo);
 
@@ -177,7 +177,7 @@ async function seedCustomersAndVehicles(): Promise<{ customers: Result; vehicles
 }
 
 async function seedUsers(): Promise<Result> {
-  const repo = new MongoUserRepository();
+  const repo = new PostgresUserRepository(prisma);
   const register = new RegisterUseCase(repo);
   let created = 0;
   let skipped = 0;
@@ -201,8 +201,8 @@ function summarize(label: string, r: Result): void {
 }
 
 async function main(): Promise<void> {
-  console.log(`Connecting to ${MONGODB_URI}`);
-  await connectDB(MONGODB_URI);
+  console.log(`Connecting to ${DATABASE_URL.replace(/:\/\/[^@]*@/, '://***@')}`);
+  await prisma.$connect();
   try {
     console.log('Seeding services...');
     summarize('services', await seedServices());
@@ -221,7 +221,7 @@ async function main(): Promise<void> {
 
     console.log('Done.');
   } finally {
-    await disconnectDB();
+    await disconnectPrisma();
   }
 }
 
