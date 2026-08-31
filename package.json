@@ -19,6 +19,7 @@
     "db:generate": "prisma generate"
   },
   "dependencies": {
+    "@aws-sdk/client-sns": "^3.1121.0",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/auto-instrumentations-node": "^0.56.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.57.2",
