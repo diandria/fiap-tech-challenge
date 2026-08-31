@@ -32,7 +32,12 @@ entre aplicação e Lambdas, maturidade da auto-instrumentação do OpenTelemetr
 
 ## Decisão
 
-Node 20 LTS, TypeScript 5.3 e Express 4, empacotados em `node:20-alpine`.
+Node 22 LTS, TypeScript 5.3 e Express 4, empacotados em `node:22-alpine`.
+
+> A versão registrada aqui era Node 20 quando a decisão foi tomada. Passou a 22 durante a
+> implementação: o `testcontainers`, adotado na migração para Postgres, arrasta `undici@8`,
+> que exige `>=22.19.0` — e o Node 20 saiu de suporte em abril de 2026. A escolha de
+> arquitetura (Node com TypeScript e Express) não mudou.
 
 ## Por que vence
 

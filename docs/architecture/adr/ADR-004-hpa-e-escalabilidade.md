@@ -23,8 +23,13 @@ Dimensionar para a média derruba o serviço no pico.
 HorizontalPodAutoscaler sobre uso de CPU, com um PodDisruptionBudget garantindo mínimo de réplicas
 durante operações voluntárias, como dreno de nó.
 
-Parâmetros: `minReplicas: 2` e alvo de 70% de CPU. O `maxReplicas` precisa bater com a capacidade real do
-node group, e essa conta é feita antes do provisionamento, não depois.
+Parâmetros: `minReplicas: 2`, `maxReplicas: 10` e alvo de 70% de CPU. O `maxReplicas` precisa bater com
+a capacidade real do node group, e essa conta é feita antes do provisionamento, não depois.
+
+O teto de 10 foi confirmado contra o node group provisionado: dois nós com 35 vagas de pod cada,
+26 ocupadas pelo sistema e pela observabilidade, e 1000m de CPU requisitados por 10 réplicas contra
+3860m alocáveis. Verificado em execução: sob carga, o HPA foi de 2 até 10 réplicas sem pod em
+`Pending`.
 
 ## Por que vence
 

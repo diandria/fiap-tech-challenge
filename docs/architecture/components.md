@@ -15,7 +15,8 @@ flowchart TB
         LNOTIF["Função: notificações<br/>formata e entrega"]
         TOPICO{{"Tópico de eventos"}}
         DLQ[/"Fila de descarte"/]
-        EMAIL(["Canal de e-mail"])
+        PARAM[("Armazenamento de parâmetros<br/>segredos")]
+        EMAIL(["Canal de entrega<br/>registro estruturado"])
 
         subgraph VPC["Rede privada"]
             subgraph Cluster["Cluster Kubernetes"]
@@ -42,6 +43,8 @@ flowchart TB
 
     LAUTH -->|"consulta de cliente"| APP
     APP --> RDS
+    PARAM -.->|"segredos, na implantação"| APP
+    PARAM -.->|"segredos, na implantação"| LAUTH
 
     APP -->|"evento de ordem de serviço"| TOPICO
     TOPICO --> LNOTIF
@@ -77,6 +80,15 @@ Setas cheias são síncronas, tracejadas são assíncronas. A publicação do ev
 espera a entrega da notificação, e a fila de descarte recebe o que falhou depois das novas tentativas
 ([ADR-003](adr/ADR-003-padrao-de-comunicacao.md)).
 
+**A entrega da notificação é um registro estruturado, não um e-mail.** É deliberado: o ambiente é de
+demonstração e não há destinatário real para receber correio da oficina. A função formata a mensagem
+completa — destinatário, assunto e corpo — e a emite como registro, que fica pesquisável junto dos
+demais. Trocar por um canal real é implementar a mesma interface, sem tocar na formatação.
+
+Os segredos vêm de um **armazenamento de parâmetros**, lido na implantação tanto pela aplicação quanto
+pela função de autenticação. É o que garante que o segredo de assinatura do token seja o mesmo dos dois
+lados: não existem duas cópias para divergir, porque é o mesmo parâmetro.
+
 A observabilidade vive no próprio cluster e é provisionada junto com ele
 ([ADR-005](adr/ADR-005-observabilidade-self-hosted.md)). A função de notificações também emite registros e
 rastros: ela é o primeiro contexto fora do processo principal, e serve de teste real das convenções de
@@ -91,6 +103,8 @@ telemetria ([ADR-007](adr/ADR-007-telemetria-microsservicos.md)).
 | Função de notificações | Formatar e entregar a notificação a partir do evento | ADR-003 |
 | Tópico de eventos | Desacoplar a publicação da entrega | ADR-003 |
 | Fila de descarte | Reter o que falhou após as novas tentativas | ADR-003 |
+| Canal de entrega | Emitir a notificação formatada; neste ambiente, como registro estruturado | ADR-003 |
+| Armazenamento de parâmetros | Fonte única dos segredos, lida na implantação pelos dois lados | — |
 | Aplicação | Regras de negócio e API | ADR-009 |
 | Banco relacional gerenciado | Persistência com integridade garantida pelo banco | RFC-002 |
 | Stack de observabilidade | Métricas, registros, rastros, painéis e alertas | ADR-005, RFC-005 |

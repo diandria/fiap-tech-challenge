@@ -37,7 +37,7 @@ sequenceDiagram
     participant D as Banco
     participant T as Tópico de eventos
     participant N as Função de notificações
-    participant E as Canal de e-mail
+    participant E as Canal de entrega
 
     M->>G: PATCH /service-orders/{id}
     G->>A: encaminha
@@ -45,7 +45,7 @@ sequenceDiagram
     A->>T: publica o evento<br/>com o contexto de rastreamento
     A-->>M: 200
     T->>N: entrega
-    N->>E: envia a notificação
+    N->>E: entrega a notificação<br/>como registro estruturado
 ```
 
 Este é o diagrama mais informativo dos quatro. Ele mostra a costura assíncrona: a resposta ao mecânico
