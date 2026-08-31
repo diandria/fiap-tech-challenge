@@ -233,6 +233,34 @@ não recebe span nenhum é o mesmo painel vazio, com aparência de saúde.
 
 ---
 
+## Provar o rollback
+
+O CD desfaz o deploy sozinho quando o rollout falha, e termina **vermelho** — um rollback que
+funciona mas deixa o workflow verde é pior que não ter rollback, porque ninguém fica sabendo.
+
+Para demonstrar sem quebrar nada de verdade, aponte o Deployment para uma tag que não existe:
+
+```bash
+NS=car-repair-shop; D=deployment/car-repair-shop-api
+
+kubectl set image $D api=<registry>/car-repair-shop:naoexiste -n $NS
+kubectl rollout status $D -n $NS --timeout=90s     # error: timed out ... (exit 1)
+kubectl get pods -n $NS -l app=car-repair-shop-api # pod novo em ErrImagePull
+
+kubectl rollout undo $D -n $NS
+kubectl rollout status $D -n $NS --timeout=180s    # successfully rolled out
+```
+
+**Verificado em 31/08/2026.** O ponto que vale mostrar: durante a falha, os **pods antigos continuam
+`1/1 Running` e servindo tráfego**. O rolling update segura a réplica quebrada em `ErrImagePull` e
+não retira as saudáveis — o deploy falha sem indisponibilidade. O `/health` responde 200 o tempo
+todo, inclusive no meio do rollout falho.
+
+O `rollout status` **falhar por timeout, e não ficar pendurado**, é o que dispara o
+`if: failure() && steps.rollout.outcome == 'failure'` do `cd.yml`.
+
+---
+
 ## Descida
 
 **Ordem inversa da subida.** Não pule etapas: derrubar a VPC antes do cluster deixa recursos órfãos
