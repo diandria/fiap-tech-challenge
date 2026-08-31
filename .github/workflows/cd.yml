@@ -6,50 +6,70 @@ on:
     types: [completed]
     branches: [main]
 
+# Um deploy por vez. Sem isto, dois merges seguidos disputam o mesmo cluster e
+# o segundo pode sobrescrever o primeiro no meio do rollout.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
 jobs:
-  deploy:
-    name: Deploy to Minikube
-    runs-on: self-hosted
-    timeout-minutes: 15
+  image:
+    name: Build and push image
+    # Runner hospedado, e nao self-hosted: o runner local da Fase 2 nao existe
+    # mais, e os workflows ficavam enfileirados ate serem cancelados.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    concurrency:
-      group: deploy
-      cancel-in-progress: true
 
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      - name: Set image tag from git SHA
-        id: tag
-        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
 
-      - name: Build image into Minikube Docker daemon
+      # As credenciais do Learner Lab expiram, e `sts get-caller-identity`
+      # continua respondendo depois que a sessao e revogada. Uma chamada que
+      # toca recurso de verdade e o que revela a expiracao aqui, e nao vinte
+      # minutos adiante com uma mensagem que nao aponta para a causa.
+      - name: Verify credentials are usable
+        run: aws ec2 describe-vpcs --max-items 1 > /dev/null
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Resolve image tag
+        id: meta
         run: |
-          eval $(minikube docker-env)
-          docker build -t fiap-tech-challenge:${{ steps.tag.outputs.sha }} .
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "registry=${{ steps.ecr.outputs.registry }}/car-repair-shop" >> "$GITHUB_OUTPUT"
 
-      - name: Update image tag in Deployment manifest
-        run: |
-          sed -i "s|image: .*fiap-tech-challenge:.*|image: fiap-tech-challenge:${{ steps.tag.outputs.sha }}|" k8s/03-app/app-deployment.yaml
-          grep -q "fiap-tech-challenge:${{ steps.tag.outputs.sha }}" k8s/03-app/app-deployment.yaml || (echo "ERROR: image tag not updated in manifest" && exit 1)
-
-      - name: Initialize Terraform
-        working-directory: infra/
-        run: terraform init -input=false
-
-      - name: Apply infrastructure with Terraform
-        working-directory: infra/
-        run: terraform apply -auto-approve -input=false
+      # Tag pelo SHA, e nao so `latest`. Com `latest`, rollback e impossivel e
+      # um pod que reinicia pode trazer imagem diferente da que estava rodando
+      # -- bug dificil de diagnosticar exatamente quando ha pressa.
+      #
+      # O repositorio ECR e IMMUTABLE: publicar o mesmo SHA duas vezes falha,
+      # em vez de trocar o conteudo em silencio.
+      - name: Build and push
         env:
-          TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
-          TF_VAR_admin_password: ${{ secrets.ADMIN_PASSWORD }}
-          TF_VAR_mongo_root_username: ${{ secrets.MONGO_ROOT_USERNAME }}
-          TF_VAR_mongo_root_password: ${{ secrets.MONGO_ROOT_PASSWORD }}
+          IMAGE: ${{ steps.meta.outputs.registry }}
+          TAG: ${{ steps.meta.outputs.sha }}
+        run: |
+          docker build -t "$IMAGE:$TAG" .
+          docker push "$IMAGE:$TAG"
 
-      - name: Verify database deployment
-        run: kubectl rollout status statefulset/mongo -n oficina --timeout=180s
-
-      - name: Verify application rollout
-        run: kubectl rollout status deployment/oficina-app -n oficina --timeout=120s
+      - name: Confirm the image is in the registry
+        env:
+          TAG: ${{ steps.meta.outputs.sha }}
+        run: |
+          aws ecr describe-images \
+            --repository-name car-repair-shop \
+            --image-ids imageTag="$TAG" \
+            --query 'imageDetails[0].imagePushedAt' --output text
