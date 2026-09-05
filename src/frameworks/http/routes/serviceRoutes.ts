@@ -18,8 +18,7 @@ export function serviceRoutes(controller: ServiceController): Router {
    *       401:
    *         description: Missing or invalid token
    */
-  // Public in Phase 2, not any more: the catalogue carries prices, and the
-  // route fits none of the allowed exceptions.
+  // Was public in Phase 2. Now requires auth: the catalogue carries prices.
   router.get('/', authMiddleware, (req, res, next) => controller.list(req, res, next));
 
   /**

@@ -28,8 +28,8 @@ describe('createNotificationService', () => {
     expect(createNotificationService()).toBeInstanceOf(SnsNotificationService);
   });
 
-  // Fail on startup, not on the first notification: otherwise the gap only
-  // shows when a customer needed warning.
+  // Missing configuration must fail at startup, not at the first
+  // notification.
   it('should throw GIVEN channel sns without a topic arn', () => {
     process.env.NOTIFICATION_CHANNEL = 'sns';
     delete process.env.SNS_TOPIC_ARN;

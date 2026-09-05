@@ -76,9 +76,9 @@ jobs:
     # `main` is production; there is no staging. Declaring the Environment is
     # what records each deploy under Deployments > production.
     #
-    # No protection rule on purpose: a required reviewer would stall the CD, and
-    # the safety net here is the required PR plus automatic rollback. The URL
-    # comes from the deploy because the gateway id changes on every recreation.
+    # No protection rule: a required reviewer would stall the CD; the safety
+    # net is the required PR plus automatic rollback. The URL comes from the
+    # deploy because the gateway id changes on every recreation.
     environment:
       name: production
       url: ${{ steps.smoke.outputs.url }}

@@ -24,8 +24,8 @@ function withTimeout(check: ReadinessCheck): Promise<unknown> {
 export function healthRoutes(checkDatabase: ReadinessCheck): Router {
   const router = Router();
 
-  // Liveness does not query the database on purpose: restarting the pod does
-  // not fix a database that is down, it just loops through the incident.
+  // Liveness skips the database check: restarting the pod would not fix a
+  // database outage and would cause a restart loop (M3.T7).
   router.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
 
   // Readiness does query: the 503 pulls the pod out of the Service.

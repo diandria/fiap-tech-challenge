@@ -11,8 +11,8 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts, please try again later' },
 });
 
-// Second barrier in case the shared secret leaks. Tighter than login: the only
-// legitimate caller is the function, at one lookup per authentication.
+// Stricter limit than login: the only expected caller is the auth function,
+// which makes one lookup per authentication.
 const lookupLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
@@ -23,8 +23,7 @@ export function authRoutes(controller: AuthController): Router {
   const router = Router();
 
   // Internal route, consumed by the token-issuing function (ADR-002).
-  // No @openapi annotation on purpose: documenting it in the public Swagger
-  // would announce it to any visitor.
+  // Intentionally left out of the public Swagger spec.
   router.post(
     '/customers/lookup',
     lookupLimiter,

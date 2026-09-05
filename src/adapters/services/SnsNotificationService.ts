@@ -44,8 +44,8 @@ export class SnsNotificationService implements INotificationService {
       eventType,
       occurredAt: new Date().toISOString(),
 
-      // Omitted outside an HTTP request: an invalid traceparent would make the
-      // consumer stitch unrelated events together.
+      // Omitted when there is no active trace: an invalid traceparent would
+      // correlate unrelated events in the consumer.
       ...(traceparent && { traceparent }),
 
       serviceOrder: {
@@ -54,8 +54,7 @@ export class SnsNotificationService implements INotificationService {
         ...(os.budgetTotal !== undefined && { budgetTotal: os.budgetTotal }),
       },
 
-      // Only what the consumer needs. Tax id and phone stay out: the topic is
-      // one more trust boundary.
+      // Only the fields the consumer uses; tax id and phone are not published.
       customer: {
         id: customer.id,
         name: customer.name,

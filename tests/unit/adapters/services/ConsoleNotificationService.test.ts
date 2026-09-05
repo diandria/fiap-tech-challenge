@@ -61,8 +61,8 @@ describe('ConsoleNotificationService', () => {
     expect(failures.recorded).toEqual([{ integration: 'notification', operation: 'budget_ready' }]);
   });
 
-  // Behaviour is unchanged -- still best-effort, still caught by the use case.
-  // What changes is the failure no longer being invisible.
+  // The notification stays best-effort and the error still reaches the use
+  // case's catch; the failure is now also counted in the metric.
   it('should rethrow the original error GIVEN the dispatch throws WHEN notifying', async () => {
     const service = new ConsoleNotificationService(loggerThatFails(), failures);
 

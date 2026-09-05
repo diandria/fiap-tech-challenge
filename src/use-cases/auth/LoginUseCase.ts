@@ -25,8 +25,8 @@ export class LoginUseCase {
     if (!valid) throw new UnauthorizedError('Invalid credentials');
 
     const secret = process.env.JWT_SECRET!;
-    // `type` explicit from issue time: the middleware's 'staff' default is
-    // backwards compatibility, not contract.
+    // `type` is set explicitly at issue time; the middleware default exists
+    // only for tokens issued before this field was added.
     const token = jwt.sign(
       { type: 'staff', userId: user.id, role: user.role },
       secret,

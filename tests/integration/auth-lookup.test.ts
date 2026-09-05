@@ -53,8 +53,7 @@ describe('POST /auth/customers/lookup', () => {
     expect(res.status).toBe(401);
   });
 
-  // A token of equal length and different content is the case a naive
-  // length-based comparison would let through.
+  // Same length, different content: covers the constant-time comparison.
   it('should return 401 GIVEN a token of the same length but different content WHEN called', async () => {
     const res = await request(app)
       .post('/auth/customers/lookup')
@@ -120,8 +119,7 @@ describe('POST /auth/customers/lookup', () => {
     expect(res.body.active).toBe(false);
   });
 
-  // Documenting the internal route in the public Swagger tells any visitor
-  // that it exists. It is the easiest leak to introduce without noticing.
+  // The internal route must not appear in the public Swagger spec.
   it('should not document the lookup route in the public swagger spec', () => {
     expect(JSON.stringify(buildSwaggerSpec())).not.toContain('customers/lookup');
   });
