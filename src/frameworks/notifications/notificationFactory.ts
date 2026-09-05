@@ -25,10 +25,8 @@ export function createNotificationService(
 
   const topicArn = process.env.SNS_TOPIC_ARN;
 
-  // Fails on startup, not on the first notification. Without this guard the
-  // application comes up healthy, passes the probes, and only discovers the
-  // missing configuration when a customer should have been warned -- which is
-  // when the failure costs most and the cause is furthest from the symptom.
+  // Fails on startup, not on the first notification: otherwise the application
+  // passes the probes and only reveals the gap when a customer needed warning.
   if (!topicArn) {
     throw new Error('NOTIFICATION_CHANNEL=sns requires SNS_TOPIC_ARN');
   }

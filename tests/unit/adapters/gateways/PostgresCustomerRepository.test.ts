@@ -117,7 +117,7 @@ describe('PostgresCustomerRepository — malformed identifiers', () => {
   it('should return null without querying GIVEN a non-uuid id WHEN findById is called', async () => {
     const prisma = makePrisma();
 
-    const customer = await new PostgresCustomerRepository(prisma).findById('nao-e-uuid');
+    const customer = await new PostgresCustomerRepository(prisma).findById('not-a-uuid');
 
     expect(customer).toBeNull();
     expect(prisma.customer.findFirst).not.toHaveBeenCalled();

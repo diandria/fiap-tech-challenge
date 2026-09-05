@@ -44,9 +44,8 @@ export class SnsNotificationService implements INotificationService {
       eventType,
       occurredAt: new Date().toISOString(),
 
-      // Omitted outside an HTTP request, where there is no trace. Publishing
-      // an invalid traceparent would be worse than omitting it: the consumer
-      // would record it and Grafana would stitch unrelated events together.
+      // Omitted outside an HTTP request: an invalid traceparent would make the
+      // consumer stitch unrelated events together.
       ...(traceparent && { traceparent }),
 
       serviceOrder: {
@@ -55,9 +54,8 @@ export class SnsNotificationService implements INotificationService {
         ...(os.budgetTotal !== undefined && { budgetTotal: os.budgetTotal }),
       },
 
-      // Only what the consumer uses to build the message. Tax id and phone
-      // stay out: data that does not travel cannot leak, and the topic is one
-      // more trust boundary.
+      // Only what the consumer needs. Tax id and phone stay out: the topic is
+      // one more trust boundary.
       customer: {
         id: customer.id,
         name: customer.name,

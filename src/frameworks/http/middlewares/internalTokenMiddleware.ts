@@ -15,9 +15,8 @@ export function internalTokenMiddleware(req: Request, _res: Response, next: Next
   const provided = Buffer.from(String(req.headers['x-internal-token'] ?? ''));
   const expected = Buffer.from(process.env.INTERNAL_TOKEN ?? '');
 
-  // With no secret configured there is no valid comparison: denying is the
-  // only safe answer. Accepting an empty string would open the whole route on a
-  // deploy with a missing variable.
+  // With no secret configured there is no valid comparison: accepting an empty
+  // string would open the route on a deploy with a missing variable.
   if (expected.length === 0 || provided.length !== expected.length) {
     return next(new UnauthorizedError());
   }

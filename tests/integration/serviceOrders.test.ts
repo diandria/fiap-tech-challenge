@@ -238,7 +238,7 @@ describe('Full OS lifecycle', () => {
     });
 
     // An employee token does not pass either: with no `sub` there is no owner
-    // to compare against, and letting it through would make the check a no-op.
+    // to compare against.
     it('GIVEN a staff token WHEN GET /service-orders/:id/status THEN returns 403', async () => {
       const osId = await osWaitingApproval();
       const res = await request(app).get(`/service-orders/${osId}/status`)
@@ -253,8 +253,7 @@ describe('Full OS lifecycle', () => {
       expect(res.status).toBe(401);
     });
 
-    // The test that proves the protection: a 403 is not enough, the status must
-    // not change.
+    // A 403 is not enough: the status must not change.
     it('GIVEN another customer token WHEN PATCH /budget THEN returns 403 AND keeps the status', async () => {
       const osId = await osWaitingApproval();
 
@@ -400,8 +399,7 @@ describe('Full OS lifecycle', () => {
     await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
     await request(app).post(`/service-orders/${osId}/services`).set(mechAuth).send({ serviceId });
 
-    // The notification now emits a structured event instead of free text, so
-    // the test checks fields rather than matching a substring.
+    // The notification emits a structured event, so this checks fields.
     const emitted: Record<string, unknown>[] = [];
     const infoSpy = jest
       .spyOn(logger, 'info')
@@ -450,9 +448,8 @@ describe('POST /service-orders — creation with services and items', () => {
     expect(res.body.items).toEqual([]);
   });
 
-  // Proves the whole chain: HTTP request, controller receiving the port,
-  // Composition Root decorator and metric. The decorator's unit tests use a
-  // double, so they would not catch wrong wiring in main.ts.
+  // Covers the whole chain up to main.ts wiring, which the decorator's unit
+  // tests miss because they use a double.
   it('GIVEN a successful creation WHEN POST /service-orders THEN increments the business counter', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
     const before = (await serviceOrdersCreated.get()).values[0].value;

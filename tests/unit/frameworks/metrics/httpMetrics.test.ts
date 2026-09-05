@@ -33,8 +33,8 @@ describe('http latency histogram', () => {
 
     const routes = await routeLabels();
     expect(routes).toContain('/service-orders/:id');
-    // Guards cardinality: without this assertion, the regression only shows up
-    // once Prometheus already holds thousands of series.
+    // Guards cardinality: the regression would otherwise surface only after
+    // Prometheus holds thousands of series.
     expect(routes).not.toContain('/service-orders/abc-123');
   });
 
@@ -47,10 +47,8 @@ describe('http latency histogram', () => {
   });
 
   it('should keep the mount prefix GIVEN a router mounted under a path WHEN a request completes', async () => {
-    // This project's routers are mounted with a prefix and declare '/:id'
-    // inside. Without the prefix, /customers/:id and /service-orders/:id would
-    // collapse into the same label and the panels would add different endpoints
-    // into one series.
+    // Routers mount with a prefix and declare '/:id' inside. Without it,
+    // /customers/:id and /service-orders/:id collapse into one label.
     const customers = Router();
     customers.get('/:id', (_req, res) => res.status(200).json({}));
     const app = appWith((a) => a.use('/customers', customers));
@@ -61,8 +59,8 @@ describe('http latency histogram', () => {
   });
 
   it('should collapse unmatched paths into a single series GIVEN no route matches WHEN a request completes', async () => {
-    // A path with no matching route has no template. Using the concrete path
-    // here would let any URL scan create a new time series per request.
+    // No template for an unmatched path: the concrete path would let a URL
+    // scan create one series per request.
     const app = appWith((a) => a.get('/known', (_req, res) => res.status(200).json({})));
 
     await request(app).get('/no-such-route/9999');

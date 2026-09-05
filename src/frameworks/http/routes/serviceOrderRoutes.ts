@@ -172,7 +172,7 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *         schema: { type: string, format: date-time }
    *     responses:
    *       200:
-   *         description: Array de OS ativas ordenadas por prioridade operacional
+   *         description: Array of active service orders sorted by operational priority
    */
   router.get('/', (req, res, next) => controller.list(req, res, next));
 

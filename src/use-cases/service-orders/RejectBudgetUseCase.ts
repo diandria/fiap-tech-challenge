@@ -21,8 +21,8 @@ export class RejectBudgetUseCase implements IDecideBudget {
     const { osId, code } = input;
     const os = await findOSOrThrow(this.osRepo, osId);
 
-    // Antes da maquina de estados e de qualquer escrita. Recusar depois de um
-    // efeito colateral ja aplicado devolveria 403 com a OS alterada.
+    // Before the state machine and before any write. Refusing after a side
+    // effect has already been applied would return 403 with the order changed.
     assertOwnership(os, input.requesterCustomerId);
 
     assertTransition(os.status, 'REJECTED');

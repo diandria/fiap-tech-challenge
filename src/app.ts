@@ -34,7 +34,6 @@ export function createApp(routes: AppRoutes, checkDatabase: ReadinessCheck): App
   );
   app.use(express.json());
 
-  // CORS
   app.use((req: Request, res: Response, next: NextFunction) => {
     const allowedOrigins = (process.env.CORS_ORIGIN ?? '').split(',');
     const origin = req.headers.origin;

@@ -95,16 +95,14 @@ jobs:
     needs: [build, test]
     runs-on: ubuntu-latest
 
-    # Declarados no nivel do job para que os passos possam decidir por
-    # presenca: `secrets` nao existe no `if` de um job, mas `env` existe.
+    # At job level so steps can branch on presence: `secrets` is not available
+    # in a job's `if`, but `env` is.
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
     steps:
-      # Historico completo: sem ele o Sonar nao consegue atribuir autoria e
-      # perde o conceito de "codigo novo", que e sobre o que os portoes de
-      # qualidade dele decidem.
+      # Full history: Sonar needs it for authorship and for "new code".
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -118,8 +116,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # A analise le o lcov; sem rodar a cobertura antes, o Sonar reporta 0%
-      # e o portao de qualidade reprova por um motivo que nao existe.
+      # The analysis reads the lcov; without it Sonar reports 0%.
       - name: Run tests with coverage
         run: npm run test:coverage
 
@@ -127,14 +124,13 @@ jobs:
         if: env.SONAR_TOKEN != ''
         uses: SonarSource/sonarqube-scan-action@v4
 
-      # Avisa em vez de falhar quando o servidor nao esta configurado. Falhar
-      # aqui deixaria o CI vermelho por falta de credencial, e um CI que vive
-      # vermelho para de ser lido.
+      # Warns rather than fails: a CI left red for a missing credential stops
+      # being read.
       - name: Report missing configuration
         if: env.SONAR_TOKEN == ''
         run: |
-          echo "::warning::SONAR_TOKEN nao configurado — analise do SonarQube pulada."
-          echo "Para habilitar: defina os secrets SONAR_TOKEN e SONAR_HOST_URL no repositorio."
+          echo "::warning::SONAR_TOKEN is not configured - SonarQube analysis skipped."
+          echo "To enable it: set the SONAR_TOKEN and SONAR_HOST_URL secrets on the repository."
 
   manifests:
     name: Validate Kubernetes manifests
@@ -142,9 +138,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Os manifests moram neste repositorio, entao o lint deles e
-      # responsabilidade deste CI. Roda sem cluster, em segundos, e pega o
-      # campo escrito errado que so apareceria no `kubectl apply` do deploy.
+      # Runs without a cluster and catches the misspelled field that would
+      # otherwise surface only on the deploy's `kubectl apply`.
       - name: Install kubeconform
         run: |
           curl -sL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \

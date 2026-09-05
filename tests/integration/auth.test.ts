@@ -29,7 +29,6 @@ describe('Auth Integration', () => {
     });
 
     it('GIVEN a valid admin token WHEN POST /auth/register with new credentials THEN returns 201 AND omits passwordHash', async () => {
-      // First create an admin directly via the repo to bootstrap
       const { PostgresUserRepository } = await import('../../src/adapters/gateways/PostgresUserRepository');
       const { RegisterUseCase } = await import('../../src/use-cases/auth/RegisterUseCase');
       const repo = new PostgresUserRepository(prisma);

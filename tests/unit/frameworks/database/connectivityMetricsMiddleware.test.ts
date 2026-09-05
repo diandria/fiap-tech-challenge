@@ -34,8 +34,8 @@ describe('countConnectivityFailures', () => {
     ]);
   });
 
-  // Violacao de unicidade e comportamento esperado da aplicacao. Conta-la faria
-  // o alerta disparar por CPF duplicado.
+  // A uniqueness violation is expected application behaviour. Counting it would
+  // make the alert fire on a duplicate tax id.
   it('should not count GIVEN a unique constraint violation WHEN the query runs', async () => {
     const next = async () => {
       throw knownError('P2002');

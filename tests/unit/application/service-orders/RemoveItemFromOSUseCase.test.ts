@@ -10,7 +10,6 @@ describe('RemoveItemFromOSUseCase', () => {
     const itemRepo = makeItemRepo(reservedItem);
     const useCase = new RemoveItemFromOSUseCase(osRepo, itemRepo);
     await useCase.execute('os-1', 'i-1');
-    // reservedQuantity: 3 - 2 = 1
     expect(itemRepo.update).toHaveBeenCalledWith('i-1', { reservedQuantity: 1 });
     expect(osRepo.update).toHaveBeenCalledWith('os-1', { items: [] });
   });

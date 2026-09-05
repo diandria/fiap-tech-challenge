@@ -6,8 +6,7 @@ on:
     types: [completed]
     branches: [main]
 
-# Um deploy por vez. Sem isto, dois merges seguidos disputam o mesmo cluster e
-# o segundo pode sobrescrever o primeiro no meio do rollout.
+# One deploy at a time: two consecutive merges would compete for the cluster.
 concurrency:
   group: deploy
   cancel-in-progress: false
@@ -15,8 +14,7 @@ concurrency:
 jobs:
   image:
     name: Build and push image
-    # Runner hospedado, e nao self-hosted: o runner local da Fase 2 nao existe
-    # mais, e os workflows ficavam enfileirados ate serem cancelados.
+    # Hosted runner: the Phase 2 self-hosted runner no longer exists.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -34,10 +32,8 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
-      # As credenciais do Learner Lab expiram, e `sts get-caller-identity`
-      # continua respondendo depois que a sessao e revogada. Uma chamada que
-      # toca recurso de verdade e o que revela a expiracao aqui, e nao vinte
-      # minutos adiante com uma mensagem que nao aponta para a causa.
+      # `sts get-caller-identity` keeps answering after the Learner Lab session
+      # is revoked; only a call touching a real resource reveals the expiry.
       - name: Verify credentials are usable
         run: aws ec2 describe-vpcs --max-items 1 > /dev/null
 
@@ -51,12 +47,9 @@ jobs:
           echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           echo "registry=${{ steps.ecr.outputs.registry }}/car-repair-shop" >> "$GITHUB_OUTPUT"
 
-      # Tag pelo SHA, e nao so `latest`. Com `latest`, rollback e impossivel e
-      # um pod que reinicia pode trazer imagem diferente da que estava rodando
-      # -- bug dificil de diagnosticar exatamente quando ha pressa.
-      #
-      # O repositorio ECR e IMMUTABLE: publicar o mesmo SHA duas vezes falha,
-      # em vez de trocar o conteudo em silencio.
+      # Tagged by SHA: with `latest` a rollback is impossible and a restarting
+      # pod can come back on a different image. The ECR repository is IMMUTABLE,
+      # so pushing the same SHA twice fails instead of replacing silently.
       - name: Build and push
         env:
           IMAGE: ${{ steps.meta.outputs.registry }}
@@ -80,17 +73,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
-    # Ambiente unico: `main` e producao, e nao ha homologacao. Declarar o
-    # Environment aqui e o que faz o GitHub registrar cada deploy em
-    # Deployments > production, com o historico de quem subiu o que e quando.
-    # Sem esta linha o Environment existe e nunca e usado.
+    # `main` is production; there is no staging. Declaring the Environment is
+    # what records each deploy under Deployments > production.
     #
-    # Sem regra de protecao de proposito: revisor obrigatorio aqui travaria o
-    # CD esperando aprovacao humana, e a rede de protecao deste projeto e outra
-    # -- PR obrigatorio antes do merge, e rollback automatico depois dele.
-    # A URL sai do proprio deploy, e nao fixa aqui: o ambiente e efemero e o
-    # gateway ganha um id novo a cada recriacao. Fixar deixaria o link do
-    # Deployments apontando para um gateway que nao existe mais.
+    # No protection rule on purpose: a required reviewer would stall the CD, and
+    # the safety net here is the required PR plus automatic rollback. The URL
+    # comes from the deploy because the gateway id changes on every recreation.
     environment:
       name: production
       url: ${{ steps.smoke.outputs.url }}
@@ -120,21 +108,17 @@ jobs:
             --query 'repositories[0].repositoryUri' --output text)
           echo "image=$REPO" >> "$GITHUB_OUTPUT"
 
-      # Os segredos vem do SSM, e nao de secrets do GitHub.
-      #
-      # E o que elimina o risco R4 por construcao: JWT_SECRET e INTERNAL_TOKEN
-      # sao escritos ali pelo Terraform das functions, e a aplicacao le o mesmo
-      # parametro. Nao existem dois valores para divergir, entao nao ha hash a
-      # comparar -- e o mesmo valor, e nao dois valores iguais.
+      # Secrets come from SSM, not GitHub. This removes risk R4 by construction:
+      # the functions' Terraform writes JWT_SECRET and INTERNAL_TOKEN there and
+      # the application reads the same parameter, so nothing can diverge.
       - name: Read configuration from SSM and AWS
         run: |
           set -euo pipefail
 
           DB_HOST=$(aws rds describe-db-instances --db-instance-identifier car-repair-shop-db \
             --query 'DBInstances[0].Endpoint.Address' --output text)
-          # Usuario e nome do banco vem do proprio RDS, que e a fonte
-          # autoritativa. Um valor fixo aqui produz um DATABASE_URL invalido e
-          # um CrashLoop cuja causa nao aparece no sintoma.
+          # From RDS itself: a hardcoded value yields an invalid DATABASE_URL
+          # and a CrashLoop that does not name its cause.
           DB_USER=$(aws rds describe-db-instances --db-instance-identifier car-repair-shop-db \
             --query 'DBInstances[0].MasterUsername' --output text)
           DB_NAME=$(aws rds describe-db-instances --db-instance-identifier car-repair-shop-db \
@@ -145,21 +129,19 @@ jobs:
             --with-decryption --query 'Parameter.Value' --output text)
           INTERNAL=$(aws ssm get-parameter --name /car-repair-shop/auth/internal-token \
             --with-decryption --query 'Parameter.Value' --output text)
-          # Sem esta senha a aplicacao sobe saudavel, passa nas sondas, e nao
-          # cria nenhum usuario -- ninguem consegue autenticar, e o unico sinal
-          # e um aviso no log que o deploy verde nao mostra.
+          # Without it the application passes the probes but seeds no user, and
+          # nobody can authenticate.
           ADMIN=$(aws ssm get-parameter --name /car-repair-shop/app/admin-password \
             --with-decryption --query 'Parameter.Value' --output text)
           TOPIC=$(aws sns list-topics \
             --query "Topics[?contains(TopicArn, 'car-repair-shop-service-order-events')].TopicArn | [0]" \
             --output text)
 
-          # Falhar aqui, e nao adiante com um pod em CrashLoop cuja causa esta
-          # a tres camadas de distancia do sintoma.
+          # Fail here, not later with a CrashLoop three layers from the cause.
           for name in DB_HOST DB_USER DB_NAME DB_PASS JWT INTERNAL ADMIN TOPIC; do
             value="${!name}"
             if [ -z "$value" ] || [ "$value" = "None" ]; then
-              echo "::error::valor obrigatorio ausente ou vazio: $name"
+              echo "::error::required value missing or empty: $name"
               exit 1
             fi
           done
@@ -196,25 +178,23 @@ jobs:
 
           kubectl apply -f k8s/01-config/ -f k8s/03-app/
 
-      # Job antes do rollout, e nao initContainer: roda uma vez, e a falha fica
-      # visivel antes de qualquer pod novo receber trafego. Com initContainer,
-      # cada replica subindo tentaria migrar em paralelo.
+      # A Job, not an initContainer: it runs once, before any new pod takes
+      # traffic. An initContainer would migrate once per replica, in parallel.
       - name: Run database migrations
         run: |
           set -euo pipefail
           IMAGE="${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha }}"
 
-          # Job e imutavel: sem apagar o anterior, o apply falha.
+          # A Job is immutable: without deleting the previous one, apply fails.
           kubectl delete job car-repair-shop-migrate -n car-repair-shop --ignore-not-found --wait=true
 
-          # A mesma imagem da aplicacao. Migrar com imagem diferente da que vai
-          # servir aplica um schema que o codigo em producao pode nao conhecer.
+          # Same image as the application, so the schema matches the code.
           sed "s|image: car-repair-shop:latest|image: $IMAGE|" k8s/04-jobs/migrate.yaml \
             | kubectl apply -f -
 
           if ! kubectl wait --for=condition=complete --timeout=180s \
                job/car-repair-shop-migrate -n car-repair-shop; then
-            echo "::error::a migration falhou; nenhum pod novo foi implantado"
+            echo "::error::migration failed; no new pod was deployed"
             kubectl logs job/car-repair-shop-migrate -n car-repair-shop --tail=50 || true
             exit 1
           fi
@@ -230,13 +210,12 @@ jobs:
           kubectl set image deployment/car-repair-shop-api api="$IMAGE" -n car-repair-shop
           kubectl rollout status deployment/car-repair-shop-api -n car-repair-shop --timeout=300s
 
-      # Um rollback que funciona mas deixa o workflow verde e pior que nao ter
-      # rollback: o ambiente volta e ninguem fica sabendo que o deploy falhou.
-      # Por isso este passo termina com `exit 1` depois de desfazer.
+      # Ends with `exit 1` after undoing: a green workflow would hide that the
+      # deploy failed.
       - name: Roll back on failure
         if: failure() && steps.rollout.outcome == 'failure'
         run: |
-          echo "::error::rollout falhou; desfazendo para a revisao anterior"
+          echo "::error::rollout failed; undoing to the previous revision"
           kubectl rollout undo deployment/car-repair-shop-api -n car-repair-shop
           kubectl rollout status deployment/car-repair-shop-api -n car-repair-shop --timeout=180s
           kubectl get pods -n car-repair-shop -o wide
@@ -254,12 +233,12 @@ jobs:
           for i in $(seq 1 12); do
             code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$URL/health" || true)
             if [ "$code" = "200" ]; then
-              echo "health respondeu 200 pelo gateway"
+              echo "health answered 200 through the gateway"
               exit 0
             fi
-            echo "tentativa $i: $code"
+            echo "attempt $i: $code"
             sleep 10
           done
 
-          echo "::error::a aplicacao nao respondeu 200 em /health pelo gateway"
+          echo "::error::the application did not answer 200 on /health through the gateway"
           exit 1

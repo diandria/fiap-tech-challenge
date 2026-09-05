@@ -44,9 +44,9 @@ describe('PinoLoggerAdapter', () => {
   it('should accept a message without context GIVEN only a message WHEN warn is called', () => {
     const { warn, logger } = fakePino();
 
-    new PinoLoggerAdapter(logger).warn('sem contexto');
+    new PinoLoggerAdapter(logger).warn('no context');
 
     expect(warn[0][0]).toEqual({});
-    expect(warn[0][1]).toBe('sem contexto');
+    expect(warn[0][1]).toBe('no context');
   });
 });

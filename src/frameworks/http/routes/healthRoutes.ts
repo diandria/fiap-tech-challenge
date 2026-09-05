@@ -24,13 +24,11 @@ function withTimeout(check: ReadinessCheck): Promise<unknown> {
 export function healthRoutes(checkDatabase: ReadinessCheck): Router {
   const router = Router();
 
-  // Liveness does not query the database on purpose. Failing here restarts the
-  // pod, and restarting does not fix a database that is down: the effect would
-  // be a restart loop for the duration of the incident.
+  // Liveness does not query the database on purpose: restarting the pod does
+  // not fix a database that is down, it just loops through the incident.
   router.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
 
-  // Readiness does query: a pod that cannot reach the database should not take
-  // traffic, and pulling it out of the Service is exactly what the 503 does.
+  // Readiness does query: the 503 pulls the pod out of the Service.
   router.get('/ready', async (_req, res) => {
     try {
       await withTimeout(checkDatabase);
@@ -40,8 +38,7 @@ export function healthRoutes(checkDatabase: ReadinessCheck): Router {
     }
   });
 
-  // No authentication and no rate limit: Prometheus scrapes from inside the
-  // cluster, with no credential, at a fixed interval.
+  // No auth and no rate limit: Prometheus scrapes from inside the cluster.
   router.get('/metrics', async (_req, res) => {
     res.set('Content-Type', registry.contentType);
     res.end(await registry.metrics());

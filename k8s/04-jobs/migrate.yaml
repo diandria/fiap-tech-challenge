@@ -7,12 +7,10 @@ metadata:
     app.kubernetes.io/part-of: fiap-tech-challenge
     app.kubernetes.io/component: migration
 spec:
-  # Zero, e nao o padrao 6: uma migration que falha nao deve ser reexecutada
-  # automaticamente. Se falhou por conflito de schema, repetir produz o mesmo
-  # erro; se falhou no meio, repetir pode piorar o estado.
+  # Zero, not the default 6: retrying a failed migration either repeats the
+  # same error or worsens a half-applied state.
   backoffLimit: 0
-  # O Job some sozinho uma hora depois. Sem isto, Jobs concluidos se acumulam
-  # e ocupam vagas de pod no cluster.
+  # Finished Jobs would otherwise pile up and occupy pod slots.
   ttlSecondsAfterFinished: 3600
   template:
     metadata:
@@ -25,9 +23,8 @@ spec:
         runAsUser: 1000
       containers:
       - name: migrate
-        # Substituida no deploy pela mesma tag da aplicacao. Rodar migration
-        # com imagem diferente da que vai servir significa aplicar um schema
-        # que o codigo em producao pode nao conhecer.
+        # Same tag as the application: a different image could apply a schema
+        # the production code does not know.
         image: car-repair-shop:latest
         command: ["npx", "prisma", "migrate", "deploy"]
         envFrom:

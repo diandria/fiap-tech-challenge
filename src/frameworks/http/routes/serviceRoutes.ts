@@ -18,10 +18,8 @@ export function serviceRoutes(controller: ServiceController): Router {
    *       401:
    *         description: Missing or invalid token
    */
-  // It was public in Phase 2, with an explicit `security: []`. It no longer is:
-  // the catalogue carries prices, which are business information, and the route
-  // fits none of the four allowed exceptions -- authentication, health check,
-  // Swagger and webhook.
+  // Public in Phase 2, not any more: the catalogue carries prices, and the
+  // route fits none of the allowed exceptions.
   router.get('/', authMiddleware, (req, res, next) => controller.list(req, res, next));
 
   /**

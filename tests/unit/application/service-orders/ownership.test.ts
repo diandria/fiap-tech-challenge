@@ -5,7 +5,7 @@ import { ForbiddenError } from '../../../../src/entities/errors/AppError';
 import { makeOSRepo, waitingApprovalOS } from '../../fixtures/serviceOrder';
 import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 
-// waitingApprovalOS.customerId === 'c-1'; cpfCustomer.taxId comeca com '5299'.
+// waitingApprovalOS.customerId === 'c-1'; cpfCustomer.taxId starts with '5299'.
 const OWNER = 'c-1';
 const OTHER = 'c-2';
 const CODE = '5299';

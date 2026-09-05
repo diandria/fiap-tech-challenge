@@ -36,8 +36,7 @@ export function requestLoggerMiddleware(log: Logger = defaultLogger) {
 
       const event = {
         method: req.method,
-        // In the log, the concrete path of an unmatched route is the useful
-        // information: it says what the client tried to call.
+        // In the log the concrete path is useful: it says what was attempted.
         route: template ?? req.path,
         statusCode: res.statusCode,
         durationMs,
@@ -45,8 +44,8 @@ export function requestLoggerMiddleware(log: Logger = defaultLogger) {
         ...(ctx?.correlationId ? { correlationId: ctx.correlationId } : {}),
       };
 
-      // In the metric it is not: every concrete path would become its own time
-      // series, and a URL scan would be enough to blow Prometheus up.
+      // In the metric it is not: one series per path, and a URL scan would blow
+      // Prometheus up.
       httpRequestDuration.observe(
         { method: req.method, route: template ?? 'unmatched', status_code: res.statusCode },
         durationMs / 1000,

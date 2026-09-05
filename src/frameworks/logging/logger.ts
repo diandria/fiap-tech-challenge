@@ -32,16 +32,15 @@ export function buildLogger(opts: LoggerOptions = {}): Logger {
   return pino(
     {
       level: process.env.LOG_LEVEL ?? 'info',
-      // Open semantic conventions (ADR-007): a new service, in any language,
-      // emits comparable telemetry without anyone agreeing on anything.
+      // Open semantic conventions (ADR-007): comparable telemetry across
+      // services without a private agreement.
       base: {
         'service.name': process.env.OTEL_SERVICE_NAME ?? 'car-repair-shop-api',
         'service.version': process.env.SERVICE_VERSION ?? '0.0.0',
         'deployment.environment': process.env.NODE_ENV ?? 'development',
       },
       redact: { paths: REDACTED_PATHS, censor: '[Redacted]' },
-      // With the mixin, no log call has to remember to include the trace, which
-      // means no log call will forget.
+      // The mixin means no log call has to remember the trace.
       mixin() {
         const ctx = getTraceContext();
         return ctx ? { trace_id: ctx.traceId, span_id: ctx.spanId } : {};

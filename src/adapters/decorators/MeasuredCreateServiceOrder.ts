@@ -13,8 +13,7 @@ export class MeasuredCreateServiceOrder implements ICreateServiceOrder {
 
   async execute(input: CreateServiceOrderInput): Promise<ServiceOrder> {
     const result = await this.inner.execute(input);
-    // After the await on purpose: if the use case throws, this line is never
-    // reached and the failed attempt does not enter the count.
+    // After the await on purpose: a failed attempt must not be counted.
     this.metrics.serviceOrderCreated();
     return result;
   }

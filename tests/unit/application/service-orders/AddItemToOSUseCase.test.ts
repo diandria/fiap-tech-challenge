@@ -9,7 +9,6 @@ describe('AddItemToOSUseCase', () => {
     const itemRepo = makeItemRepo(item);
     const useCase = new AddItemToOSUseCase(osRepo, itemRepo);
     await useCase.execute('os-1', 'i-1', 3);
-    // stockedItem.reservedQuantity (2) + 3 = 5
     expect(itemRepo.update).toHaveBeenCalledWith('i-1', { reservedQuantity: 5 });
     expect(osRepo.update).toHaveBeenCalled();
   });

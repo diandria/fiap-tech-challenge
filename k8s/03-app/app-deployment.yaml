@@ -2,8 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: car-repair-shop-api
-  # O namespace e criado pelo Terraform do infra-k8s, junto do Service que
-  # ancora o NLB. Aqui ele e apenas referenciado.
+  # Created by the infra-k8s Terraform, along with the Service anchoring the NLB.
   namespace: car-repair-shop
   labels:
     app: car-repair-shop-api
@@ -24,9 +23,8 @@ spec:
   template:
     metadata:
       labels:
-        # `app: car-repair-shop-api` nao e estilo: e o seletor exato do Service
-        # que o Terraform criou. Divergir aqui produz um NLB sem destino, e o
-        # gateway responde 503 sem nada obviamente quebrado no cluster.
+        # Exact selector of the Terraform-created Service. Diverging leaves the
+        # NLB with no target and the gateway answering 503.
         app: car-repair-shop-api
         app.kubernetes.io/name: car-repair-shop-api
         app.kubernetes.io/part-of: fiap-tech-challenge
@@ -38,12 +36,12 @@ spec:
         runAsUser: 1000
       containers:
       - name: api
-        # Substituida no deploy por `kubectl set image` com a tag do SHA.
-        # `latest` aqui e so um marcador valido para o kubeconform.
+        # Replaced at deploy time with the SHA tag; `latest` is a kubeconform
+        # placeholder.
         image: car-repair-shop:latest
         imagePullPolicy: IfNotPresent
-        # A remocao do endpoint do Service propaga de forma assincrona; o atraso
-        # mantem o pod aceitando conexao ate o trafego parar de chegar.
+        # Endpoint removal propagates asynchronously; the delay keeps the pod
+        # serving until traffic stops.
         lifecycle:
           preStop:
             exec:
@@ -52,19 +50,16 @@ spec:
         - name: http
           containerPort: 3000
         envFrom:
-        # Estatico, versionado neste repositorio.
+        # Static, versioned in this repository.
         - configMapRef:
             name: car-repair-shop-config
-        # Criado pelo CD a partir dos outputs do Terraform: endereco do Tempo,
-        # ARN do topico SNS. Separado do estatico de proposito -- o que vem da
-        # infraestrutura muda a cada ambiente recriado, e versiona-lo deixaria
-        # no repositorio um valor que ja nao existe.
+        # Written by the CD from Terraform outputs. Separate from the static one:
+        # these change with every recreated environment.
         - configMapRef:
             name: car-repair-shop-runtime
         - secretRef:
             name: car-repair-shop-secret
-        # `requests` nao e opcional: o HPA calcula utilizacao contra ele. Sem
-        # requests de CPU o autoscaler nao tem denominador e nunca escala.
+        # Required by the HPA: with no CPU request there is no denominator.
         resources:
           requests:
             cpu: "100m"
@@ -79,9 +74,8 @@ spec:
           failureThreshold: 24
           periodSeconds: 5
           timeoutSeconds: 5
-        # Vivacidade nao consulta o banco (M3.T7): reiniciar o pod nao conserta
-        # um banco fora, e a consequencia seria um laco de reinicios durante o
-        # incidente.
+        # Liveness does not query the database (M3.T7): restarting does not fix
+        # a database that is down.
         livenessProbe:
           httpGet:
             path: /health

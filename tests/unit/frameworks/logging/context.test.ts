@@ -19,13 +19,13 @@ describe('trace context propagation', () => {
   });
 
   it('should reach code that never saw the request GIVEN an active scope', async () => {
-    // Simula um adapter: recebe so os dados de negocio, sem acesso ao objeto de requisicao.
-    async function adapterSemRequest(): Promise<string | undefined> {
+    // Simulates an adapter: it receives only business data, with no access to the request object.
+    async function adapterWithoutRequest(): Promise<string | undefined> {
       await Promise.resolve();
       return getTraceContext()?.traceId;
     }
 
-    const seen = await runWithTraceContext(ctx, () => adapterSemRequest());
+    const seen = await runWithTraceContext(ctx, () => adapterWithoutRequest());
 
     expect(seen).toBe('a'.repeat(32));
   });

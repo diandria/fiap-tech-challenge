@@ -45,9 +45,8 @@ declare global {
  * describes neither actor.
  */
 function toPayload(raw: Record<string, unknown>): JwtPayload | null {
-  // Tokens issued before this change carry no `type`, and every one of them was
-  // an employee token. Without this default, all of them would stop working at
-  // once -- including the ones in the integration suite.
+  // Tokens issued before this change carry no `type` and were all staff tokens;
+  // the default keeps them working.
   const type = raw.type ?? 'staff';
 
   if (type === 'staff') {
@@ -57,8 +56,6 @@ function toPayload(raw: Record<string, unknown>): JwtPayload | null {
 
   if (type === 'customer') {
     // Without `sub` the ownership check would compare against undefined.
-    // Refusing at the door is cheaper than working out later why one customer
-    // saw another customer's order.
     if (typeof raw.sub !== 'string') return null;
     return {
       type: 'customer',

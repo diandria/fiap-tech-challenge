@@ -7,7 +7,6 @@ describe('UpdateItemUseCase', () => {
     const repo = makeItemRepo(item, { updateResult: item });
     const useCase = new UpdateItemUseCase(repo);
     const result = await useCase.execute('i-1', { price: 30 });
-    // availableQuantity = stockQuantity - reservedQuantity = 10 - 2 = 8
     expect(result.availableQuantity).toBe(8);
   });
 
