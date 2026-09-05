@@ -20,8 +20,7 @@ function publishedPayload(sns: { send: jest.Mock }): Record<string, never> {
 
 let failures: FakeIntegrationFailures;
 
-// The real implementation, so the test also covers the AsyncLocalStorage
-// reading. A stub here would leave the ambient path untested.
+// The real implementation, so the AsyncLocalStorage reading is also covered.
 const traceContext: ITraceContext = new AsyncLocalStorageTraceContext();
 
 beforeEach(() => {
@@ -29,8 +28,8 @@ beforeEach(() => {
 });
 
 describe('SnsNotificationService', () => {
-  // Validates the ADR-003 contract field by field: the only automated defence
-  // against publisher and consumer diverging across repositories.
+  // Validates the ADR-003 contract field by field; publisher and consumer
+  // live in different repositories.
   it('should publish a payload matching the adr-003 contract GIVEN a status change', async () => {
     const sns = makeSns();
     const service = new SnsNotificationService(sns as never, TOPIC, failures, traceContext);

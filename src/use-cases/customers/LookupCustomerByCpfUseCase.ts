@@ -25,8 +25,8 @@ export class LookupCustomerByCpfUseCase {
       throw new ValidationError('Invalid CPF');
     }
 
-    // Includes inactive records on purpose: a removed customer comes back as
-    // `active: false`, not a 404, so the function can answer 403 rather than 401.
+    // Inactive records are included: the auth function needs `active: false`
+    // to answer 403 (deactivated) instead of 401 (unknown).
     const customer = await this.repo.findByTaxIdIncludingInactive(normalized);
     if (!customer) throw new NotFoundError('Customer');
 

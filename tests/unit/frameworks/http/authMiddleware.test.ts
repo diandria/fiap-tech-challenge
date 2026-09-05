@@ -40,8 +40,8 @@ describe('authMiddleware', () => {
     );
   });
 
-  // Without this fallback, every token issued before this change would stop
-  // working at once -- including the ones in the integration suite.
+  // Tokens issued before the `type` field existed are all staff tokens; the
+  // default keeps them valid.
   it('should default to staff GIVEN a legacy token without type WHEN authenticating', () => {
     const req = reqWithToken({ userId: 'u1', role: 'admin' });
 

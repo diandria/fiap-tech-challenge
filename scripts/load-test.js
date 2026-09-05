@@ -22,8 +22,8 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const ADMIN_EMAIL = __ENV.ADMIN_EMAIL || 'admin@master.com';
 const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD || '';
 
-// The budget confirmation code is the tax id's first four digits -- a business
-// rule: `verifyCustomerCode` compares against `customer.taxId.slice(0, 4)`.
+// The budget confirmation code is the tax id's first four digits:
+// `verifyCustomerCode` compares against `customer.taxId.slice(0, 4)`.
 const TAX_ID = __ENV.CPF || '52998224725';
 const BUDGET_CODE = TAX_ID.slice(0, 4);
 

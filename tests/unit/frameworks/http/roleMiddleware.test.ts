@@ -32,8 +32,8 @@ describe('requireRole', () => {
     expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
   });
 
-  // The refusal must be a decision, not the accident of a customer token
-  // having no `role`.
+  // Customer tokens must be rejected explicitly, not just because they
+  // happen to carry no `role`.
   it('should reject a customer token GIVEN a staff-only route WHEN authorizing', () => {
     const next = jest.fn() as NextFunction;
 
@@ -60,7 +60,8 @@ describe('requireCustomer', () => {
     expect(next).toHaveBeenCalledWith();
   });
 
-  // Deliberate symmetry: an admin does not pass either -- no `sub`, no owner.
+  // An admin token does not pass either: without `sub` there is no owner to
+  // compare against.
   it('should reject a staff token GIVEN a customer-only route WHEN authorizing', () => {
     const next = jest.fn() as NextFunction;
 

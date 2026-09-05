@@ -59,8 +59,8 @@ describe('http latency histogram', () => {
   });
 
   it('should collapse unmatched paths into a single series GIVEN no route matches WHEN a request completes', async () => {
-    // No template for an unmatched path: the concrete path would let a URL
-    // scan create one series per request.
+    // Unmatched paths fall into a single label; one series per concrete path
+    // would create unbounded cardinality.
     const app = appWith((a) => a.get('/known', (_req, res) => res.status(200).json({})));
 
     await request(app).get('/no-such-route/9999');

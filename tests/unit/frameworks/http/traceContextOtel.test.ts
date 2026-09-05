@@ -37,9 +37,8 @@ describe('traceContextMiddleware with an active OpenTelemetry span', () => {
     await provider.shutdown();
   });
 
-  // Without this, the log would carry one identifier and Tempo another: both
-  // would exist and neither would match, which is worse than having no
-  // correlation at all, because it looks like it works.
+  // The log and Tempo must carry the same trace id; diverging identifiers
+  // break the correlation between them.
   it('should adopt the active span ids GIVEN the sdk is running WHEN a request arrives', async () => {
     const seen: { traceId?: string; spanId?: string } = {};
     const app = appCapturing(seen);

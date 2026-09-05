@@ -19,8 +19,8 @@ describe('isConnectivityError', () => {
     expect(isConnectivityError(err)).toBe(true);
   });
 
-  // A unique violation is expected behaviour, not a broken integration:
-  // counting P2xxx would fire the alert over a duplicate tax id.
+  // P2xxx errors are application behaviour (e.g. unique violation), not
+  // connectivity failures, and must not fire the integration alert.
   it('should not classify a unique constraint violation GIVEN P2002 WHEN checked', () => {
     expect(isConnectivityError(knownError('P2002'))).toBe(false);
   });

@@ -23,8 +23,8 @@ export class NotifyBudgetUseCase implements IBudgetNotifier {
       }
       await this.notifier.notifyBudgetReady(customer, os);
     } catch (err) {
-      // Silent failure by decision: a notification does not roll back a status
-      // transition. The log makes the failure visible without changing that.
+      // A notification failure is logged but does not roll back the status
+      // transition.
       this.logger.error('notification delivery failed', { osId, err });
     }
   }

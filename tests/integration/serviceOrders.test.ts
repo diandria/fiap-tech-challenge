@@ -448,8 +448,8 @@ describe('POST /service-orders — creation with services and items', () => {
     expect(res.body.items).toEqual([]);
   });
 
-  // Covers the whole chain up to main.ts wiring, which the decorator's unit
-  // tests miss because they use a double.
+  // Covers the wiring in main.ts; the decorator's unit tests use a double
+  // and would not catch a wrong composition.
   it('GIVEN a successful creation WHEN POST /service-orders THEN increments the business counter', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
     const before = (await serviceOrdersCreated.get()).values[0].value;

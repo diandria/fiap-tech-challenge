@@ -74,8 +74,8 @@ describe('MeasuredStatusTransition', () => {
 });
 
 describe('MeasuredBudgetDecision', () => {
-  // The customer's wait between "awaiting approval" and the decision is the
-  // shop's most meaningful duration, and the only one this decorator sees.
+  // Measures the wait between "awaiting approval" and the customer's
+  // decision.
   it('should observe the wait GIVEN an approval WHEN executed', async () => {
     const inner = { execute: jest.fn().mockResolvedValue(anOrder('APPROVED', TWO_HOURS_MS)) };
     const metrics = new FakeBusinessMetrics();

@@ -87,8 +87,7 @@ describe('Customer authentication flow', () => {
     `);
   });
 
-  // The only scenario proving the lookup, the token format and the two routes
-  // agree with each other.
+  // End-to-end: lookup, token format and both routes working together.
   it('should complete the whole flow GIVEN a registered customer WHEN authenticating by cpf', async () => {
     const customerId = await createCustomer();
     const osId = await osWaitingApproval(customerId);
