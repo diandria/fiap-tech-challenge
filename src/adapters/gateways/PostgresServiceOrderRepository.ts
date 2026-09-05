@@ -128,7 +128,6 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
     if (!existing) return null;
 
     return this.prisma.$transaction(async (tx) => {
-      // Substituir a lista inteira reproduz a escrita do array no modelo de documentos.
       if (data.services) {
         await tx.serviceOrderService.deleteMany({ where: { serviceOrderId: id } });
         await tx.serviceOrderService.createMany({

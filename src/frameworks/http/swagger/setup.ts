@@ -40,9 +40,8 @@ All other OS transitions go through \`PATCH /service-orders/{id}\` with the targ
           bearerFormat: 'JWT',
           description: 'Staff token, issued by POST /auth/login.',
         },
-        // A separate scheme on purpose. Both are Bearer JWT, but they have
-        // different issuers and audiences: keeping only one would hide that the
-        // system has two authentication flows.
+        // A separate scheme on purpose: same Bearer JWT, different issuer and
+        // audience, and two authentication flows worth showing.
         customerBearerAuth: {
           type: 'http',
           scheme: 'bearer',

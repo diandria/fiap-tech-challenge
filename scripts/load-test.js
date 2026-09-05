@@ -2,11 +2,7 @@ import http from 'k6/http';
 import { check } from 'k6';
 
 /**
- * End-to-end validation load.
- *
- * Exists so that no M9 dashboard is empty during the recording: a dashboard
- * with no data is indistinguishable from a broken one, and there is no way to
- * find that out with the camera rolling.
+ * End-to-end validation load, so no M9 dashboard is empty during the recording.
  *
  * Each scenario feeds a different panel:
  *
@@ -26,9 +22,8 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const ADMIN_EMAIL = __ENV.ADMIN_EMAIL || 'admin@master.com';
 const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD || '';
 
-// Valid tax id used for the demonstration customer. The budget confirmation
-// code is its first four digits -- a business rule, not a test shortcut:
-// `verifyCustomerCode` compares against `customer.taxId.slice(0, 4)`.
+// The budget confirmation code is the tax id's first four digits -- a business
+// rule: `verifyCustomerCode` compares against `customer.taxId.slice(0, 4)`.
 const TAX_ID = __ENV.CPF || '52998224725';
 const BUDGET_CODE = TAX_ID.slice(0, 4);
 
@@ -36,8 +31,7 @@ const JSON_HEADERS = { 'content-type': 'application/json' };
 
 export const options = {
   scenarios: {
-    // Low, steady volume: the full cycle matters for the coverage of the
-    // transitions, not for the volume. Each iteration walks the six statuses.
+    // Low, steady volume: each iteration walks the six statuses.
     serviceOrderCycle: {
       executor: 'constant-arrival-rate',
       rate: 6, timeUnit: '1m', duration: '5m',
@@ -54,19 +48,9 @@ export const options = {
       startTime: '15s',
     },
 
-    // The burst that makes the HPA scale.
-    //
-    // Arrival rate, not VU count: the gateway enforces 100 req/s with a burst
-    // of 200, by deliberate configuration (it is the "control" the assignment
-    // asks of it). A VU-driven test accelerates until the gateway starts
-    // refusing, and from that point on measures the throttle -- not the
-    // application. One run with 40 VUs and no sleep reached 131 req/s and
-    // **20,367 4xx responses at the gateway**, while the application answered
-    // 200 to everything that reached it. The chart looked alarming with
-    // nothing actually wrong.
-    //
-    // 60 req/s leaves room for the other scenarios and still saturates the
-    // pods enough: measured on 2026-08-31, the HPA went from 2 to the cap of 10.
+    // Arrival rate, not VU count: the gateway throttles at 100 req/s, so a
+    // VU-driven test measures the throttle rather than the application. At 60
+    // req/s the HPA still went from 2 to the cap of 10 (measured 2026-08-31).
     burst: {
       executor: 'ramping-arrival-rate',
       startRate: 0, timeUnit: '1s',
@@ -80,8 +64,7 @@ export const options = {
       startTime: '30s',
     },
 
-    // Without this the error panels stay at zero, and a zeroed panel in the
-    // recording raises the question of whether it works at all.
+    // Without this the error panels stay at zero.
     deliberateErrors: {
       executor: 'constant-arrival-rate',
       rate: 12, timeUnit: '1m', duration: '5m',
@@ -91,16 +74,13 @@ export const options = {
     },
   },
 
-  // The burst is built to saturate: demanding low latency here would fail the
-  // run precisely when it fulfils its purpose. What is not acceptable is a
-  // technical error -- and the 4xx from the deliberate errors do not count as
-  // k6 failures, because those calls use `check` and not `fail`.
+  // No latency threshold: the burst is built to saturate. Technical errors are
+  // what must not happen.
   thresholds: {
     'http_req_failed{scenario:serviceOrderCycle}': ['rate<0.10'],
     'http_req_failed{scenario:customerAuth}': ['rate<0.10'],
 
-    // The burst also has to pass clean. Failing here means the load went past
-    // the gateway limit and the whole run loses its value as validation.
+    // Failing here means the load went past the gateway limit.
     'http_req_failed{scenario:burst}': ['rate<0.05'],
   },
 };
@@ -123,9 +103,7 @@ export function setup() {
 
   const auth = { headers: { ...JSON_HEADERS, authorization: `Bearer ${token}` } };
 
-  // Customer and vehicle are created once, in setup, and reused. Creating them
-  // on every iteration would fill the database with noise and would measure the
-  // cost of the INSERT instead of the flow that matters.
+  // Created once and reused: per-iteration creation would measure the INSERT.
   let customerId = __ENV.CUSTOMER_ID;
   if (!customerId) {
     const r = http.post(`${BASE_URL}/customers`, JSON.stringify({
@@ -172,8 +150,7 @@ export function serviceOrderCycle(data) {
   check(moveTo('DIAGNOSIS'), { 'DIAGNOSIS': (r) => r.status === 200 });
   check(moveTo('WAITING_APPROVAL'), { 'WAITING_APPROVAL': (r) => r.status === 200 });
 
-  // Approval belongs to the customer, not to the front desk: separate route,
-  // customer token and confirmation code.
+  // Approval belongs to the customer: separate route, token and code.
   const customerToken = authenticate(`${BASE_URL}/auth/cpf`, { cpf: TAX_ID });
   if (customerToken) {
     const r = http.patch(`${BASE_URL}/service-orders/${osId}/budget`,
@@ -197,9 +174,7 @@ export function customerAuth() {
   check(r, { 'customer reads their own service orders': (x) => x.status === 200 });
 }
 
-// One request per iteration, on purpose: with the arrival rate pinned at 60/s,
-// two calls per iteration would mean 120 req/s and would blow past the gateway
-// limit again.
+// One request per iteration: at 60/s, two calls would exceed the gateway limit.
 export function burst(data) {
   const auth = { headers: { authorization: `Bearer ${data.token}` } };
   const r = http.get(`${BASE_URL}/service-orders`, auth);
@@ -216,9 +191,7 @@ export function deliberateErrors(data) {
   check(http.get(`${BASE_URL}/service-orders/00000000-0000-0000-0000-000000000000`, auth),
     { 'returns 404': (r) => r.status === 404 });
 
-  // 400: invalid transition. A business error, not a technical one -- it fills
-  // the status panel without polluting the 5xx error rate, which only counts
-  // technical failures.
+  // 400: invalid transition. A business error, so it does not touch the 5xx rate.
   const created = http.post(`${BASE_URL}/service-orders`, JSON.stringify({
     customerId: data.customerId, vehicleId: data.vehicleId,
   }), auth);

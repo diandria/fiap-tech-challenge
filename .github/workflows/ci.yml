@@ -95,15 +95,14 @@ jobs:
     needs: [build, test]
     runs-on: ubuntu-latest
 
-    # Declared at the job level so the steps can branch on presence:
-    # `secrets` is not available in a job's `if`, but `env` is.
+    # At job level so steps can branch on presence: `secrets` is not available
+    # in a job's `if`, but `env` is.
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
       SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
     steps:
-      # Full history: without it Sonar cannot attribute authorship and loses
-      # the notion of "new code", which is what its quality gates decide on.
+      # Full history: Sonar needs it for authorship and for "new code".
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -117,8 +116,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # The analysis reads the lcov; without running coverage first, Sonar
-      # reports 0% and the quality gate fails for a reason that does not exist.
+      # The analysis reads the lcov; without it Sonar reports 0%.
       - name: Run tests with coverage
         run: npm run test:coverage
 
@@ -126,9 +124,8 @@ jobs:
         if: env.SONAR_TOKEN != ''
         uses: SonarSource/sonarqube-scan-action@v4
 
-      # Warns instead of failing when the server is not configured. Failing
-      # here would leave the CI red for a missing credential, and a CI that
-      # lives red stops being read.
+      # Warns rather than fails: a CI left red for a missing credential stops
+      # being read.
       - name: Report missing configuration
         if: env.SONAR_TOKEN == ''
         run: |
@@ -141,10 +138,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The manifests live in this repository, so linting them is this CI's
-      # responsibility. It runs without a cluster, in seconds, and catches the
-      # misspelled field that would otherwise only surface on the deploy's
-      # `kubectl apply`.
+      # Runs without a cluster and catches the misspelled field that would
+      # otherwise surface only on the deploy's `kubectl apply`.
       - name: Install kubeconform
         run: |
           curl -sL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \

@@ -7,12 +7,10 @@ metadata:
     app.kubernetes.io/part-of: fiap-tech-challenge
     app.kubernetes.io/component: migration
 spec:
-  # Zero, and not the default of 6: a migration that fails must not be re-run
-  # automatically. If it failed on a schema conflict, retrying produces the same
-  # error; if it failed halfway, retrying can make the state worse.
+  # Zero, not the default 6: retrying a failed migration either repeats the
+  # same error or worsens a half-applied state.
   backoffLimit: 0
-  # The Job removes itself an hour later. Without this, finished Jobs pile up
-  # and occupy pod slots in the cluster.
+  # Finished Jobs would otherwise pile up and occupy pod slots.
   ttlSecondsAfterFinished: 3600
   template:
     metadata:
@@ -25,9 +23,8 @@ spec:
         runAsUser: 1000
       containers:
       - name: migrate
-        # Replaced at deploy time with the same tag as the application. Running
-        # the migration with an image different from the one that will serve
-        # means applying a schema the production code may not know about.
+        # Same tag as the application: a different image could apply a schema
+        # the production code does not know.
         image: car-repair-shop:latest
         command: ["npx", "prisma", "migrate", "deploy"]
         envFrom:

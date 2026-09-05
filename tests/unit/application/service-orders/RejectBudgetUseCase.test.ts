@@ -8,14 +8,12 @@ const makeNotifyStatusChange = (): IStatusChangeNotifier => ({
   execute: jest.fn().mockResolvedValue(undefined),
 });
 
-// OS with two items to test full reservation release
 const twoItemOS = {
   ...waitingApprovalOS,
   customerId: cnpjCustomer.id,
   items: [{ itemId: 'i-1', quantity: 1 }, { itemId: 'i-2', quantity: 3 }],
 };
 
-// Sequential findById needed to test two-item release
 const makeSequentialItemRepo = (): IItemRepository => ({
   findAll: jest.fn(),
   findById: jest.fn()
@@ -33,7 +31,6 @@ describe('RejectBudgetUseCase', () => {
     const useCase = new RejectBudgetUseCase(osRepo, makeCustomerRepo(cnpjCustomer), itemRepo, makeNotifyStatusChange());
     const result = await useCase.execute({ osId: 'os-1', code: '1122' });
     expect(result.status).toBe('REJECTED');
-    // release: reservedQuantity decremented by quantity for each item
     expect(itemRepo.update).toHaveBeenCalledWith('i-1', { reservedQuantity: 0 });
     expect(itemRepo.update).toHaveBeenCalledWith('i-2', { reservedQuantity: 0 });
     expect(itemRepo.update).toHaveBeenCalledTimes(2);

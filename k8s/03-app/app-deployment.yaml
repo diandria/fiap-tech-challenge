@@ -2,8 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: car-repair-shop-api
-  # The namespace is created by the infra-k8s Terraform, together with the
-  # Service that anchors the NLB. Here it is only referenced.
+  # Created by the infra-k8s Terraform, along with the Service anchoring the NLB.
   namespace: car-repair-shop
   labels:
     app: car-repair-shop-api
@@ -24,10 +23,8 @@ spec:
   template:
     metadata:
       labels:
-        # `app: car-repair-shop-api` is not styling: it is the exact selector of
-        # the Service that Terraform created. Diverging here produces an NLB with
-        # no target, and the gateway answers 503 with nothing obviously broken in
-        # the cluster.
+        # Exact selector of the Terraform-created Service. Diverging leaves the
+        # NLB with no target and the gateway answering 503.
         app: car-repair-shop-api
         app.kubernetes.io/name: car-repair-shop-api
         app.kubernetes.io/part-of: fiap-tech-challenge
@@ -39,12 +36,12 @@ spec:
         runAsUser: 1000
       containers:
       - name: api
-        # Replaced at deploy time by `kubectl set image` with the SHA tag.
-        # `latest` here is only a placeholder valid for kubeconform.
+        # Replaced at deploy time with the SHA tag; `latest` is a kubeconform
+        # placeholder.
         image: car-repair-shop:latest
         imagePullPolicy: IfNotPresent
-        # Removing the endpoint from the Service propagates asynchronously; the
-        # delay keeps the pod accepting connections until traffic stops arriving.
+        # Endpoint removal propagates asynchronously; the delay keeps the pod
+        # serving until traffic stops.
         lifecycle:
           preStop:
             exec:
@@ -56,16 +53,13 @@ spec:
         # Static, versioned in this repository.
         - configMapRef:
             name: car-repair-shop-config
-        # Created by the CD from the Terraform outputs: Tempo address, SNS topic
-        # ARN. Kept separate from the static one on purpose -- what comes from the
-        # infrastructure changes with every recreated environment, and versioning
-        # it would leave a value in the repository that no longer exists.
+        # Written by the CD from Terraform outputs. Separate from the static one:
+        # these change with every recreated environment.
         - configMapRef:
             name: car-repair-shop-runtime
         - secretRef:
             name: car-repair-shop-secret
-        # `requests` is not optional: the HPA computes utilization against it.
-        # With no CPU request the autoscaler has no denominator and never scales.
+        # Required by the HPA: with no CPU request there is no denominator.
         resources:
           requests:
             cpu: "100m"
@@ -80,9 +74,8 @@ spec:
           failureThreshold: 24
           periodSeconds: 5
           timeoutSeconds: 5
-        # Liveness does not query the database (M3.T7): restarting the pod does
-        # not fix a database that is down, and the consequence would be a restart
-        # loop during the incident.
+        # Liveness does not query the database (M3.T7): restarting does not fix
+        # a database that is down.
         livenessProbe:
           httpGet:
             path: /health

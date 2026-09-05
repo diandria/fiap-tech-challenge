@@ -37,8 +37,7 @@ describe('MeasuredCreateServiceOrder', () => {
     expect(inner.execute).toHaveBeenCalledWith({ customerId: 'c1', vehicleId: 'v1' });
   });
 
-  // A counter of opened orders must not count a failed attempt: a daily volume
-  // panel that includes errors lies about the business.
+  // A failed attempt must not be counted: the volume panel would lie.
   it('should not increment GIVEN the use case throws WHEN executed', async () => {
     const inner = { execute: jest.fn().mockRejectedValue(new Error('insufficient stock')) };
     const metrics = new FakeBusinessMetrics();

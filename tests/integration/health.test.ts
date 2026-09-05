@@ -34,10 +34,8 @@ describe('Liveness', () => {
     expect(res.body).toEqual({ status: 'ok' });
   });
 
-  // The test that prevents an expensive mistake: liveness does not check the
-  // database. Failing there restarts the pod, and restarting does not fix a
-  // database that is down. The result would be a restart loop during an
-  // incident that is already bad enough.
+  // Liveness must not check the database: restarting the pod does not fix a
+  // database that is down, it just loops through the incident.
   it('should still return 200 GIVEN the database is unreachable WHEN liveness is probed', async () => {
     const res = await request(appWith(unreachable)).get('/health');
 
@@ -60,8 +58,8 @@ describe('Readiness', () => {
     expect(res.body).toEqual({ status: 'not-ready', checks: { database: 'down' } });
   });
 
-  // With no time limit the probe hangs and the kubelet kills it on its own
-  // timeout: same effect, worse diagnosis.
+  // With no time limit the probe hangs and the kubelet kills it anyway, with a
+  // worse diagnosis.
   it('should return 503 GIVEN the check hangs WHEN readiness is probed', async () => {
     const hangs: ReadinessCheck = () => new Promise(() => undefined);
 

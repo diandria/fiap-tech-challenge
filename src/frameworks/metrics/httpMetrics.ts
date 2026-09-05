@@ -1,7 +1,6 @@
 import { Histogram } from '@prometheus-io/client';
 import { registry } from './registry';
 
-// Buckets spanning a cached response through a timeout.
 export const httpRequestDuration = new Histogram({
   name: 'http_request_duration_seconds',
   help: 'HTTP request duration in seconds',

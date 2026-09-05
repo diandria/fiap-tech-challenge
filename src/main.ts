@@ -163,9 +163,8 @@ async function main(): Promise<void> {
 
   // HTTP server starts before DB connects so health probes are reachable during startup
   const server = app.listen(PORT, () => { logger.info({ port: PORT }, 'server started'); });
-  // Drain in-flight requests before exiting so rollouts and HPA scale-downs
-  // don't reset client connections; force-exit fallback stays within the pod's
-  // 30s termination grace period.
+  // Drain in-flight requests so rollouts and scale-downs don't reset client
+  // connections; the force-exit fallback stays inside the 30s grace period.
   process.on('SIGTERM', () => {
     server.close(async () => { await disconnectPrisma(); process.exit(0); });
     setTimeout(() => process.exit(1), 25_000).unref();

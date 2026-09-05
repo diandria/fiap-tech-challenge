@@ -61,10 +61,8 @@ describe('ConsoleNotificationService', () => {
     expect(failures.recorded).toEqual([{ integration: 'notification', operation: 'budget_ready' }]);
   });
 
-  // The behaviour does not change: the notification stays best-effort and the
-  // error still travels up to the use case's catch, which already decided not
-  // to roll back the status transition. What changes is the failure no longer
-  // being invisible.
+  // Behaviour is unchanged -- still best-effort, still caught by the use case.
+  // What changes is the failure no longer being invisible.
   it('should rethrow the original error GIVEN the dispatch throws WHEN notifying', async () => {
     const service = new ConsoleNotificationService(loggerThatFails(), failures);
 

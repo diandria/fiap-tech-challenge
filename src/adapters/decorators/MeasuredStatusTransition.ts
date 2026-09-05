@@ -11,9 +11,8 @@ export class MeasuredStatusTransition implements IChangeServiceOrderStatus {
 
   async execute(osId: string): Promise<ServiceOrder> {
     const result = await this.inner.execute(osId);
-    // The status comes from the result, not from a constructor argument: the
-    // use case decides where the order went, and a rejected transition throws
-    // before reaching this line.
+    // Status comes from the result, not a constructor argument: the use case
+    // decides, and a rejected transition throws before this line.
     observeTimeToStatus(result, this.metrics);
     return result;
   }

@@ -87,8 +87,8 @@ describe('Customer authentication flow', () => {
     `);
   });
 
-  // The scenario that crosses the whole system: the only one that would prove
-  // the lookup, the token format and the two routes agree with each other.
+  // The only scenario proving the lookup, the token format and the two routes
+  // agree with each other.
   it('should complete the whole flow GIVEN a registered customer WHEN authenticating by cpf', async () => {
     const customerId = await createCustomer();
     const osId = await osWaitingApproval(customerId);
@@ -110,7 +110,7 @@ describe('Customer authentication flow', () => {
     expect(status.status).toBe(200);
     expect(status.body.status).toBe('WAITING_APPROVAL');
 
-    // 4. E aprova o orcamento.
+    // 4. And approves the budget.
     const approve = await request(app).patch(`/service-orders/${osId}/budget`)
       .set('Authorization', `Bearer ${token}`).send({ status: 'APPROVED', code: CODE });
 
@@ -146,8 +146,8 @@ describe('Customer authentication flow', () => {
     expect(after.body.status).toBe('WAITING_APPROVAL');
   });
 
-  // A secret diverging between the application and the function is risk R4. The
-  // symptom is a 401 with no useful message, and this test names it.
+  // Risk R4: a secret diverging between application and function shows up as a
+  // 401 with no useful message.
   it('should return 401 GIVEN a token signed with a different secret WHEN reading the order', async () => {
     const customerId = await createCustomer();
     const osId = await osWaitingApproval(customerId);

@@ -29,9 +29,8 @@ beforeEach(() => {
 });
 
 describe('SnsNotificationService', () => {
-  // This test validates the ADR-003 contract field by field. It is the only
-  // automated defence against divergence between publisher (here) and consumer
-  // (the notifications function), which live in different repositories.
+  // Validates the ADR-003 contract field by field: the only automated defence
+  // against publisher and consumer diverging across repositories.
   it('should publish a payload matching the adr-003 contract GIVEN a status change', async () => {
     const sns = makeSns();
     const service = new SnsNotificationService(sns as never, TOPIC, failures, traceContext);
@@ -72,9 +71,8 @@ describe('SnsNotificationService', () => {
     expect((payload.serviceOrder as Record<string, number>).budgetTotal).toBe(1234.56);
   });
 
-  // Outside an HTTP request there is no trace context. Publishing an invalid
-  // traceparent would be worse than omitting it: the consumer would record it
-  // and Grafana would stitch unrelated events together.
+  // No trace context outside an HTTP request: an invalid traceparent would
+  // make Grafana stitch unrelated events together.
   it('should omit traceparent GIVEN no trace context WHEN publishing', async () => {
     const sns = makeSns();
     await new SnsNotificationService(sns as never, TOPIC, failures, traceContext).notifyStatusChanged(cpfCustomer, waitingApprovalOS);

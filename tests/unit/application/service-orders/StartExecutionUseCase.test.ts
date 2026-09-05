@@ -13,7 +13,6 @@ const twoItemApprovedOS = {
   items: [{ itemId: 'i-1', quantity: 2 }, { itemId: 'i-2', quantity: 1 }],
 };
 
-// Sequential findById needed to handle two different items in order
 const makeSequentialItemRepo = (): IItemRepository => ({
   findAll: jest.fn(),
   findById: jest.fn()
@@ -31,9 +30,7 @@ describe('StartExecutionUseCase', () => {
     const useCase = new StartExecutionUseCase(osRepo, itemRepo, makeNotifyStatusChange());
     const result = await useCase.execute('os-1');
 
-    // i-1: stockQuantity (10-2=8), reservedQuantity (4-2=2)
     expect(itemRepo.update).toHaveBeenCalledWith('i-1', { stockQuantity: 8, reservedQuantity: 2 });
-    // i-2: stockQuantity (5-1=4), reservedQuantity (1-1=0)
     expect(itemRepo.update).toHaveBeenCalledWith('i-2', { stockQuantity: 4, reservedQuantity: 0 });
     expect(osRepo.update).toHaveBeenCalledWith('os-1', expect.objectContaining({ startedAt: expect.any(Date) }));
     expect(result.status).toBe('EXECUTION');

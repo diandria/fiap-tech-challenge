@@ -71,9 +71,7 @@ describe('authMiddleware', () => {
     expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
   });
 
-  // A customer token without `sub` would pass the ownership check by comparing
-  // against undefined. Refusing at the door is cheaper than finding out later
-  // why one customer saw another customer's service order.
+  // Without `sub` the ownership check would compare against undefined.
   it('should reject GIVEN a customer token without sub WHEN authenticating', () => {
     const next = jest.fn() as NextFunction;
 

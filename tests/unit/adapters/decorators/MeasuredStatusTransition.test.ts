@@ -88,9 +88,8 @@ describe('MeasuredBudgetDecision', () => {
     expect(sum).toBeGreaterThan(7190);
   });
 
-  // The decorator must not drop `requesterCustomerId` on the way through: if it
-  // did, ownership would stop being checked in production and would keep
-  // passing the use-case tests, which call the use case without the decorator.
+  // Dropping `requesterCustomerId` would silently disable ownership in
+  // production while the use-case tests, which skip the decorator, still pass.
   it('should forward the whole input GIVEN a decision WHEN executed', async () => {
     const expected = anOrder('REJECTED');
     const inner = { execute: jest.fn().mockResolvedValue(expected) };

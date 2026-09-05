@@ -1,8 +1,7 @@
 import { Counter, Histogram } from '@prometheus-io/client';
 import { registry } from './registry';
 
-// Named after the bounded context (service orders), not after the service that
-// exposes them today: when this becomes more than one service, the name holds.
+// Named after the bounded context, not the service exposing it today.
 export const serviceOrdersCreated = new Counter({
   name: 'service_orders_created_total',
   help: 'Total service orders opened',

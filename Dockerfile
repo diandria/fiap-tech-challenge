@@ -1,14 +1,12 @@
 # ---- Build stage ----
 FROM node:22-alpine AS builder
 WORKDIR /app
-# The Prisma engine links against libssl. Without openssl on Alpine the
-# detection picks the wrong target and chooses the openssl 1.1 binary, which
-# does not exist here.
+# The Prisma engine links against libssl; without openssl on Alpine the target
+# detection picks an openssl 1.1 binary that does not exist here.
 RUN apk add --no-cache openssl
 COPY package*.json ./
-# The schema has to exist before npm ci: the @prisma/client postinstall runs
-# prisma generate, and with no schema it emits a stub without the domain types,
-# which makes tsc fail only inside here.
+# Before npm ci: the @prisma/client postinstall runs prisma generate, and with
+# no schema it emits a stub without the domain types.
 COPY prisma ./prisma
 RUN npm ci
 COPY tsconfig.json ./

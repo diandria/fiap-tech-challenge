@@ -11,18 +11,8 @@ spec:
     kind: Deployment
     name: car-repair-shop-api
   minReplicas: 2
-  # Ten fits the real capacity, and that was measured -- not estimated. With two
-  # t3.large, at the time of writing:
-  #
-  #   free pod slots     46  (70 total, 24 taken by the infrastructure)
-  #   requestable CPU    2260m free out of 3860m
-  #
-  # Ten replicas ask for 1000m and ten slots. It fits, including during a
-  # rolling update with maxSurge of 25% (13 pods, 1300m).
-  #
-  # Promising more than the cluster delivers shows up as a failure in the
-  # demonstration, with pods in Pending and the HPA stuck at a number that does
-  # not explain why.
+  # Measured against two t3.large: 46 free pod slots and 2260m requestable CPU.
+  # Ten replicas fit with headroom for a 25% maxSurge rolling update.
   maxReplicas: 10
   metrics:
   - type: Resource
