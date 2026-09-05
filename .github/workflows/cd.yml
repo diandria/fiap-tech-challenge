@@ -176,7 +176,7 @@ jobs:
             --from-literal=ADMIN_PASSWORD="$ADMIN_PASSWORD" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-          kubectl apply -f k8s/01-config/ -f k8s/03-app/
+          kubectl apply -f k8s/01-config/ -f k8s/02-service/ -f k8s/03-app/
 
       # A Job, not an initContainer: it runs once, before any new pod takes
       # traffic. An initContainer would migrate once per replica, in parallel.
