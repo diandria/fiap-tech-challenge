@@ -3004,6 +3004,104 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "10 - Health e Observabilidade",
+      "description": "Sondas usadas pelo Kubernetes e endpoint de metricas.\n\n/health e /ready sao roteadas pelo API Gateway e funcionam nos dois ambientes.\n\n/metrics NAO e exposta no gateway: o Prometheus faz scrape de dentro do cluster, sem credencial. Contra o ambiente implantado ela responde 404 no gateway -- use baseUrl local ou um port-forward para o pod.",
+      "item": [
+        {
+          "name": "Liveness (/health)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Sonda de vivacidade. Nao consulta o banco: reiniciar o pod nao conserta um banco fora."
+          },
+          "response": []
+        },
+        {
+          "name": "Readiness (/ready)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('banco up', () => pm.expect(b.checks.database).to.eql('up'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ready",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ready"
+              ]
+            },
+            "description": "Sonda de prontidao. Consulta o banco; devolve 503 quando ele esta inalcancavel, o que tira o pod do Service."
+          },
+          "response": []
+        },
+        {
+          "name": "Metricas Prometheus (/metrics)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('expoe o histograma de latencia', () =>",
+                  "  pm.expect(pm.response.text()).to.include('http_request_duration_seconds'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            },
+            "description": "Formato de exposicao do Prometheus. Nao roteada no API Gateway."
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "event": [

@@ -66,6 +66,7 @@ Execute as pastas na ordem numerada. Cada request persiste no environment o que 
 | 07 | Remoção de Item/Serviço da OS (mecânico) | Cria uma terceira OS e demonstra `DELETE /service-orders/:id/services/:serviceId` e `DELETE /service-orders/:id/items/:itemId` (libera estoque) |
 | 08 | Manutenção (PUT/DELETE de entidades) | Cria cliente/veículo/serviço/item temporários e exercita todos os PUT e DELETE de catálogo e de cliente/veículo |
 | 09 | Cliente (CPF) | Autenticação de cliente por CPF e titularidade da OS: 401 sem token, 403 com token de funcionário, 403 com token de outro cliente — e a OS permanece intacta |
+| 10 | Health e Observabilidade | Sondas `/health` (não consulta o banco) e `/ready` (consulta), e o endpoint `/metrics` no formato do Prometheus |
 
 ## Variáveis persistidas (preenchidas automaticamente)
 
