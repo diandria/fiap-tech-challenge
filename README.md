@@ -305,9 +305,16 @@ self-hosted) foi removido.
 | `fiap-tech-challenge-infra-k8s` | EKS, API Gateway, ECR, observabilidade |
 | `fiap-tech-challenge-lambda` | Functions de autenticação e notificação, tópico SNS |
 
-O **Namespace** e o **Service** da aplicação são criados pelo `infra-k8s`, e não pelos manifests
-deste repositório: é o Service que faz nascer o NLB, e o API Gateway precisa do ARN do listener
-dele. Se viessem junto do deploy, o endereço público mudaria a cada redeploy.
+A divisão segue o ciclo de vida: o `infra-k8s` provisiona o **ambiente** (cluster, node group, rede,
+addons, observabilidade, API Gateway) e este repositório versiona os **artefatos de deploy da
+aplicação** — Deployment, Service, HPA, ConfigMap e o Job de migration.
+
+O **Namespace** fica no `infra-k8s`: ele existe antes de qualquer deploy e sobrevive a todos eles.
+
+O **Service** mora aqui e é ele que faz nascer o NLB interno. Isso cria uma ordem de provisionamento:
+a integração do API Gateway precisa do ARN do listener desse NLB, então ela é aplicada numa segunda
+fase do `infra-k8s`, depois que o Service subiu. O [runbook](docs/runbook-ambiente.md) descreve a
+sequência.
 
 ### Como implantar
 
@@ -347,6 +354,7 @@ chega ao ambiente real, e a mitigação é o rollback, não a prevenção.
 | Arquivo | Conteúdo |
 |---|---|
 | `01-config/configmap.yaml` | Configuração estática |
+| `02-service/app-service.yaml` | Service `LoadBalancer` interno; origem do NLB |
 | `03-app/app-deployment.yaml` | Deployment, sondas, requests e limits |
 | `03-app/app-hpa.yaml` | HPA, 2 a 10 réplicas, 70% de CPU |
 | `03-app/app-pdb.yaml` | PodDisruptionBudget |

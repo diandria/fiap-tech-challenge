@@ -14,11 +14,12 @@ procedimento para subir, verificar e derrubar.
 |---|---|
 | `infra-db` (VPC + RDS) | ~7 min |
 | `infra-k8s` — primeira fase (EKS + addons + observabilidade) | ~22 min |
+| Service da aplicação (nasce o NLB) | ~3 min |
 | `lambda` (duas functions + tópico) | ~2 min |
-| `infra-k8s` — segunda fase (rota da Lambda) | ~1 min |
+| `infra-k8s` — segunda fase (integração e rotas do gateway) | ~1 min |
 | Deploy da aplicação (build, push, migration, rollout) | ~3 min |
 | Verificação de fumaça | ~3 min |
-| **Total** | **~38 min** |
+| **Total** | **~41 min** |
 
 **Todos os tempos foram cronometrados num ciclo completo do zero em 31/08/2026.** Não são
 estimativa.
@@ -74,30 +75,27 @@ terraform init -input=false && terraform apply -auto-approve
 
 Cria a VPC, o RDS e os parâmetros no SSM: senha do banco e **senha do admin da aplicação**.
 
-### 5. `infra-k8s` — primeira fase, sem a rota da Lambda (~22 min)
+### 5. `infra-k8s` — primeira fase, sem as rotas do gateway (~22 min)
 
-**O `infra-k8s` é aplicado em duas fases, com o lambda no meio.** Não é preciosismo: existe um ciclo
-entre os dois repositórios.
+**O `infra-k8s` é aplicado em duas fases**, e entre elas entram o Service da aplicação e o lambda.
+Não é preciosismo: há duas dependências que só se resolvem nessa ordem.
 
-- a rota `POST /auth/cpf` precisa do ARN da function, que só existe depois do apply do lambda
-- o lambda precisa do `api_gateway_url`, que só existe depois do apply do `infra-k8s`
+- a integração do gateway precisa do ARN do listener do **NLB**, e o NLB nasce do Service da
+  aplicação, que mora no repositório do código (`k8s/02-service/`)
+- a rota `POST /auth/cpf` precisa do **ARN da function**, que só existe depois do apply do lambda
+- e o lambda precisa do `api_gateway_url`, que sai desta primeira fase
 
-Aplicar tudo de uma vez com o ambiente zerado falha assim:
-
-```
-Error: Unsupported attribute
-  on api-gateway-auth-route.tf line 9:
-  integration_uri = data.terraform_remote_state.lambda.outputs.auth_lambda_invoke_arn
-  data.terraform_remote_state.lambda.outputs is object with no attributes
-```
-
-Tire a rota do caminho para esta fase:
+Três arquivos saem do caminho nesta fase:
 
 ```bash
 cd ~/dev/fiap-tech-challenge-infra-k8s
-mv api-gateway-auth-route.tf /tmp/api-gateway-auth-route.tf
+mkdir -p /tmp/fase2
+mv api-gateway-routes.tf api-gateway-lookup-route.tf api-gateway-auth-route.tf /tmp/fase2/
 terraform init -input=false && terraform apply -auto-approve
 ```
+
+> `api-gateway-routes.tf` contém `data.aws_lb`, que **falha no plano**, e não apenas no apply,
+> quando o NLB não existe. Não adianta deixá-lo e esperar que o Terraform adie.
 
 > Se o apply falhar no meio, **não interrompa um novo apply pela metade**. Aplies interrompidos
 > deixam inconsistência de três camadas (estado do Terraform, release do Helm e o Secret que guarda
@@ -113,7 +111,27 @@ Os onze pods precisam estar `Running`. O `tempo-0` é o que costuma cair, em `Cr
 `OOMKilled` — e quando ele cai a aplicação continua exportando spans para um coletor inexistente,
 **sem nenhum erro no log**. Tudo parece certo e a aba de traces do Grafana fica vazia.
 
-### 6. `lambda` — functions e tópico (~2 min)
+### 6. Service da aplicação — nasce o NLB (~3 min)
+
+```bash
+aws eks update-kubeconfig --name car-repair-shop --region us-east-1
+kubectl apply -f ~/dev/fiap-tech-challenge/k8s/02-service/
+```
+
+O AWS Load Balancer Controller cria o NLB interno a partir das anotações do Service. **Espere ele
+ficar pronto** antes de seguir — a fase 2 procura o balanceador por tag e falha se ele ainda não
+existir:
+
+```bash
+aws elbv2 describe-load-balancers \
+  --query "LoadBalancers[?State.Code=='active'].[LoadBalancerName,State.Code]" --output text
+```
+
+> O CD também aplica este diretório, junto do resto. Aqui ele é aplicado à mão só porque a fase 2
+> do `infra-k8s` precisa do NLB **antes** de o gateway ter rota para o cluster — e sem rota o
+> smoke check do CD falharia.
+
+### 7. `lambda` — functions e tópico (~2 min)
 
 ```bash
 cd ~/dev/fiap-tech-challenge-lambda
@@ -125,27 +143,27 @@ terraform -chdir=terraform init -input=false && terraform -chdir=terraform apply
 Gera `JWT_SECRET` e `INTERNAL_TOKEN` no SSM. A aplicação lê **os mesmos parâmetros** — não há duas
 cópias para divergir.
 
-### 7. `infra-k8s` — segunda fase, com a rota da Lambda (~1 min)
+### 8. `infra-k8s` — segunda fase, integração e rotas (~1 min)
 
-Agora o remote state do lambda tem os outputs que faltavam:
+Agora existem o NLB e os outputs do lambda:
 
 ```bash
 cd ~/dev/fiap-tech-challenge-infra-k8s
-mv /tmp/api-gateway-auth-route.tf .
+mv /tmp/fase2/*.tf .
 terraform apply -auto-approve
 ```
 
-Confirme que a rota existe antes de seguir:
+Confirme que as rotas existem antes de seguir:
 
 ```bash
 aws apigatewayv2 get-routes --api-id $(terraform output -raw api_gateway_id) \
-  --query "Items[?RouteKey=='POST /auth/cpf'].RouteKey"
+  --query "Items[].RouteKey" --output text
 ```
 
-> **Devolva o arquivo mesmo se algo falhar entre as duas fases.** Esquecê-lo fora do lugar faz o
-> apply seguinte destruir a rota, e o `/auth/cpf` passa a responder 404 sem motivo aparente.
+> **Devolva os arquivos mesmo se algo falhar entre as duas fases.** Esquecê-los fora do lugar faz o
+> apply seguinte destruir integração e rotas, e o gateway passa a responder 404 em tudo.
 
-### 8. Aplicação (~3 min)
+### 9. Aplicação (~3 min)
 
 Merge na `main` dispara o CD. Para forçar sem um commit novo, **reexecute o último CI da `main`** —
 o CD escuta o evento `workflow_run` do CI:
@@ -159,8 +177,8 @@ gh run rerun $(gh run list --workflow CI --branch main --limit 1 --json database
 > `gh workflow run CI --ref main` **não funciona**: o CI só tem gatilho de `push` e `pull_request`,
 > e a chamada devolve `HTTP 422: Workflow does not have 'workflow_dispatch' trigger`.
 
-O CD constrói a imagem, publica no ECR, roda a migration como Job, faz `set image` e verifica o
-rollout — com rollback se falhar.
+O CD constrói a imagem, publica no ECR, aplica `k8s/01-config/`, `k8s/02-service/` e `k8s/03-app/`,
+roda a migration como Job, faz `set image` e verifica o rollout — com rollback se falhar.
 
 ---
 
@@ -267,8 +285,10 @@ O `rollout status` **falhar por timeout, e não ficar pendurado**, é o que disp
 que continuam faturando.
 
 ```bash
-# 1. Aplicação
-kubectl delete -f ~/dev/fiap-tech-challenge/k8s/03-app/ --ignore-not-found
+# 1. Aplicação, Service incluído. O Service tem de sair antes do cluster: é ele
+#    que possui o NLB, e o `terraform destroy` do infra-k8s não o conhece mais.
+kubectl delete -f ~/dev/fiap-tech-challenge/k8s/03-app/ \
+                -f ~/dev/fiap-tech-challenge/k8s/02-service/ --ignore-not-found
 
 # 2. Lambda
 cd ~/dev/fiap-tech-challenge-lambda && terraform -chdir=terraform destroy -auto-approve
