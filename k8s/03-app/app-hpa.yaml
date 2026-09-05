@@ -11,17 +11,18 @@ spec:
     kind: Deployment
     name: car-repair-shop-api
   minReplicas: 2
-  # Dez cabe na capacidade real, e isso foi medido -- nao estimado. Com dois
-  # t3.large, no momento da escrita:
+  # Ten fits the real capacity, and that was measured -- not estimated. With two
+  # t3.large, at the time of writing:
   #
-  #   vagas de pod livres   46  (70 no total, 24 ocupadas pela infraestrutura)
-  #   CPU requisitavel      2260m livres de 3860m
+  #   free pod slots     46  (70 total, 24 taken by the infrastructure)
+  #   requestable CPU    2260m free out of 3860m
   #
-  # Dez replicas pedem 1000m e dez vagas. Cabe, inclusive durante um rolling
-  # update com maxSurge de 25% (13 pods, 1300m).
+  # Ten replicas ask for 1000m and ten slots. It fits, including during a
+  # rolling update with maxSurge of 25% (13 pods, 1300m).
   #
-  # Prometer mais do que o cluster entrega aparece como falha na demonstracao,
-  # com pods em Pending e o HPA parado num numero que nao explica por que.
+  # Promising more than the cluster delivers shows up as a failure in the
+  # demonstration, with pods in Pending and the HPA stuck at a number that does
+  # not explain why.
   maxReplicas: 10
   metrics:
   - type: Resource

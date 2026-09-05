@@ -2774,7 +2774,7 @@
                   "    pm.test('devolve um token', () => pm.expect(body.token).to.be.a('string').and.not.empty);",
                   "    pm.environment.set('customerToken', body.token);",
                   "",
-                  "    // O payload e base64, nao e cifrado: da para conferir o contrato sem o segredo.",
+                  "    // The payload is base64, not encrypted: the contract can be checked without the secret.",
                   "    const claims = JSON.parse(atob(body.token.split('.')[1]));",
                   "    pm.test('type e customer', () => pm.expect(claims.type).to.eql('customer'));",
                   "    pm.test('sub e o customerId', () => pm.expect(claims.sub).to.eql(pm.environment.get('customerId')));",
@@ -2884,8 +2884,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// Sem `sub` nao ha dono contra quem comparar: deixar passar tornaria a",
-                  "// checagem de titularidade um no-op.",
+                  "// Without `sub` there is no owner to compare against: letting it through would",
+                  "// turn the ownership check into a no-op.",
                   "pm.test('status 403', () => pm.response.to.have.status(403));"
                 ]
               }
@@ -2956,7 +2956,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "// O que prova a protecao nao e o 403: e o orcamento nao ter mudado.",
+                  "// What proves the protection is not the 403: it is the budget not having changed.",
                   "pm.test('status 403', () => pm.response.to.have.status(403));",
                   "",
                   "const antes = pm.environment.get('osStatusBefore403');",
@@ -3012,14 +3012,14 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// Emissao local do token de cliente.",
+          "// Local issuance of the customer token.",
           "//",
-          "// Contra o ambiente implantado, a pasta 09 obtem o token real em",
-          "// POST /auth/cpf, que passa pela function. Localmente nao existe function,",
-          "// e sem isto as rotas de cliente responderiam 401 em toda a colecao.",
+          "// Against the deployed environment, folder 09 obtains the real token from",
+          "// POST /auth/cpf, which goes through the function. Locally there is no function,",
+          "// and without this the customer routes would answer 401 across the collection.",
           "//",
-          "// So age quando `customerToken` ainda esta vazio: o token real, quando",
-          "// obtido, sobrescreve este e nao e substituido de volta.",
+          "// Only acts while `customerToken` is still empty: the real token, once",
+          "// obtained, overwrites this one and is not replaced back.",
           "(function () {",
           "  const secret = pm.environment.get('jwtSecret');",
           "  const customerId = pm.environment.get('customerId');",
@@ -3044,8 +3044,8 @@
           "    name: 'Postman Customer',",
           "  })));",
           "",
-          "  // Cliente que existe do ponto de vista do token, mas nao e dono de nenhuma",
-          "  // OS: e com ele que se demonstra o 403 de titularidade.",
+          "  // A customer that exists from the token's point of view, but owns no service",
+          "  // order: it is what demonstrates the 403 on ownership.",
           "  pm.environment.set('otherCustomerToken', sign(Object.assign({}, base, {",
           "    sub: '00000000-0000-0000-0000-000000000000',",
           "    cpf: '11144477735',",

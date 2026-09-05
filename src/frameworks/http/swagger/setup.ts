@@ -38,7 +38,7 @@ All other OS transitions go through \`PATCH /service-orders/{id}\` with the targ
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-          description: 'Token de funcionario, emitido por POST /auth/login.',
+          description: 'Staff token, issued by POST /auth/login.',
         },
         // A separate scheme on purpose. Both are Bearer JWT, but they have
         // different issuers and audiences: keeping only one would hide that the

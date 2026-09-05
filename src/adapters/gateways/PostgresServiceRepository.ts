@@ -17,7 +17,7 @@ export class PostgresServiceRepository implements IServiceRepository {
     return {
       id: row.id,
       name: row.name,
-      // Decimal vem do banco como objeto; a entidade trabalha com number.
+      // Decimal arrives from the database as an object; the entity works with number.
       price: Number(row.price),
       estimatedMinutes: row.estimatedMinutes,
     };

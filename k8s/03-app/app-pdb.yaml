@@ -6,8 +6,8 @@ metadata:
   labels:
     app.kubernetes.io/part-of: fiap-tech-challenge
 spec:
-  # Com minReplicas 2, garantir 1 permite drenar um no de cada vez sem derrubar
-  # o servico inteiro.
+  # With minReplicas 2, guaranteeing 1 allows draining one node at a time
+  # without taking the whole service down.
   minAvailable: 1
   selector:
     matchLabels:

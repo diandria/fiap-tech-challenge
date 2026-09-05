@@ -87,8 +87,8 @@ describe('Customer authentication flow', () => {
     `);
   });
 
-  // O cenario que atravessa o sistema inteiro: e o unico que provaria que o
-  // lookup, o formato do token e as duas rotas concordam entre si.
+  // The scenario that crosses the whole system: the only one that would prove
+  // the lookup, the token format and the two routes agree with each other.
   it('should complete the whole flow GIVEN a registered customer WHEN authenticating by cpf', async () => {
     const customerId = await createCustomer();
     const osId = await osWaitingApproval(customerId);
@@ -129,7 +129,7 @@ describe('Customer authentication flow', () => {
     expect(res.status).toBe(403);
   });
 
-  // O par que prova a protecao: o 403 acompanhado da ausencia de efeito.
+  // The pair that proves the protection: the 403 alongside the absence of effect.
   it('should keep the status GIVEN another customer approves WHEN deciding the budget', async () => {
     const owner = await createCustomer();
     const intruder = await createCustomer('Mary', '11144477735', 'm@t.com');

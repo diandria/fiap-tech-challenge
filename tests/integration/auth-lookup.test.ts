@@ -120,8 +120,8 @@ describe('POST /auth/customers/lookup', () => {
     expect(res.body.active).toBe(false);
   });
 
-  // Documentar a rota interna no Swagger publico conta a qualquer visitante
-  // que ela existe. E o vazamento mais facil de cometer sem perceber.
+  // Documenting the internal route in the public Swagger tells any visitor
+  // that it exists. It is the easiest leak to introduce without noticing.
   it('should not document the lookup route in the public swagger spec', () => {
     expect(JSON.stringify(buildSwaggerSpec())).not.toContain('customers/lookup');
   });

@@ -68,7 +68,7 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
     const where: Record<string, unknown> = {};
 
     if (filter?.status) where.status = filter.status;
-    // excludeStatuses e status nunca chegam juntos: o use case escolhe um dos dois.
+    // excludeStatuses and status never arrive together: the use case picks one.
     if (filter?.excludeStatuses?.length) where.status = { notIn: filter.excludeStatuses };
     if (filter?.customerId) where.customerId = filter.customerId;
 
@@ -83,7 +83,7 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
   }
 
   async findAll(filter?: ListServiceOrdersFilter): Promise<ServiceOrder[]> {
-    // A ordenacao por prioridade de status e regra de negocio e permanece no use case.
+    // Sorting by status priority is a business rule and stays in the use case.
     const rows = await this.prisma.serviceOrder.findMany({
       where: this.buildWhere(filter),
       include: INCLUDE_RELATIONS,
