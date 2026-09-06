@@ -12,3 +12,7 @@ data:
   OTEL_SERVICE_NAME: "car-repair-shop-api"
   ADMIN_EMAIL: "admin@master.com"
   CORS_ORIGIN: ""
+  # One hop: the API Gateway. Without it req.ip is a gateway ENI and every
+  # caller shares one rate-limit bucket. See ADR-012.
+  TRUST_PROXY_HOPS: "1"
+  LOGIN_RATE_LIMIT: "30"
