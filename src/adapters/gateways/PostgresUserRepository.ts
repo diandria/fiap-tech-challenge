@@ -1,4 +1,5 @@
 import { isUuid } from './uuid';
+import { translatingUniqueViolation } from './uniqueConstraint';
 import { PrismaClient } from '@prisma/client';
 import { IUserRepository, CreateUserData } from '../../use-cases/ports/IUserRepository';
 import { User, UserRole } from '../../entities/User';
@@ -34,7 +35,7 @@ export class PostgresUserRepository implements IUserRepository {
   }
 
   async create(data: CreateUserData): Promise<User> {
-    const row = await this.prisma.user.create({ data });
+    const row = await translatingUniqueViolation(() => this.prisma.user.create({ data }));
     return this.toEntity(row as UserRow);
   }
 }

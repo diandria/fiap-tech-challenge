@@ -1,4 +1,5 @@
 import { isUuid } from './uuid';
+import { translatingUniqueViolation } from './uniqueConstraint';
 import { PrismaClient } from '@prisma/client';
 import { IVehicleRepository } from '../../use-cases/ports/IVehicleRepository';
 import { Vehicle } from '../../entities/Vehicle';
@@ -45,7 +46,7 @@ export class PostgresVehicleRepository implements IVehicleRepository {
   }
 
   async create(data: Omit<Vehicle, 'id'>): Promise<Vehicle> {
-    const row = await this.prisma.vehicle.create({ data });
+    const row = await translatingUniqueViolation(() => this.prisma.vehicle.create({ data }));
     return this.toEntity(row as VehicleRow);
   }
 
@@ -54,7 +55,7 @@ export class PostgresVehicleRepository implements IVehicleRepository {
     const existing = await this.prisma.vehicle.findUnique({ where: { id } });
     if (!existing) return null;
 
-    const row = await this.prisma.vehicle.update({ where: { id }, data });
+    const row = await translatingUniqueViolation(() => this.prisma.vehicle.update({ where: { id }, data }));
     return this.toEntity(row as VehicleRow);
   }
 
