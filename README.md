@@ -508,6 +508,15 @@ Veja [`postman/README.md`](postman/README.md) para o fluxo detalhado.
 | `POST /auth/login` | Autentica e retorna JWT |
 | `GET /health` | Liveness probe |
 | `GET /ready` | Readiness probe |
+
+### Endpoints de cliente
+
+Exigem o token emitido pela function em `POST /auth/cpf`, e só funcionam para a OS do próprio
+cliente. Não estão no Swagger da aplicação com o cadeado de staff: no Swagger UI, use o esquema
+`customerBearerAuth`.
+
+| Endpoint | Descrição |
+|---|---|
 | `GET /service-orders/:id/status` | Lê status e orçamento da OS |
-| `PATCH /service-orders/:id/budget` | Aprova ou rejeita orçamento (rate-limited) |
+| `PATCH /service-orders/:id/budget` | Aprova ou rejeita orçamento; exige o `code` e é rate-limited |
 

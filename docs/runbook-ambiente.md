@@ -85,17 +85,18 @@ Não é preciosismo: há duas dependências que só se resolvem nessa ordem.
 - a rota `POST /auth/cpf` precisa do **ARN da function**, que só existe depois do apply do lambda
 - e o lambda precisa do `api_gateway_url`, que sai desta primeira fase
 
-Três arquivos saem do caminho nesta fase:
+A variável `enable_gateway_routes` desliga, nesta fase, tudo o que depende do NLB e da function:
 
 ```bash
 cd ~/dev/fiap-tech-challenge-infra-k8s
-mkdir -p /tmp/fase2
-mv api-gateway-routes.tf api-gateway-lookup-route.tf api-gateway-auth-route.tf /tmp/fase2/
-terraform init -input=false && terraform apply -auto-approve
+terraform init -input=false && terraform apply -auto-approve -var enable_gateway_routes=false
 ```
 
-> `api-gateway-routes.tf` contém `data.aws_lb`, que **falha no plano**, e não apenas no apply,
-> quando o NLB não existe. Não adianta deixá-lo e esperar que o Terraform adie.
+> Com a variável em `false`, `data.aws_lb` nem entra no plano. Ela existe porque esse data source
+> **falha no plano**, e não apenas no apply, quando o NLB não existe; deixá-lo e esperar que o
+> Terraform adie não funciona. Antes da variável, o procedimento era mover três arquivos `.tf` para
+> fora do diretório e devolvê-los depois, e esquecê-los fora fazia o apply seguinte destruir as
+> rotas.
 
 > Se o apply falhar no meio, **não interrompa um novo apply pela metade**. Aplies interrompidos
 > deixam inconsistência de três camadas (estado do Terraform, release do Helm e o Secret que guarda
@@ -149,9 +150,11 @@ Agora existem o NLB e os outputs do lambda:
 
 ```bash
 cd ~/dev/fiap-tech-challenge-infra-k8s
-mv /tmp/fase2/*.tf .
 terraform apply -auto-approve
 ```
+
+Sem `-var`, a variável volta ao padrão `true` e o apply cria integração, rotas e permissão da
+function. É o mesmo apply que o CD executa num merge na `main`.
 
 Confirme que as rotas existem antes de seguir:
 
@@ -160,8 +163,9 @@ aws apigatewayv2 get-routes --api-id $(terraform output -raw api_gateway_id) \
   --query "Items[].RouteKey" --output text
 ```
 
-> **Devolva os arquivos mesmo se algo falhar entre as duas fases.** Esquecê-los fora do lugar faz o
-> apply seguinte destruir integração e rotas, e o gateway passa a responder 404 em tudo.
+> **Nunca aplique com `enable_gateway_routes=false` num ambiente que já tem as rotas.** O apply
+> destrói integração e rotas, e o gateway passa a responder 404 em tudo. A variável só existe para a
+> primeira fase de uma subida do zero.
 
 ### 9. Aplicação (~3 min)
 

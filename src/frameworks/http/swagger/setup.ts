@@ -25,12 +25,16 @@ On first startup the API seeds a default admin user using the \`ADMIN_EMAIL\` an
 
 Protected endpoints will then send the JWT automatically.
 
-## Public endpoints (no token required)
+## Customer endpoints
+
+Customers authenticate with their CPF at **POST /auth/cpf**, served by the authentication function behind the API Gateway (not by this API). The token it issues is accepted on the customer routes only, and only for the customer's own service order:
 
 - \`GET /service-orders/{id}/status\` — check OS status and budget total.
-- \`PATCH /service-orders/{id}/budget\` — customer-facing budget approval or rejection. Rate-limited; the \`code\` field corresponds to the first 4 digits of the customer's CPF/CNPJ.
+- \`PATCH /service-orders/{id}/budget\` — budget approval or rejection. Rate-limited; the \`code\` field corresponds to the first 4 digits of the customer's CPF/CNPJ.
 
-All other OS transitions go through \`PATCH /service-orders/{id}\` with the target \`status\` in the body and require a JWT with role \`mechanic\` or \`admin\`.`,
+All other OS transitions go through \`PATCH /service-orders/{id}\` with the target \`status\` in the body and require a staff JWT with role \`mechanic\` or \`admin\`.
+
+Only \`POST /auth/login\`, \`GET /health\` and \`GET /ready\` need no token.`,
     },
     components: {
       securitySchemes: {
