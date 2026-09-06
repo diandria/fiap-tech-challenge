@@ -18,6 +18,21 @@ interface AppRoutes {
 export function createApp(routes: AppRoutes, checkDatabase: ReadinessCheck): Application {
   const app = express();
 
+  // Without this, req.ip is the address of whatever opened the TCP connection.
+  // In the deployed environment that is one of the API Gateway managed ENIs, so
+  // every caller in the world shares a single rate-limit bucket: ten logins per
+  // fifteen minutes for the entire system.
+  //
+  // TRUST_PROXY_HOPS says how many proxies sit in front. One covers the API
+  // Gateway, which appends the caller's address to X-Forwarded-For; the NLB is
+  // layer 4 and adds no hop. Trusting the header is only safe because the
+  // gateway is the single entry point (ADR-001) and the NLB is internal -- a
+  // parallel path would make it forgeable.
+  //
+  // Left off by default so local and test runs read the real socket address.
+  const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? 0);
+  if (trustProxyHops > 0) app.set('trust proxy', trustProxyHops);
+
   // First of all: every later event, the error one included, needs the trace
   // context to be available.
   app.use(traceContextMiddleware);
