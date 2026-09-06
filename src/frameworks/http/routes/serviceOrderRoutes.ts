@@ -41,9 +41,12 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *   patch:
    *     summary: Customer budget decision — approve or reject (customer only — own OS)
    *     description: |
-   *       Public endpoint authenticated by the 4-digit customer `code` (first 4 digits of CPF/CNPJ).
+   *       Requires the customer token issued at `POST /auth/cpf`, and the order must belong to that customer.
+   *       The 4-digit `code` (first 4 digits of CPF/CNPJ) confirms the decision on purpose, not by accident.
    *       Rate-limited to 5 req/h per IP+OS combination.
    *     tags: [Service Orders]
+   *     security:
+   *       - customerBearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id

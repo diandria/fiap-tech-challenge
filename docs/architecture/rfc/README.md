@@ -12,7 +12,6 @@ nada sobre o sistema. Cada documento se sustenta em mérito técnico.
 | ID | Título | Status | Data |
 |---|---|---|---|
 | [RFC-001](RFC-001-escolha-da-nuvem.md) | Escolha do provedor de nuvem | Aceita | 2026-08-28 |
-| [RFC-001](RFC-001-escolha-da-nuvem.md) | Escolha do provedor de nuvem | Aceita | 2026-08-28 |
 | [RFC-002](RFC-002-banco-de-dados.md) | Escolha do banco de dados gerenciado | Aceita | 2026-08-28 |
 | [RFC-003](RFC-003-estrategia-de-autenticacao.md) | Estratégia de autenticação | Aceita | 2026-08-28 |
 | [RFC-004](RFC-004-produto-api-gateway.md) | Escolha do produto de API Gateway | Aceita | 2026-08-28 |

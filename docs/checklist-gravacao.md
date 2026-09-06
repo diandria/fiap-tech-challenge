@@ -55,6 +55,12 @@ kubectl get secret grafana-admin -n observability -o jsonpath='{.data.admin-pass
 > Se a **taxa de erro** aparecer como `No data` em vez de `0%`, o dashboard está desatualizado —
 > foi corrigido no infra-k8s#23.
 
+> **Ao mostrar "Tempo até cada status", diga o que ele mede.** A métrica é o tempo desde a abertura
+> da OS até cada status, e não o tempo gasto dentro de cada etapa. O tempo de uma etapa é a
+> diferença entre as médias de dois status vizinhos (por exemplo, `EXECUTION` menos `APPROVED`).
+> Explicar isso em uma frase evita que o avaliador leia o painel como "tempo médio de execução" e
+> estranhe os valores.
+
 ## 3. Disparar um alerta ao vivo — ~3 min
 
 O alerta com disparo mais confiável é o `ServiceOrderProcessingFailures`, porque a falha é forçada
@@ -92,6 +98,10 @@ kubectl rollout restart deployment/car-repair-shop-api -n car-repair-shop
 
 ## 4. Roteiro do que mostrar
 
+- [ ] **Fluxo de entrega** — abrir um PR preparado de antemão (mudança trivial e visível, como um
+      campo novo em `/health`), mostrar o CI verde, mergear na `main`, acompanhar o CD e conferir a
+      nova versão no ar pelo gateway. É o que a coordenação pediu para o vídeo: PR, merge, pipeline
+      e deploy da nova versão no ambiente único
 - [ ] **Entrada única** — `/health` pelo API Gateway; o NLB é interno e não tem caminho público
 - [ ] **Autenticação por CPF** — `POST /auth/cpf` atravessa gateway, function e lookup na aplicação
 - [ ] **Ciclo de OS** — do `RECEIVED` ao `DELIVERED`; a aprovação é do **cliente**, com código de
