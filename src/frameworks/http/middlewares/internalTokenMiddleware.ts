@@ -4,12 +4,8 @@ import { UnauthorizedError } from '../../../entities/errors/AppError';
 
 /**
  * Guard for the internal lookup endpoint, consumed by the authentication
- * function.
- *
- * The comparison is constant-time, not `===`, on purpose. With `===` the
- * response time varies with how many leading characters match, and the secret
- * can be recovered one character at a time by whoever measures. Doing it right
- * here costs one line.
+ * function. The comparison is constant-time to avoid leaking the secret
+ * through response timing.
  */
 export function internalTokenMiddleware(req: Request, _res: Response, next: NextFunction): void {
   const provided = Buffer.from(String(req.headers['x-internal-token'] ?? ''));

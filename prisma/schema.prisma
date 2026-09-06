@@ -1,10 +1,10 @@
-// Traduzido de docs/architecture/data-model.md, que e a fonte de verdade do esquema.
-// Restricoes CHECK nao sao expressaveis aqui e entram como SQL na migration inicial.
+// Mirrors docs/architecture/data-model.md, the source of truth for the schema.
+// CHECK constraints are not expressible here and live as SQL in the initial migration.
 
 generator client {
   provider        = "prisma-client-js"
-  // Necessario para o Prisma emitir spans: ele nao usa o driver pg, fala com
-  // o proprio query engine, entao a instrumentacao de pg nao enxerga nada.
+  // Required for Prisma to emit spans: it talks to its own query engine rather
+  // than the pg driver, so pg instrumentation sees nothing.
   previewFeatures = ["tracing"]
 }
 

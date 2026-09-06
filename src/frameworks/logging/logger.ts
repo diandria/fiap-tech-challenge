@@ -2,10 +2,8 @@ import pino, { Logger, DestinationStream } from 'pino';
 import { getTraceContext } from './context';
 
 /**
- * Fields redacted from every event. The list is declared here, in one place,
- * because the alternative -- omitting at each call site -- depends on nobody
- * ever forgetting. The system logs requests carrying tax ids, the authorization
- * header and the internal endpoint's secret.
+ * Fields redacted from every event, declared in one place. Requests carry tax
+ * ids, the authorization header and the internal endpoint's secret.
  */
 const REDACTED_PATHS = [
   'cpf',

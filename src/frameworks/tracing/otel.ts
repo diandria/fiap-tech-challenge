@@ -7,19 +7,17 @@ import { PrismaInstrumentation } from '@prisma/instrumentation';
 let sdk: NodeSDK | undefined;
 
 /**
- * Starts the SDK when a collector is configured.
- *
- * With no OTEL_EXPORTER_OTLP_ENDPOINT it does not start: local development and
- * the test suite do not need to bring a collector up, and the context
- * middleware keeps minting identifiers on its own in that scenario.
+ * Starts the SDK when a collector is configured. Without
+ * OTEL_EXPORTER_OTLP_ENDPOINT it stays off, and the context middleware mints
+ * its own identifiers.
  */
 export function startTracing(): NodeSDK | undefined {
   const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
   if (!endpoint || sdk) return sdk;
 
   sdk = new NodeSDK({
-    // The same three attributes the logger emits (M2.T1), so log, metric and
-    // trace name the same service.
+    // The same three attributes the logger emits, so log, metric and trace
+    // name the same service.
     resource: new Resource({
       'service.name': process.env.OTEL_SERVICE_NAME ?? 'car-repair-shop-api',
       'service.version': process.env.SERVICE_VERSION ?? '0.0.0',

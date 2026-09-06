@@ -150,9 +150,9 @@ ALTER TABLE "service_order_items" ADD CONSTRAINT "service_order_items_service_or
 ALTER TABLE "service_order_items" ADD CONSTRAINT "service_order_items_item_id_fkey" FOREIGN KEY ("item_id") REFERENCES "items"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 
--- Restricoes de dominio nao expressaveis no schema do Prisma.
--- Elas sao o motivo central da migracao (RFC-002): as garantias saem do codigo
--- de aplicacao e passam para o banco.
+-- Domain constraints not expressible in the Prisma schema.
+-- They are the core reason for the migration (RFC-002): the guarantees move
+-- out of application code and into the database.
 
 ALTER TABLE "items"
   ADD CONSTRAINT "items_stock_non_negative"    CHECK ("stock_quantity" >= 0),

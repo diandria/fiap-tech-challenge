@@ -20,9 +20,8 @@ export class AuthController {
   }
 
   /**
-   * Internal lookup consumed by the token-issuing function. There is no
-   * presenter: the body is the RFC-003 contract, and running it through a
-   * customer formatter would risk adding fields by accident.
+   * Internal lookup consumed by the token-issuing function. No presenter: the
+   * body is the RFC-003 contract, and a customer formatter could add fields to it.
    */
   async lookupCustomer(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {

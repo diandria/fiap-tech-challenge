@@ -9,12 +9,9 @@ export interface CustomerLookupResult {
 }
 
 /**
- * Lookup used by the token-issuing function (ADR-002).
- *
- * Returns only the minimum the function needs in order to decide: who the
- * customer is and whether they may authenticate. E-mail, phone and tax id do
- * not leave here because the function does not use them, and data that does not
- * travel cannot leak.
+ * Lookup used by the token-issuing function (ADR-002). Returns only what the
+ * function needs to decide: who the customer is and whether they may
+ * authenticate.
  */
 export class LookupCustomerByCpfUseCase {
   constructor(private readonly repo: ICustomerRepository) {}

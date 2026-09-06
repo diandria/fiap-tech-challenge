@@ -10,16 +10,9 @@ const INTEGRATION = 'sns';
 type EventType = 'SERVICE_ORDER_STATUS_CHANGED' | 'BUDGET_READY';
 
 /**
- * Notification delivery by publishing an event to an SNS topic.
- *
- * It is the second implementation of a port that has existed since Phase 2:
- * swapping `console.log` for a publish opened no use case. The choice between
- * this and ConsoleNotificationService happens in the Composition Root, driven
- * by NOTIFICATION_CHANNEL.
- *
- * The payload shape is the ADR-003 contract, implemented separately by the
- * function that consumes the topic as well. The two repositories share no code
- * on purpose; the coupling is the written contract.
+ * Publishes service order events to an SNS topic. Selected in the composition
+ * root by NOTIFICATION_CHANNEL. The payload is the ADR-003 contract, which the
+ * consuming function implements separately.
  */
 export class SnsNotificationService implements INotificationService {
   constructor(

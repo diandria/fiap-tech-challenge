@@ -12,15 +12,9 @@ export interface DecideBudgetInput {
 }
 
 /**
- * Budget approval and rejection.
- *
- * Kept apart from IChangeServiceOrderStatus because of the confirmation code,
- * which identifies who decided. Merging both into one port would require an
- * optional parameter that half the implementations would ignore.
- *
- * The input is a named object, not positional parameters, because three
- * strings in a row are exactly the shape that invites a silent swap: reversing
- * `osId` and `code` would compile without complaint.
+ * Budget approval and rejection. Separate from IChangeServiceOrderStatus
+ * because of the confirmation code. The input is a named object so that
+ * `osId` and `code` cannot be swapped silently.
  */
 export interface IDecideBudget {
   execute(input: DecideBudgetInput): Promise<ServiceOrder>;

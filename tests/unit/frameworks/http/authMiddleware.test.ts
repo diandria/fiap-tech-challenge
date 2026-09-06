@@ -59,7 +59,7 @@ describe('authMiddleware', () => {
   });
 
   it('should reject GIVEN a token signed with another secret WHEN authenticating', () => {
-    const token = jwt.sign({ type: 'staff', userId: 'u1', role: 'admin' }, 'outro-segredo');
+    const token = jwt.sign({ type: 'staff', userId: 'u1', role: 'admin' }, 'another-secret');
     const next = jest.fn() as NextFunction;
 
     authMiddleware(

@@ -2755,7 +2755,7 @@
     },
     {
       "name": "09 - Cliente (CPF)",
-      "description": "Fluxo de autenticacao de cliente (M7). O cliente autentica por CPF na function, recebe um JWT com type=customer, e so enxerga e decide sobre a PROPRIA ordem de servico.\n\nA primeira requisicao so funciona contra o ambiente implantado, onde authBaseUrl aponta para o API Gateway: /auth/cpf e servida pela function, nao pela aplicacao. Nos ambientes locais o token e emitido pelo script de pre-requisicao da colecao, com o mesmo formato e o mesmo segredo.\n\nRequer que as pastas 00-03 tenham rodado (osId e customerId preenchidos).",
+      "description": "Fluxo de autenticacao de cliente. O cliente autentica por CPF na function, recebe um JWT com type=customer, e so enxerga e decide sobre a PROPRIA ordem de servico.\n\nA primeira requisicao so funciona contra o ambiente implantado, onde authBaseUrl aponta para o API Gateway: /auth/cpf e servida pela function, nao pela aplicacao. Nos ambientes locais o token e emitido pelo script de pre-requisicao da colecao, com o mesmo formato e o mesmo segredo.\n\nRequer que as pastas 00-03 tenham rodado (osId e customerId preenchidos).",
       "item": [
         {
           "name": "Autenticar por CPF (function via API Gateway)",
