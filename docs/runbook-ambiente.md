@@ -61,7 +61,7 @@ aws ec2 describe-vpcs --max-items 1 >/dev/null && echo "credencial ok"
 ### 3. Publicar as credenciais nos quatro repositórios
 
 ```bash
-~/dev/fiap-tech-challenge-lambda/scripts/refresh-aws-secrets.sh --todos
+~/dev/fiap-tech-challenge-lambda/scripts/refresh-aws-secrets.sh --all
 ```
 
 Sem isso, o CD falha ao tocar a AWS.
