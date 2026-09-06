@@ -12,7 +12,7 @@ const options: swaggerJsdoc.Options = {
     openapi: '3.0.0',
     info: {
       title: 'Car Repair Shop API',
-      version: '1.0.0',
+      version: '1.1.0',
       description: `REST API for managing service orders, customers, vehicles, services, and inventory for a car repair shop.
 
 ## Authentication
