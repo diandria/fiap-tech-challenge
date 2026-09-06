@@ -437,7 +437,7 @@ só.
 As credenciais do Learner Lab expiram junto com a sessão. Para renová-las nos quatro repositórios:
 
 ```bash
-~/dev/fiap-tech-challenge-lambda/scripts/refresh-aws-secrets.sh --todos
+~/dev/fiap-tech-challenge-lambda/scripts/refresh-aws-secrets.sh --all
 ```
 
 Cada deploy fica registrado em **Deployments → production**.
