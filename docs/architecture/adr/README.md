@@ -24,6 +24,7 @@ antes da conclusão, e as consequências negativas escritas sem suavizar.
 | [ADR-009](ADR-009-stack-da-aplicacao.md) | Stack da aplicação | Aceito | 2026-08-28 |
 | [ADR-010](ADR-010-biblioteca-de-log.md) | Biblioteca de registro estruturado | Aceito | 2026-08-28 |
 | [ADR-011](ADR-011-alcance-do-endpoint-de-lookup.md) | Como a function alcança o endpoint de lookup | Aceito | 2026-08-30 |
+| [ADR-012](ADR-012-identificacao-do-chamador-atras-do-gateway.md) | Identificação do chamador atrás do API Gateway | Aceito | 2026-09-06 |
 
 O ADR-011 supersede uma restrição do plano do M7 — *"o endpoint interno de lookup não é exposto no
 API Gateway"* —, e não um ADR. A restrição era mais estrita que o ADR-002, que ela deveria

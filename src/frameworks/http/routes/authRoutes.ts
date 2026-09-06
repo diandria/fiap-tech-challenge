@@ -5,9 +5,12 @@ import { authMiddleware } from '../middlewares/authMiddleware';
 import { requireRole } from '../middlewares/roleMiddleware';
 import { internalTokenMiddleware } from '../middlewares/internalTokenMiddleware';
 
+// Counted per caller, which requires trust proxy to be set behind the gateway.
+// Ten was too tight even per caller: three wrong passwords plus a colleague
+// testing exhausts it, and the whole collection run does three logins.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: Number(process.env.LOGIN_RATE_LIMIT ?? 30),
   message: { error: 'Too many login attempts, please try again later' },
 });
 
