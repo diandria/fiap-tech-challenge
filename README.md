@@ -5,8 +5,9 @@
 
 REST API para gerenciar ordens de serviço de uma oficina mecânica — FIAP Tech Challenge Fase 3.
 
-**Vídeo demonstrativo:** _a publicar_ — a preparação e o roteiro do que demonstrar estão no
-[checklist de gravação](docs/checklist-gravacao.md).
+**Vídeo demonstrativo:** _a publicar_ — a preparação está no
+[checklist de gravação](docs/checklist-gravacao.md) e o roteiro cronometrado no
+[roteiro do vídeo](docs/roteiro-video.md).
 
 > **Ambiente efêmero.** O sistema é provisionado do zero a cada sessão do Learner Lab e derrubado
 > depois, para não consumir orçamento. A URL do API Gateway **muda a cada recriação** — a que
