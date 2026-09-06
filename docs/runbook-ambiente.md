@@ -181,7 +181,7 @@ gh run rerun $(gh run list --workflow CI --branch main --limit 1 --json database
 > `gh workflow run CI --ref main` **não funciona**: o CI só tem gatilho de `push` e `pull_request`,
 > e a chamada devolve `HTTP 422: Workflow does not have 'workflow_dispatch' trigger`.
 
-O CD constrói a imagem, publica no ECR, aplica `k8s/01-config/`, `k8s/02-service/` e `k8s/03-app/`,
+O CD constrói a imagem — ou reaproveita a que já existe no ECR para aquele commit, que é o caso de uma reexecução — publica, aplica `k8s/01-config/`, `k8s/02-service/` e `k8s/03-app/`,
 roda a migration como Job, faz `set image` e verifica o rollout — com rollback se falhar.
 
 ---
