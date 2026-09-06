@@ -46,7 +46,7 @@ describe('logger', () => {
 
   it('should redact credentials GIVEN a payload with password WHEN logging', () => {
     const { lines, stream } = capture();
-    buildLogger({ stream }).info({ password: 'segredo', passwordHash: 'hash' }, 'login');
+    buildLogger({ stream }).info({ password: 'secret', passwordHash: 'hash' }, 'login');
 
     const event = JSON.parse(lines[0]);
     expect(event.password).toBe('[Redacted]');
@@ -56,7 +56,7 @@ describe('logger', () => {
   it('should redact the authorization header GIVEN a request payload WHEN logging', () => {
     const { lines, stream } = capture();
     buildLogger({ stream }).info(
-      { req: { headers: { authorization: 'Bearer abc', 'x-internal-token': 'segredo' } } },
+      { req: { headers: { authorization: 'Bearer abc', 'x-internal-token': 'secret' } } },
       'request',
     );
 
@@ -91,7 +91,7 @@ describe('logger trace correlation', () => {
     const logger = buildLogger({ stream });
 
     runWithTraceContext({ traceId: 'e'.repeat(32), spanId: 'f'.repeat(16) }, () => {
-      logger.info('dentro do escopo');
+      logger.info('inside the scope');
     });
 
     const event = JSON.parse(lines[0]);

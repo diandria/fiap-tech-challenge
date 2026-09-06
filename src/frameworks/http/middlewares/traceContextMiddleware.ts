@@ -7,13 +7,7 @@ const TRACEPARENT = /^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$/;
 
 /**
  * Identifiers of the span the SDK already opened for this request, when there
- * is one.
- *
- * OpenTelemetry's auto-instrumentation creates the span before any application
- * middleware runs. Adopting its identifiers is what makes the log and the trace
- * point at the same thing: minting our own here would produce two valid
- * identifiers that never meet, which is worse than having no correlation at
- * all, because it looks like it works.
+ * is one. Adopting them makes the log and the trace point at the same thing.
  */
 function activeSpanIds(): { traceId: string; spanId: string } | undefined {
   const spanContext = trace.getSpan(context.active())?.spanContext();
@@ -22,12 +16,9 @@ function activeSpanIds(): { traceId: string; spanId: string } | undefined {
 }
 
 /**
- * The primary correlation is the standard header, not a home-grown identifier
- * (ADR-007). A custom identifier works inside one process and dies at the first
- * service boundary, because no library propagates it on its own.
- *
- * With no collector configured the SDK does not start, and then minting our own
- * still applies: local development and the test suite need no collector.
+ * Correlation uses the standard `traceparent` header (ADR-007), which
+ * libraries propagate across service boundaries. With no collector configured
+ * the SDK does not start, and the ids are minted here instead.
  */
 export function traceContextMiddleware(req: Request, res: Response, next: NextFunction): void {
   const active = activeSpanIds();

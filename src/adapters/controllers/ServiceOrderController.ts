@@ -15,16 +15,7 @@ import { ServiceOrderPresenter } from '../presenters/ServiceOrderPresenter';
 import { ValidationError } from '../../entities/errors/AppError';
 import { ServiceOrder, OSStatus } from '../../entities/ServiceOrder';
 
-/**
- * Reads the request's owner **from the token**, never from the body or the
- * query string.
- *
- * Coming from the client, the ownership check would be decorative: you would
- * just pass the id of whoever you wanted to read. Concentrating the read here
- * leaves a single place to audit that guarantee.
- *
- * Returns undefined for employees, who are not restricted by ownership.
- */
+/** Owner of the request, read from the token. Undefined for staff, who are not restricted by ownership. */
 function requesterCustomerId(req: Request): string | undefined {
   return req.user?.type === 'customer' ? req.user.sub : undefined;
 }

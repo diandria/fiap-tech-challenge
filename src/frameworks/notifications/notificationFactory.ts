@@ -9,11 +9,8 @@ import { AsyncLocalStorageTraceContext } from '../logging/AsyncLocalStorageTrace
 import { logger } from '../logging/logger';
 
 /**
- * Picks the notification implementation from the environment.
- *
- * The choice lives here, not inside a use case: to whoever publishes an event,
- * `console` and `sns` are interchangeable behind the same port. No use case
- * knows that SNS exists.
+ * Picks the notification implementation from the environment. The choice
+ * lives here so no use case knows that SNS exists.
  */
 export function createNotificationService(
   failures: IIntegrationFailures = new PrometheusIntegrationFailures(),

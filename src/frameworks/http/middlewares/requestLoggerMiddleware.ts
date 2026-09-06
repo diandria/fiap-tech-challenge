@@ -11,13 +11,9 @@ import { httpRequestDuration } from '../../metrics/httpMetrics';
 const QUIET_PATHS = new Set(['/health', '/ready', '/metrics']);
 
 /**
- * Route template, including the mount prefix.
- *
- * `req.route.path` carries only the fragment declared inside the router: this
- * project's routers are mounted with a prefix and declare '/:id' inside, so
- * without `req.baseUrl` the customer and service order endpoints would collapse
- * into the same label. Returns undefined when no route matched, because then
- * there is no template.
+ * Route template, including the mount prefix. `req.route.path` carries only
+ * the fragment declared inside the router, so without `req.baseUrl` different
+ * routers would collapse into the same label. Undefined when no route matched.
  */
 function routeTemplate(req: Request): string | undefined {
   if (!req.route) return undefined;

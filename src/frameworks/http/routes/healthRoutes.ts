@@ -2,12 +2,9 @@ import { Router } from 'express';
 import { registry } from '../../metrics/registry';
 
 /**
- * Dependency check for the readiness probe. Throws when the dependency does not
- * answer.
- *
- * It is a function, and not the PrismaClient, so the HTTP layer does not come
- * to know the database: swapping the persistence technology should not reach
- * the probe routes.
+ * Dependency check for the readiness probe. Throws when the dependency does
+ * not answer. A function, not the PrismaClient, so the HTTP layer stays
+ * unaware of the persistence technology.
  */
 export type ReadinessCheck = () => Promise<unknown>;
 
@@ -25,7 +22,7 @@ export function healthRoutes(checkDatabase: ReadinessCheck): Router {
   const router = Router();
 
   // Liveness skips the database check: restarting the pod would not fix a
-  // database outage and would cause a restart loop (M3.T7).
+  // database outage and would cause a restart loop.
   router.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
 
   // Readiness does query: the 503 pulls the pod out of the Service.

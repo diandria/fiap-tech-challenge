@@ -42,7 +42,7 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *     summary: Customer budget decision — approve or reject (customer only — own OS)
    *     description: |
    *       Requires the customer token issued at `POST /auth/cpf`, and the order must belong to that customer.
-   *       The 4-digit `code` (first 4 digits of CPF/CNPJ) confirms the decision on purpose, not by accident.
+   *       The 4-digit `code` (first 4 digits of CPF/CNPJ) confirms the customer intended this decision.
    *       Rate-limited to 5 req/h per IP+OS combination.
    *     tags: [Service Orders]
    *     security:

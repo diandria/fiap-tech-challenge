@@ -3,13 +3,7 @@ import { ServiceOrder } from '../../entities/ServiceOrder';
 import { INotificationService } from '../../use-cases/ports/INotificationService';
 import { IIntegrationFailures } from '../../use-cases/ports/IIntegrationFailures';
 
-/**
- * The subset of a logger this adapter needs.
- *
- * `ILogger` deliberately carries only `warn` and `error`, which is what the
- * inner layers use. Widening it to satisfy this adapter would hand use cases a
- * method they never call.
- */
+/** The subset of a logger this adapter needs. */
 export interface INotificationLogger {
   info(context: Record<string, unknown>, message: string): void;
 }
@@ -45,13 +39,7 @@ export class ConsoleNotificationService implements INotificationService {
     });
   }
 
-  /**
-   * Counts the failure and rethrows.
-   *
-   * Rethrowing keeps the behaviour intact: the error still reaches the use
-   * case's catch, which goes on not rolling back the status transition.
-   * Swallowing it here would change the semantics and gain nothing.
-   */
+  /** Counts the failure and rethrows, so the use case still decides what to do. */
   private async dispatch(operation: string, send: () => void): Promise<void> {
     try {
       send();

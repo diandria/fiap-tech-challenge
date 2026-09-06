@@ -56,8 +56,8 @@ describe('traceContextMiddleware with an active OpenTelemetry span', () => {
 });
 
 describe('traceContextMiddleware without an active span', () => {
-  // Local development and the test suite run with no collector. The M2
-  // behaviour has to keep holding there.
+  // Local development and the test suite run with no collector, and the
+  // middleware still has to produce ids there.
   it('should generate its own ids GIVEN no active span WHEN a request arrives', async () => {
     const seen: { traceId?: string; spanId?: string } = {};
 

@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { check } from 'k6';
 
 /**
- * End-to-end validation load, so no M9 dashboard is empty during the recording.
+ * End-to-end validation load, so no dashboard is empty during the recording.
  *
  * Each scenario feeds a different panel:
  *

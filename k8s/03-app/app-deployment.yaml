@@ -74,8 +74,8 @@ spec:
           failureThreshold: 24
           periodSeconds: 5
           timeoutSeconds: 5
-        # Liveness does not query the database (M3.T7): restarting does not fix
-        # a database that is down.
+        # Liveness does not query the database: restarting does not fix a
+        # database that is down.
         livenessProbe:
           httpGet:
             path: /health

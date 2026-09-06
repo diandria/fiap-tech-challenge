@@ -19,9 +19,8 @@ let mechanicToken: string;
  * Reproduces what the function does after the lookup: signs the customer JWT
  * with the application's own secret, in the RFC-003 shape.
  *
- * This duplication is deliberate. The test does not import the function's code
- * -- it lives in another repository -- so it checks the *contract*: if the two
- * sides diverge, this test breaks, which is exactly the signal we want.
+ * The function's code lives in another repository and is not imported here, so
+ * this test checks the contract: if the two sides diverge, it breaks.
  */
 function signCustomerToken(customerId: string, name: string): string {
   return jwt.sign(
@@ -150,7 +149,7 @@ describe('Customer authentication flow', () => {
   it('should return 401 GIVEN a token signed with a different secret WHEN reading the order', async () => {
     const customerId = await createCustomer();
     const osId = await osWaitingApproval(customerId);
-    const foreign = jwt.sign({ type: 'customer', sub: customerId, cpf: CPF, name: 'John' }, 'outro-segredo');
+    const foreign = jwt.sign({ type: 'customer', sub: customerId, cpf: CPF, name: 'John' }, 'another-secret');
 
     const res = await request(app).get(`/service-orders/${osId}/status`)
       .set('Authorization', `Bearer ${foreign}`);
