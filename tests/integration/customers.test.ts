@@ -119,6 +119,32 @@ describe('PUT /customers/:id', () => {
   });
 });
 
+// A soft-deleted customer keeps its row, so the unique index still holds the
+// tax id. The use case's duplicate check only sees active records and lets the
+// insert through, which used to surface as a 500.
+describe('POST /customers after a soft delete', () => {
+  it('GIVEN a soft-deleted customer WHEN POST /customers reuses the tax id THEN returns 409', async () => {
+    const created = await request(app)
+      .post('/customers')
+      .set('Authorization', `Bearer ${attendantToken}`)
+      .send(validCustomer);
+    expect(created.status).toBe(201);
+
+    const removed = await request(app)
+      .delete(`/customers/${created.body.id}`)
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(removed.status).toBe(204);
+
+    const again = await request(app)
+      .post('/customers')
+      .set('Authorization', `Bearer ${attendantToken}`)
+      .send(validCustomer);
+
+    expect(again.status).toBe(409);
+    expect(again.body.error).toContain('already registered');
+  });
+});
+
 describe('DELETE /customers/:id', () => {
   it('GIVEN an existing customer WHEN DELETE /customers/:id THEN returns 204 AND subsequent GET returns 404', async () => {
     const created = await request(app).post('/customers').set('Authorization', `Bearer ${adminToken}`).send(validCustomer);

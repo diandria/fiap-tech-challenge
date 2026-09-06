@@ -2257,7 +2257,7 @@
                   "} else if (pm.response.code === 409) {",
                   "  pm.test('temp customer already existed (409) - reusing via tax id', (done) => {",
                   "    pm.sendRequest({",
-                  "      url: pm.environment.get('baseUrl') + '/customers/tax/63927761508',",
+                  "      url: pm.environment.get('baseUrl') + '/customers/tax/{{tempTaxId}}',",
                   "      method: 'GET',",
                   "      header: { Authorization: 'Bearer ' + pm.environment.get('adminToken') }",
                   "    }, (err, res) => {",
@@ -2288,7 +2288,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Maintenance Demo\",\n  \"taxId\": \"63927761508\",\n  \"email\": \"demo+maint@example.com\",\n  \"phone\": \"11999999999\",\n  \"taxType\": \"CPF\"\n}"
+              "raw": "{\n  \"name\": \"Maintenance Demo\",\n  \"taxId\": \"{{tempTaxId}}\",\n  \"email\": \"demo+maint@example.com\",\n  \"phone\": \"11999999999\",\n  \"taxType\": \"CPF\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/customers",
@@ -2322,8 +2322,8 @@
                   "    }, (err, res) => {",
                   "      pm.expect(err).to.be.null;",
                   "      pm.expect(res.code, 'list vehicles by customer').to.eql(200);",
-                  "      const v = res.json().find(x => (x.plate || '').toUpperCase() === 'MNT-9999');",
-                  "      pm.expect(v, 'vehicle with plate MNT-9999').to.be.an('object');",
+                  "      const v = res.json().find(x => (x.plate || '').toUpperCase() === '{{tempPlate}}');",
+                  "      pm.expect(v, 'vehicle with plate {{tempPlate}}').to.be.an('object');",
                   "      pm.environment.set('tempVehicleId', v.id);",
                   "      done();",
                   "    });",
@@ -2349,7 +2349,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{tempCustomerId}}\",\n  \"plate\": \"MNT-9999\",\n  \"brand\": \"Demo\",\n  \"model\": \"Maintenance\",\n  \"year\": 2024\n}"
+              "raw": "{\n  \"customerId\": \"{{tempCustomerId}}\",\n  \"plate\": \"{{tempPlate}}\",\n  \"brand\": \"Demo\",\n  \"model\": \"Maintenance\",\n  \"year\": 2024\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/vehicles",
@@ -2751,6 +2751,35 @@
           },
           "response": []
         }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Folder 08 creates temporary entities and soft-deletes them at the end. A",
+              "// soft-deleted row keeps its tax id and plate, and the unique index still",
+              "// holds them, so fixed values make the second run collide. Fresh values per",
+              "// run keep the collection repeatable.",
+              "function cpfCheckDigit(digits, weight) {",
+              "  let sum = 0;",
+              "  for (let i = 0; i < digits.length; i++) sum += Number(digits[i]) * (weight - i);",
+              "  const rest = (sum * 10) % 11;",
+              "  return rest === 10 ? 0 : rest;",
+              "}",
+              "",
+              "let base = '';",
+              "for (let i = 0; i < 9; i++) base += Math.floor(Math.random() * 10);",
+              "const d1 = cpfCheckDigit(base, 10);",
+              "const d2 = cpfCheckDigit(base + d1, 11);",
+              "pm.environment.set('tempTaxId', base + d1 + d2);",
+              "",
+              "const suffix = String(Math.floor(Math.random() * 9000) + 1000);",
+              "pm.environment.set('tempPlate', 'MNT' + suffix);"
+            ]
+          }
+        }
       ]
     },
     {
@@ -3078,9 +3107,19 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('expoe o histograma de latencia', () =>",
-                  "  pm.expect(pm.response.text()).to.include('http_request_duration_seconds'));"
+                  "// /metrics is deliberately not routed at the API Gateway: Prometheus scrapes",
+                  "// from inside the cluster with no credential. Against the deployed environment",
+                  "// the correct answer is 404, and that absence is itself worth asserting.",
+                  "const throughGateway = pm.response.code === 404;",
+                  "",
+                  "if (throughGateway) {",
+                  "  pm.test('not exposed through the public gateway', () =>",
+                  "    pm.expect(pm.response.code).to.eql(404));",
+                  "} else {",
+                  "  pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "  pm.test('exposes the latency histogram', () =>",
+                  "    pm.expect(pm.response.text()).to.include('http_request_duration_seconds'));",
+                  "}"
                 ]
               }
             }
@@ -3097,7 +3136,7 @@
                 "metrics"
               ]
             },
-            "description": "Formato de exposicao do Prometheus. Nao roteada no API Gateway."
+            "description": "Prometheus exposition format. Not routed at the API Gateway: the scrape happens from inside the cluster, with no credential.\n\nAgainst the deployed environment this returns 404, and the test asserts exactly that -- the endpoint must not be reachable from outside. Against a local baseUrl it asserts 200 and the presence of the latency histogram."
           },
           "response": []
         }

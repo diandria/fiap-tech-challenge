@@ -1,4 +1,5 @@
 import { isUuid } from './uuid';
+import { translatingUniqueViolation } from './uniqueConstraint';
 import { PrismaClient } from '@prisma/client';
 import { ICustomerRepository } from '../../use-cases/ports/ICustomerRepository';
 import { Customer, TaxType } from '../../entities/Customer';
@@ -56,7 +57,7 @@ export class PostgresCustomerRepository implements ICustomerRepository {
   }
 
   async create(data: Omit<Customer, 'id' | 'createdAt' | 'updatedAt'>): Promise<Customer> {
-    const row = await this.prisma.customer.create({ data });
+    const row = await translatingUniqueViolation(() => this.prisma.customer.create({ data }));
     return this.toEntity(row as CustomerRow);
   }
 
@@ -68,7 +69,7 @@ export class PostgresCustomerRepository implements ICustomerRepository {
     const existing = await this.prisma.customer.findFirst({ where: { id, ...active } });
     if (!existing) return null;
 
-    const row = await this.prisma.customer.update({ where: { id }, data });
+    const row = await translatingUniqueViolation(() => this.prisma.customer.update({ where: { id }, data }));
     return this.toEntity(row as CustomerRow);
   }
 
