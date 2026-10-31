@@ -2,7 +2,9 @@ import { ServiceOrderSaga } from '../../../../src/use-cases/saga/ServiceOrderSag
 import { ServiceOrder } from '../../../../src/entities/ServiceOrder';
 import { IUnitOfWork, TransactionalRepositories } from '../../../../src/use-cases/ports/IUnitOfWork';
 import { makeOSRepo, receivedOS, baseOS } from '../../fixtures/serviceOrder';
-import { makeItemRepo } from '../../fixtures/item';
+import { makeItemRepo, stockedItem } from '../../fixtures/item';
+import { makeServiceRepo, baseService } from '../../fixtures/service';
+import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 import { sagaReply } from '../../../support/sagaReplies';
 
 function setup(order: ServiceOrder | null, options: { firstDelivery?: boolean } = {}) {
@@ -22,7 +24,7 @@ function setup(order: ServiceOrder | null, options: { firstDelivery?: boolean } 
   };
   const notifier = { execute: jest.fn(async () => { events.push('notify'); }) };
   const logger = { warn: jest.fn(), error: jest.fn() };
-  const saga = new ServiceOrderSaga(unitOfWork, notifier, logger);
+  const saga = new ServiceOrderSaga(unitOfWork, makeServiceRepo(), makeCustomerRepo(), notifier, logger);
   return { saga, repositories, unitOfWork, notifier, logger, events };
 }
 
@@ -34,6 +36,28 @@ describe('ServiceOrderSaga', () => {
 
     expect(repositories.serviceOrders.update).toHaveBeenCalledWith(receivedOS.id, { status: 'DIAGNOSIS' }, { expectedVersion: receivedOS.version });
     expect(result).toMatchObject({ outcome: 'applied', serviceOrder: { status: 'DIAGNOSIS' } });
+  });
+
+  it('moves DIAGNOSIS to WAITING_APPROVAL and asks billing for a budget on DiagnosisCompleted', async () => {
+    const diagnosing = { ...baseOS, services: [{ serviceId: baseService.id }], items: [{ itemId: stockedItem.id, quantity: 2 }] };
+    const { saga, repositories } = setup(diagnosing);
+
+    const result = await saga.handle(sagaReply('DiagnosisCompleted', diagnosing.id));
+
+    expect(result.outcome).toBe('applied');
+    expect(repositories.serviceOrders.update).toHaveBeenCalledWith(diagnosing.id, { status: 'WAITING_APPROVAL' }, { expectedVersion: diagnosing.version });
+    expect(repositories.outbox.add).toHaveBeenCalledWith({
+      destination: 'billing-commands',
+      type: 'GenerateBudget',
+      serviceOrderId: diagnosing.id,
+      payload: {
+        customer: { id: cpfCustomer.id, name: cpfCustomer.name, email: cpfCustomer.email },
+        lines: [
+          { kind: 'SERVICE', referenceId: baseService.id, description: baseService.name, unitPrice: baseService.price, quantity: 1 },
+          { kind: 'ITEM', referenceId: stockedItem.id, description: stockedItem.name, unitPrice: stockedItem.price, quantity: 2 },
+        ],
+      },
+    });
   });
 
   it('records the reply as processed in the same unit of work as the effect', async () => {
