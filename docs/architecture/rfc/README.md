@@ -16,3 +16,4 @@ nada sobre o sistema. Cada documento se sustenta em mérito técnico.
 | [RFC-003](RFC-003-estrategia-de-autenticacao.md) | Estratégia de autenticação | Aceita | 2026-08-28 |
 | [RFC-004](RFC-004-produto-api-gateway.md) | Escolha do produto de API Gateway | Aceita | 2026-08-28 |
 | [RFC-005](RFC-005-produtos-observabilidade.md) | Produtos da stack de observabilidade | Aceita | 2026-08-28 |
+| [RFC-006](RFC-006-integracao-mercado-pago.md) | Integração de pagamento com o Mercado Pago | Aceita | 2026-10-31 |
