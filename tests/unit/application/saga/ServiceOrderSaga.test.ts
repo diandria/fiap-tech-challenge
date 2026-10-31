@@ -26,7 +26,7 @@ function setup(order: ServiceOrder | null, options: { firstDelivery?: boolean; i
     }),
   };
   const notifier = { execute: jest.fn(async () => { events.push('notify'); }) };
-  const logger = { warn: jest.fn(), error: jest.fn() };
+  const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
   const saga = new ServiceOrderSaga(unitOfWork, makeServiceRepo(), makeCustomerRepo(), notifier, logger, () => NOW);
   return { saga, repositories, unitOfWork, notifier, logger, events };
 }
@@ -246,5 +246,29 @@ describe('ServiceOrderSaga', () => {
 
     expect(await saga.handle(sagaReply('RepairStarted', approvedOS.id))).toEqual({ outcome: 'ignored' });
     expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['ExecutionCancelled', 'REJECTED'],
+    ['ExecutionCancelled', 'CANCELLED'],
+    ['BudgetCancelled', 'CANCELLED'],
+  ] as const)('accepts compensation confirmations without changing the order (%s on %s)', async (type, status) => {
+    const order = { ...approvedOS, status };
+    const { saga, repositories, notifier, logger } = setup(order);
+
+    const result = await saga.handle(sagaReply(type, order.id));
+
+    expect(result).toEqual({ outcome: 'applied', serviceOrder: order });
+    expect(repositories.processedMessages.markProcessed).toHaveBeenCalled();
+    expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
+    expect(repositories.outbox.add).not.toHaveBeenCalled();
+    expect(notifier.execute).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ serviceOrderId: order.id, replyType: type }));
+  });
+
+  it('ignores a BudgetCancelled for a rejected order, whose budget was never asked to be cancelled', async () => {
+    const { saga } = setup({ ...approvedOS, status: 'REJECTED' });
+
+    expect(await saga.handle(sagaReply('BudgetCancelled', approvedOS.id))).toEqual({ outcome: 'ignored' });
   });
 });

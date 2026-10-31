@@ -8,6 +8,10 @@ import { ILogger } from '../../use-cases/ports/ILogger';
 export class PinoLoggerAdapter implements ILogger {
   constructor(private readonly logger: Logger) {}
 
+  info(message: string, context: Record<string, unknown> = {}): void {
+    this.logger.info(context, message);
+  }
+
   warn(message: string, context: Record<string, unknown> = {}): void {
     this.logger.warn(context, message);
   }

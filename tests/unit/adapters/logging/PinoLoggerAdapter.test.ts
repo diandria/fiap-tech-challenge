@@ -2,16 +2,26 @@ import { Logger } from 'pino';
 import { PinoLoggerAdapter } from '../../../../src/adapters/logging/PinoLoggerAdapter';
 
 function fakePino() {
+  const info: unknown[][] = [];
   const warn: unknown[][] = [];
   const error: unknown[][] = [];
   const logger = {
+    info: (...args: unknown[]) => { info.push(args); },
     warn: (...args: unknown[]) => { warn.push(args); },
     error: (...args: unknown[]) => { error.push(args); },
   } as unknown as Logger;
-  return { warn, error, logger };
+  return { info, warn, error, logger };
 }
 
 describe('PinoLoggerAdapter', () => {
+  it('should forward an info line GIVEN a message and context WHEN info is called', () => {
+    const { info, logger } = fakePino();
+
+    new PinoLoggerAdapter(logger).info('saga compensation confirmed', { serviceOrderId: 'os-1' });
+
+    expect(info).toEqual([[{ serviceOrderId: 'os-1' }, 'saga compensation confirmed']]);
+  });
+
   it('should forward a warning GIVEN a message and context WHEN warn is called', () => {
     const { warn, logger } = fakePino();
 

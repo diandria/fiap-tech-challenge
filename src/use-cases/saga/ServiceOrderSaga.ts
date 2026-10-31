@@ -34,6 +34,10 @@ const EXPECTED_STATUS: Record<SagaReplyType, OSStatus[]> = {
   PaymentFailed: ['APPROVED'],
   RepairStarted: ['PAID'],
   RepairCompleted: ['EXECUTION'],
+  // Confirmations of a compensation. The budget is only cancelled when a
+  // payment fails, so its confirmation only fits a CANCELLED order.
+  ExecutionCancelled: ['REJECTED', 'CANCELLED'],
+  BudgetCancelled: ['CANCELLED'],
 };
 
 /** Replies that undo the earlier steps, and the reason the compensation commands carry. */
@@ -109,6 +113,9 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
         return this.repairStarted(order, repositories);
       case 'RepairCompleted':
         return this.repairCompleted(order, repositories);
+      case 'ExecutionCancelled':
+      case 'BudgetCancelled':
+        return this.compensationConfirmed(order, reply);
     }
   }
 
@@ -227,6 +234,21 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
   /** The end of the saga. Delivery to the customer stays a manual step for the staff. */
   private repairCompleted(order: ServiceOrder, { serviceOrders }: TransactionalRepositories): Promise<ServiceOrder> {
     return this.moveTo(order, 'FINISHED', serviceOrders, { finishedAt: this.now() });
+  }
+
+  /**
+   * A participant confirms it undid its step. Nothing changes here, but the
+   * confirmation is consumed and recorded, so the saga closes visibly in the
+   * logs and the trace, and a missing one shows up as a message stuck in the
+   * dead-letter queue.
+   */
+  private async compensationConfirmed(order: ServiceOrder, reply: SagaReply): Promise<ServiceOrder> {
+    this.logger.info('saga compensation confirmed', {
+      serviceOrderId: order.id,
+      replyType: reply.type,
+      status: order.status,
+    });
+    return order;
   }
 
   private async repairCommandFor(order: ServiceOrder): Promise<EnqueueRepairCommand> {

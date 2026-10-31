@@ -8,7 +8,7 @@ import { ServiceOrderSaga } from '../../src/use-cases/saga/ServiceOrderSaga';
 import { sagaReply } from '../support/sagaReplies';
 
 const noTrace = { currentTraceparent: () => undefined };
-const silentLogger = { warn: jest.fn(), error: jest.fn() };
+const silentLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
 let saga: ServiceOrderSaga;
 
@@ -248,5 +248,21 @@ describe('Service order saga', () => {
     expect(order.status).toBe('FINISHED');
     expect(order.finishedAt).toBeInstanceOf(Date);
     expect(order.statusHistory.at(-1)).toMatchObject({ fromStatus: 'EXECUTION', toStatus: 'FINISHED' });
+  });
+
+  it('GIVEN an order rejected by the customer WHEN ExecutionCancelled is handled THEN nothing changes but the message is recorded', async () => {
+    // GIVEN
+    const { orderId } = await seedOrder('WAITING_APPROVAL');
+    await saga.handle(sagaReply('BudgetRejected', orderId, { budgetId: '33333333-3333-4333-8333-333333333333' }));
+    const before = await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } });
+
+    // WHEN
+    const result = await saga.handle(sagaReply('ExecutionCancelled', orderId));
+
+    // THEN
+    expect(result.outcome).toBe('applied');
+    expect(await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } })).toMatchObject({ status: 'REJECTED', version: before.version });
+    expect(await prisma.outboxMessage.count()).toBe(1);
+    expect(await prisma.processedMessage.count()).toBe(2);
   });
 });
