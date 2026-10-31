@@ -2,7 +2,7 @@ import { ServiceOrderSaga } from '../../../../src/use-cases/saga/ServiceOrderSag
 import { ServiceOrder } from '../../../../src/entities/ServiceOrder';
 import { IUnitOfWork, TransactionalRepositories } from '../../../../src/use-cases/ports/IUnitOfWork';
 import { IItemRepository } from '../../../../src/use-cases/ports/IItemRepository';
-import { makeOSRepo, receivedOS, baseOS, waitingApprovalOS } from '../../fixtures/serviceOrder';
+import { makeOSRepo, receivedOS, baseOS, waitingApprovalOS, approvedOS } from '../../fixtures/serviceOrder';
 import { makeItemRepo, stockedItem, reservedItem } from '../../fixtures/item';
 import { makeServiceRepo, baseService } from '../../fixtures/service';
 import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
@@ -173,5 +173,49 @@ describe('ServiceOrderSaga', () => {
     expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
     expect(repositories.outbox.add).not.toHaveBeenCalled();
     expect(notifier.execute).not.toHaveBeenCalled();
+  });
+
+  it('consumes reserved stock, marks PAID and enqueues the repair with task names on PaymentConfirmed', async () => {
+    const order = { ...approvedOS, services: [{ serviceId: baseService.id }], items: [{ itemId: 'i-1', quantity: 2 }] };
+    const { saga, repositories } = setup(order, { items: makeItemRepo(reservedItem) });
+
+    const result = await saga.handle(sagaReply('PaymentConfirmed', order.id, { paymentId: 'p-1', amount: 200 }));
+
+    expect(result).toMatchObject({ outcome: 'applied', serviceOrder: { status: 'PAID' } });
+    expect(result.compensation).toBeUndefined();
+    expect(repositories.items.consume).toHaveBeenCalledWith('i-1', 2);
+    expect(repositories.serviceOrders.update).toHaveBeenCalledWith(order.id, { status: 'PAID' }, { expectedVersion: order.version });
+    expect(repositories.outbox.add).toHaveBeenCalledWith({
+      destination: 'execution-commands',
+      type: 'EnqueueRepair',
+      serviceOrderId: order.id,
+      payload: { tasks: [{ serviceId: baseService.id, name: baseService.name }] },
+    });
+  });
+
+  it('fails without changes when reserved stock cannot be consumed', async () => {
+    const items = makeItemRepo(reservedItem);
+    (items.consume as jest.Mock).mockResolvedValueOnce(false);
+    const { saga, repositories } = setup(approvedOS, { items });
+
+    await expect(saga.handle(sagaReply('PaymentConfirmed', approvedOS.id, { paymentId: 'p-1', amount: 200 }))).rejects.toThrow('i-1');
+
+    expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
+    expect(repositories.outbox.add).not.toHaveBeenCalled();
+  });
+
+  it('releases stock, cancels the order and asks execution and billing to compensate on PaymentFailed', async () => {
+    const { saga, repositories } = setup(approvedOS, { items: makeItemRepo(reservedItem) });
+
+    const result = await saga.handle(sagaReply('PaymentFailed', approvedOS.id, { paymentId: 'p-1', reason: 'cc_rejected_other_reason' }));
+
+    expect(result).toMatchObject({ outcome: 'applied', compensation: 'PAYMENT_FAILED', serviceOrder: { status: 'CANCELLED' } });
+    expect(repositories.items.release).toHaveBeenCalledWith('i-1', 2);
+    expect(repositories.outbox.add).toHaveBeenCalledWith({
+      destination: 'execution-commands', type: 'CancelExecution', serviceOrderId: approvedOS.id, payload: { reason: 'PAYMENT_FAILED' },
+    });
+    expect(repositories.outbox.add).toHaveBeenCalledWith({
+      destination: 'billing-commands', type: 'CancelBudget', serviceOrderId: approvedOS.id, payload: { reason: 'PAYMENT_FAILED' },
+    });
   });
 });

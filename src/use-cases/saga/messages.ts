@@ -10,6 +10,8 @@ export const SAGA_REPLY_TYPES = [
   'BudgetGenerated',
   'BudgetApproved',
   'BudgetRejected',
+  'PaymentConfirmed',
+  'PaymentFailed',
 ] as const;
 
 export type SagaReplyType = (typeof SAGA_REPLY_TYPES)[number];
@@ -29,7 +31,7 @@ export interface SagaReply {
 export type SagaReplyOutcome = 'applied' | 'duplicate' | 'ignored';
 
 /** Why a compensation started; sent along with the compensation commands. */
-export type CompensationReason = 'BUDGET_REJECTED';
+export type CompensationReason = 'BUDGET_REJECTED' | 'PAYMENT_FAILED';
 
 export interface SagaReplyResult {
   outcome: SagaReplyOutcome;
@@ -51,4 +53,9 @@ export interface BudgetLine {
 export interface GenerateBudgetCommand {
   customer: { id: string; name: string; email: string };
   lines: BudgetLine[];
+}
+
+/** Payload of EnqueueRepair: one task per service of the order, named as the catalog has it. */
+export interface EnqueueRepairCommand {
+  tasks: { serviceId: string; name: string }[];
 }

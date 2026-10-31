@@ -7,7 +7,14 @@ import { ICustomerRepository } from '../ports/ICustomerRepository';
 import { IStatusChangeNotifier } from '../ports/IStatusChangeNotifier';
 import { ILogger } from '../ports/ILogger';
 import { IServiceOrderSaga } from '../ports/input/IServiceOrderSaga';
-import { CompensationReason, GenerateBudgetCommand, SagaReply, SagaReplyResult, SagaReplyType } from './messages';
+import {
+  CompensationReason,
+  EnqueueRepairCommand,
+  GenerateBudgetCommand,
+  SagaReply,
+  SagaReplyResult,
+  SagaReplyType,
+} from './messages';
 import { buildBudgetLines } from './buildBudgetLines';
 import { Item } from '../../entities/Item';
 import { Service } from '../../entities/Service';
@@ -23,11 +30,14 @@ const EXPECTED_STATUS: Record<SagaReplyType, OSStatus[]> = {
   BudgetGenerated: ['WAITING_APPROVAL'],
   BudgetApproved: ['WAITING_APPROVAL'],
   BudgetRejected: ['WAITING_APPROVAL'],
+  PaymentConfirmed: ['APPROVED'],
+  PaymentFailed: ['APPROVED'],
 };
 
 /** Replies that undo the earlier steps, and the reason the compensation commands carry. */
 const COMPENSATION: Partial<Record<SagaReplyType, CompensationReason>> = {
   BudgetRejected: 'BUDGET_REJECTED',
+  PaymentFailed: 'PAYMENT_FAILED',
 };
 
 /**
@@ -88,6 +98,10 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
         return this.budgetApproved(order, repositories);
       case 'BudgetRejected':
         return this.budgetRejected(order, repositories);
+      case 'PaymentConfirmed':
+        return this.paymentConfirmed(order, repositories);
+      case 'PaymentFailed':
+        return this.paymentFailed(order, repositories);
     }
   }
 
@@ -160,6 +174,52 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
       payload: { reason: COMPENSATION.BudgetRejected },
     });
     return updated;
+  }
+
+  /**
+   * The point of no return: from here on there is no compensation. The
+   * reserved parts leave the stock, and the repair goes to the mechanic's
+   * queue. A consumption that fails throws, so the reply comes back until it
+   * succeeds or lands in the dead-letter queue and raises an alert.
+   */
+  private async paymentConfirmed(order: ServiceOrder, repositories: TransactionalRepositories): Promise<ServiceOrder> {
+    for (const { itemId, quantity } of order.items) {
+      if (!(await repositories.items.consume(itemId, quantity))) {
+        throw new ValidationError(`Cannot consume ${quantity} reserved units of item ${itemId}`);
+      }
+    }
+    const command = await this.repairCommandFor(order);
+    const updated = await this.moveTo(order, 'PAID', repositories.serviceOrders);
+    await repositories.outbox.add({
+      destination: 'execution-commands',
+      type: 'EnqueueRepair',
+      serviceOrderId: order.id,
+      payload: { ...command },
+    });
+    return updated;
+  }
+
+  /**
+   * Compensates every step before payment: the stock reservation here, the
+   * queue entry in the Execution Service and the budget in the Billing
+   * Service, all requested in the same transaction as the cancellation.
+   */
+  private async paymentFailed(order: ServiceOrder, repositories: TransactionalRepositories): Promise<ServiceOrder> {
+    await this.releaseReservations(order, repositories);
+    const updated = await this.moveTo(order, 'CANCELLED', repositories.serviceOrders);
+    const payload = { reason: COMPENSATION.PaymentFailed };
+    await repositories.outbox.add({ destination: 'execution-commands', type: 'CancelExecution', serviceOrderId: order.id, payload });
+    await repositories.outbox.add({ destination: 'billing-commands', type: 'CancelBudget', serviceOrderId: order.id, payload });
+    return updated;
+  }
+
+  private async repairCommandFor(order: ServiceOrder): Promise<EnqueueRepairCommand> {
+    const tasks = await Promise.all(order.services.map(async ({ serviceId }) => {
+      const service = await this.services.findById(serviceId);
+      if (!service) throw new NotFoundError(`Service ${serviceId}`);
+      return { serviceId, name: service.name };
+    }));
+    return { tasks };
   }
 
   /** A release that does not fit the reservation means the stock is inconsistent; the reply must fail. */

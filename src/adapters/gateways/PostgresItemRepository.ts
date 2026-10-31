@@ -79,6 +79,19 @@ export class PostgresItemRepository implements IItemRepository {
     return releasedRows === 1;
   }
 
+  async consume(id: string, quantity: number): Promise<boolean> {
+    if (!isUuid(id)) return false;
+    const consumedRows = await this.prisma.$executeRaw`
+      UPDATE items
+         SET stock_quantity = stock_quantity - ${quantity},
+             reserved_quantity = reserved_quantity - ${quantity}
+       WHERE id = ${id}::uuid
+         AND reserved_quantity >= ${quantity}
+         AND stock_quantity >= ${quantity}
+    `;
+    return consumedRows === 1;
+  }
+
   async delete(id: string): Promise<boolean> {
     if (!isUuid(id)) return false;
     const existing = await this.prisma.item.findUnique({ where: { id } });
