@@ -8,6 +8,9 @@ function makePrisma() {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      count: jest.fn().mockResolvedValue(1),
+      findUniqueOrThrow: jest.fn(),
     },
     serviceOrderService: { deleteMany: jest.fn(), createMany: jest.fn() },
     serviceOrderItem: { deleteMany: jest.fn(), createMany: jest.fn() },
@@ -28,6 +31,7 @@ const row = {
   startedAt: null,
   finishedAt: null,
   deliveredAt: null,
+  version: 4,
   services: [{ serviceId: '44444444-4444-4444-8444-444444444444', startedAt: null, finishedAt: null }],
   items: [{ itemId: '66666666-6666-4666-8666-666666666666', quantity: 2 }],
 };
@@ -141,7 +145,7 @@ describe('PostgresServiceOrderRepository', () => {
 
   it('should replace service lines inside a transaction GIVEN services WHEN update is called', async () => {
     const prisma = makePrisma();
-    prisma.serviceOrder.findUnique.mockResolvedValue(row);
+    prisma.serviceOrder.findUniqueOrThrow.mockResolvedValue({ status: row.status });
     prisma.serviceOrder.update.mockResolvedValue(row);
 
     await new PostgresServiceOrderRepository(prisma).update('88888888-8888-4888-8888-888888888888', {
@@ -157,7 +161,7 @@ describe('PostgresServiceOrderRepository', () => {
 
   it('should not touch relation tables GIVEN only a status change WHEN update is called', async () => {
     const prisma = makePrisma();
-    prisma.serviceOrder.findUnique.mockResolvedValue(row);
+    prisma.serviceOrder.findUniqueOrThrow.mockResolvedValue({ status: row.status });
     prisma.serviceOrder.update.mockResolvedValue(row);
 
     await new PostgresServiceOrderRepository(prisma).update('88888888-8888-4888-8888-888888888888', { status: 'APPROVED' });
@@ -168,7 +172,8 @@ describe('PostgresServiceOrderRepository', () => {
 
   it('should return null GIVEN a missing order WHEN update is called', async () => {
     const prisma = makePrisma();
-    prisma.serviceOrder.findUnique.mockResolvedValue(null);
+    prisma.serviceOrder.updateMany.mockResolvedValue({ count: 0 });
+    prisma.serviceOrder.count.mockResolvedValue(0);
 
     expect(await new PostgresServiceOrderRepository(prisma).update('99999999-9999-4999-8999-999999999999', { status: 'APPROVED' })).toBeNull();
   });
@@ -192,7 +197,7 @@ describe('PostgresServiceOrderRepository', () => {
 
   it('should record the change GIVEN a different status WHEN update is called', async () => {
     const prisma = makePrisma();
-    prisma.serviceOrder.findUnique.mockResolvedValue(row);
+    prisma.serviceOrder.findUniqueOrThrow.mockResolvedValue({ status: row.status });
     prisma.serviceOrder.update.mockResolvedValue({ ...row, status: 'WAITING_APPROVAL' });
 
     await new PostgresServiceOrderRepository(prisma).update('88888888-8888-4888-8888-888888888888', { status: 'WAITING_APPROVAL' });
@@ -204,7 +209,7 @@ describe('PostgresServiceOrderRepository', () => {
 
   it('should record nothing GIVEN the same status WHEN update is called', async () => {
     const prisma = makePrisma();
-    prisma.serviceOrder.findUnique.mockResolvedValue(row);
+    prisma.serviceOrder.findUniqueOrThrow.mockResolvedValue({ status: row.status });
     prisma.serviceOrder.update.mockResolvedValue(row);
 
     await new PostgresServiceOrderRepository(prisma).update('88888888-8888-4888-8888-888888888888', { status: 'DIAGNOSIS' });
@@ -214,7 +219,7 @@ describe('PostgresServiceOrderRepository', () => {
 
   it('should record nothing GIVEN no status WHEN update is called', async () => {
     const prisma = makePrisma();
-    prisma.serviceOrder.findUnique.mockResolvedValue(row);
+    prisma.serviceOrder.findUniqueOrThrow.mockResolvedValue({ status: row.status });
     prisma.serviceOrder.update.mockResolvedValue(row);
 
     await new PostgresServiceOrderRepository(prisma).update('88888888-8888-4888-8888-888888888888', { budgetTotal: 120 });
@@ -248,6 +253,49 @@ describe('PostgresServiceOrderRepository', () => {
 
     expect(await new PostgresServiceOrderRepository(prisma).findStatusHistory('not-a-uuid')).toEqual([]);
     expect(prisma.serviceOrderStatusHistory.findMany).not.toHaveBeenCalled();
+  });
+
+  it('should increment the version GIVEN any update WHEN update is called', async () => {
+    const prisma = makePrisma();
+    prisma.serviceOrder.findUniqueOrThrow.mockResolvedValue({ status: row.status });
+    prisma.serviceOrder.update.mockResolvedValue({ ...row, version: 5 });
+
+    const os = await new PostgresServiceOrderRepository(prisma).update('88888888-8888-4888-8888-888888888888', { budgetTotal: 120 });
+
+    expect(prisma.serviceOrder.updateMany).toHaveBeenCalledWith({
+      where: { id: '88888888-8888-4888-8888-888888888888' },
+      data: { version: { increment: 1 } },
+    });
+    expect(os?.version).toBe(5);
+  });
+
+  it('should claim only the expected version GIVEN expectedVersion WHEN update is called', async () => {
+    const prisma = makePrisma();
+    prisma.serviceOrder.findUniqueOrThrow.mockResolvedValue({ status: row.status });
+    prisma.serviceOrder.update.mockResolvedValue(row);
+
+    await new PostgresServiceOrderRepository(prisma).update(
+      '88888888-8888-4888-8888-888888888888', { status: 'WAITING_APPROVAL' }, { expectedVersion: 4 },
+    );
+
+    expect(prisma.serviceOrder.updateMany).toHaveBeenCalledWith({
+      where: { id: '88888888-8888-4888-8888-888888888888', version: 4 },
+      data: { version: { increment: 1 } },
+    });
+  });
+
+  it('should throw ConflictError GIVEN a stale expectedVersion WHEN update is called', async () => {
+    const prisma = makePrisma();
+    prisma.serviceOrder.updateMany.mockResolvedValue({ count: 0 });
+    prisma.serviceOrder.count.mockResolvedValue(1);
+
+    await expect(
+      new PostgresServiceOrderRepository(prisma).update(
+        '88888888-8888-4888-8888-888888888888', { status: 'DELIVERED' }, { expectedVersion: 3 },
+      ),
+    ).rejects.toMatchObject({ statusCode: 409 });
+    expect(prisma.serviceOrder.update).not.toHaveBeenCalled();
+    expect(prisma.serviceOrderStatusHistory.create).not.toHaveBeenCalled();
   });
 
   it('should aggregate execution time per service GIVEN finished lines WHEN getAvgExecutionByService is called', async () => {

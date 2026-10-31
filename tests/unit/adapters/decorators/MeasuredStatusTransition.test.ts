@@ -14,6 +14,7 @@ function anOrder(status: OSStatus, ageMs = 0): ServiceOrder {
     services: [],
     items: [],
     createdAt: new Date(Date.now() - ageMs),
+    version: 0,
   };
 }
 

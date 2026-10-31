@@ -16,6 +16,7 @@ const order = {
   services: [],
   items: [],
   createdAt: new Date(),
+  version: 0,
 } as ServiceOrder;
 
 function loggerThatWorks(): INotificationLogger {

@@ -74,6 +74,7 @@ erDiagram
         timestamp started_at
         timestamp finished_at
         timestamp delivered_at
+        int version "controle otimista"
     }
     service_order_services {
         uuid id PK
@@ -187,6 +188,11 @@ Cada um existe por causa de uma consulta específica:
 | `service_order_status_history(service_order_id, changed_at)` | Histórico de uma ordem, em ordem cronológica |
 
 ## Decisões de modelagem
+
+Sobre `service_orders.version`: toda escrita na ordem incrementa a versão, e quem leu a ordem antes de
+decidir pode exigir que ela ainda esteja na versão lida. Se outra escrita chegou antes, a atualização é
+recusada com conflito em vez de sobrescrever a outra. É controle otimista: não segura bloqueio enquanto o
+caso de uso decide, só confere no momento de gravar.
 
 Sobre as tabelas associativas terem chave própria em vez de chave composta pelos dois identificadores: a
 chave composta seria mais enxuta, mas fecharia a porta para o domínio permitir que a mesma ordem registre

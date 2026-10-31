@@ -11,6 +11,7 @@ function anOrder(): ServiceOrder {
     services: [],
     items: [],
     createdAt: new Date(),
+    version: 0,
   };
 }
 

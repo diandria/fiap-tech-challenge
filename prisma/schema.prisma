@@ -110,6 +110,7 @@ model ServiceOrder {
   startedAt   DateTime? @map("started_at")
   finishedAt  DateTime? @map("finished_at")
   deliveredAt DateTime? @map("delivered_at")
+  version     Int       @default(0)
 
   customer      Customer                    @relation(fields: [customerId], references: [id])
   vehicle       Vehicle                     @relation(fields: [vehicleId], references: [id])
