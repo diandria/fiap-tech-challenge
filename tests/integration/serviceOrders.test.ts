@@ -437,6 +437,35 @@ describe('Full OS lifecycle', () => {
 });
 
 describe('POST /service-orders — creation with services and items', () => {
+  it('GIVEN valid customer, vehicle and stock WHEN POST /service-orders THEN returns 201 and EnqueueDiagnosis is in the outbox', async () => {
+    // GIVEN
+    const auth = { Authorization: `Bearer ${adminToken}` };
+
+    // WHEN
+    const res = await request(app).post('/service-orders').set(auth)
+      .send({ customerId, vehicleId, services: [serviceId], items: [{ itemId, quantity: 1 }] });
+
+    // THEN
+    expect(res.status).toBe(201);
+    const outbox = await prisma.outboxMessage.findMany({ where: { serviceOrderId: res.body.id } });
+    expect(outbox).toEqual([
+      expect.objectContaining({ destination: 'execution-commands', type: 'EnqueueDiagnosis', payload: {} }),
+    ]);
+  });
+
+  it('GIVEN a requested quantity greater than available stock WHEN POST /service-orders THEN nothing is sent to the outbox', async () => {
+    // GIVEN
+    const auth = { Authorization: `Bearer ${adminToken}` };
+
+    // WHEN
+    const res = await request(app).post('/service-orders').set(auth)
+      .send({ customerId, vehicleId, items: [{ itemId, quantity: 999 }] });
+
+    // THEN
+    expect(res.status).toBe(400);
+    expect(await prisma.outboxMessage.count()).toBe(0);
+  });
+
   it('GIVEN no services or items WHEN creating an OS THEN returns 201 with RECEIVED status and empty arrays', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
 
