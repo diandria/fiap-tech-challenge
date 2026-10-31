@@ -1,5 +1,9 @@
 # Diagrama de componentes
 
+> Este diagrama registra a arquitetura da Fase 3, com a aplicação num único serviço. A arquitetura com os
+> três microsserviços, os bancos de cada um e as filas da saga está em
+> [Arquitetura alvo](target-architecture.md).
+
 Visão dos componentes do sistema, das fronteiras de nuvem e rede, e dos caminhos de observabilidade.
 
 ## Visão geral
