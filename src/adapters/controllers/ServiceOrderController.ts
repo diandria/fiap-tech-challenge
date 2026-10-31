@@ -8,6 +8,7 @@ import { RemoveItemFromOSUseCase } from '../../use-cases/service-orders/RemoveIt
 import { StartServiceUseCase } from '../../use-cases/service-orders/StartServiceUseCase';
 import { FinishServiceUseCase } from '../../use-cases/service-orders/FinishServiceUseCase';
 import { GetAvgExecutionTimeUseCase } from '../../use-cases/service-orders/GetAvgExecutionTimeUseCase';
+import { GetServiceOrderHistoryUseCase } from '../../use-cases/service-orders/GetServiceOrderHistoryUseCase';
 import { ICreateServiceOrder } from '../../use-cases/ports/input/ICreateServiceOrder';
 import { IChangeServiceOrderStatus } from '../../use-cases/ports/input/IChangeServiceOrderStatus';
 import { IDecideBudget } from '../../use-cases/ports/input/IDecideBudget';
@@ -41,6 +42,7 @@ export class ServiceOrderController {
     private readonly finishOS: IChangeServiceOrderStatus,
     private readonly deliverOS: IChangeServiceOrderStatus,
     private readonly getAvgExecution: GetAvgExecutionTimeUseCase,
+    private readonly getOSHistory: GetServiceOrderHistoryUseCase,
   ) {
     this.statusHandlers = {
       DIAGNOSIS: (id) => this.startDiagnosis.execute(id),
@@ -79,6 +81,17 @@ export class ServiceOrderController {
         requesterCustomerId: requesterCustomerId(req),
       });
       const { status, body } = ServiceOrderPresenter.status({ id: data.id, status: data.status, budgetTotal: data.budgetTotal });
+      res.status(status).json(body);
+    } catch (err) { next(err); }
+  }
+
+  async getHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await this.getOSHistory.execute({
+        osId: req.params.id,
+        requesterCustomerId: requesterCustomerId(req),
+      });
+      const { status, body } = ServiceOrderPresenter.history(data);
       res.status(status).json(body);
     } catch (err) { next(err); }
   }

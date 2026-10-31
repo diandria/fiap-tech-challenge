@@ -6,6 +6,7 @@ import {
   AvgExecutionResult,
 } from '../../use-cases/ports/IServiceOrderRepository';
 import { ServiceOrder, OSStatus, OSService } from '../../entities/ServiceOrder';
+import { ServiceOrderStatusChange } from '../../entities/ServiceOrderStatusChange';
 
 const INCLUDE_RELATIONS = {
   services: { select: { serviceId: true, startedAt: true, finishedAt: true } },
@@ -175,6 +176,15 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
 
       return this.toEntity(row as unknown as ServiceOrderRow);
     });
+  }
+
+  async findStatusHistory(serviceOrderId: string): Promise<ServiceOrderStatusChange[]> {
+    if (!isUuid(serviceOrderId)) return [];
+    const rows = await this.prisma.serviceOrderStatusHistory.findMany({
+      where: { serviceOrderId },
+      orderBy: { changedAt: 'asc' },
+    });
+    return rows.map((r) => ({ from: r.fromStatus, to: r.toStatus, changedAt: r.changedAt }));
   }
 
   async getAvgExecutionByService(): Promise<AvgExecutionResult[]> {

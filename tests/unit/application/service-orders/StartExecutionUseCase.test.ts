@@ -55,6 +55,7 @@ describe('StartExecutionUseCase', () => {
       findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
       create: jest.fn(), update: jest.fn(),
       getAvgExecutionByService: jest.fn().mockResolvedValue([]),
+      findStatusHistory: jest.fn().mockResolvedValue([]),
     };
     const useCase = new StartExecutionUseCase(osRepo, makeSequentialItemRepo(), makeNotifyStatusChange());
     await expect(useCase.execute('missing')).rejects.toMatchObject({ statusCode: 404 });

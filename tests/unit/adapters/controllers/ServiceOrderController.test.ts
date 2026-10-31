@@ -27,6 +27,7 @@ function makeUseCases() {
     finishOS: jest.fn().mockResolvedValue(os),
     deliverOS: jest.fn().mockResolvedValue(os),
     getAvgExecution: jest.fn().mockResolvedValue([]),
+    getOSHistory: jest.fn().mockResolvedValue({ serviceOrderId: os.id, history: [] }),
   };
 }
 
@@ -40,10 +41,22 @@ function makeController(fns = makeUseCases()) {
     { execute: fns.startExecution } as any, { execute: fns.startService } as any,
     { execute: fns.finishService } as any, { execute: fns.finishOS } as any,
     { execute: fns.deliverOS } as any, { execute: fns.getAvgExecution } as any,
+    { execute: fns.getOSHistory } as any,
   );
 }
 
 describe('ServiceOrderController', () => {
+  it('getHistory: passes the customer from the token and returns 200 with the history', async () => {
+    const fns = makeUseCases();
+    const controller = makeController(fns);
+    const req = { params: { id: os.id }, user: { type: 'customer', sub: 'c-1', cpf: '52998224725', name: 'Ana' } } as unknown as Request;
+    const res = makeRes();
+    await controller.getHistory(req, res, jest.fn());
+    expect(fns.getOSHistory).toHaveBeenCalledWith({ osId: os.id, requesterCustomerId: 'c-1' });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ serviceOrderId: os.id, history: [] });
+  });
+
   it('getStatus: returns 200 with id, status and budgetTotal', async () => {
     const fns = makeUseCases();
     const controller = makeController(fns);

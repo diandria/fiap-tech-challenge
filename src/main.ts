@@ -61,6 +61,7 @@ import { StartServiceUseCase } from './use-cases/service-orders/StartServiceUseC
 import { FinishServiceUseCase } from './use-cases/service-orders/FinishServiceUseCase';
 import { FinishOSUseCase } from './use-cases/service-orders/FinishOSUseCase';
 import { DeliverOSUseCase } from './use-cases/service-orders/DeliverOSUseCase';
+import { GetServiceOrderHistoryUseCase } from './use-cases/service-orders/GetServiceOrderHistoryUseCase';
 import { GetAvgExecutionTimeUseCase } from './use-cases/service-orders/GetAvgExecutionTimeUseCase';
 
 import { AuthController } from './adapters/controllers/AuthController';
@@ -150,6 +151,7 @@ async function main(): Promise<void> {
     new MeasuredStatusTransition(new FinishOSUseCase(osRepo, notifyStatusChange), businessMetrics),
     new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange), businessMetrics),
     new GetAvgExecutionTimeUseCase(osRepo),
+    new GetServiceOrderHistoryUseCase(osRepo),
   );
 
   const app = createApp({

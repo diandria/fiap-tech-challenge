@@ -51,4 +51,5 @@ export const makeOSRepo = (
     Promise.resolve(updateResult ?? (os ? { ...os, ...data } : null))
   ),
   getAvgExecutionByService: jest.fn().mockResolvedValue([]),
+  findStatusHistory: jest.fn().mockResolvedValue([]),
 });

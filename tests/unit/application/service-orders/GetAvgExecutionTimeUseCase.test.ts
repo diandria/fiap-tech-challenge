@@ -12,6 +12,7 @@ const makeRepo = (results = mockResults): IServiceOrderRepository => ({
   create: jest.fn(),
   update: jest.fn(),
   getAvgExecutionByService: jest.fn().mockResolvedValue(results),
+  findStatusHistory: jest.fn().mockResolvedValue([]),
 });
 
 describe('GetAvgExecutionTimeUseCase', () => {

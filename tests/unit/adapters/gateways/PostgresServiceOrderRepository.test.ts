@@ -222,6 +222,34 @@ describe('PostgresServiceOrderRepository', () => {
     expect(prisma.serviceOrderStatusHistory.create).not.toHaveBeenCalled();
   });
 
+  it('should map rows in chronological order GIVEN recorded changes WHEN findStatusHistory is called', async () => {
+    const prisma = makePrisma();
+    const opened = new Date('2026-01-01T10:00:00');
+    const diagnosed = new Date('2026-01-01T11:00:00');
+    prisma.serviceOrderStatusHistory.findMany.mockResolvedValue([
+      { id: 'h1', serviceOrderId: '88888888-8888-4888-8888-888888888888', fromStatus: null, toStatus: 'RECEIVED', changedAt: opened },
+      { id: 'h2', serviceOrderId: '88888888-8888-4888-8888-888888888888', fromStatus: 'RECEIVED', toStatus: 'DIAGNOSIS', changedAt: diagnosed },
+    ]);
+
+    const history = await new PostgresServiceOrderRepository(prisma).findStatusHistory('88888888-8888-4888-8888-888888888888');
+
+    expect(prisma.serviceOrderStatusHistory.findMany).toHaveBeenCalledWith({
+      where: { serviceOrderId: '88888888-8888-4888-8888-888888888888' },
+      orderBy: { changedAt: 'asc' },
+    });
+    expect(history).toEqual([
+      { from: null, to: 'RECEIVED', changedAt: opened },
+      { from: 'RECEIVED', to: 'DIAGNOSIS', changedAt: diagnosed },
+    ]);
+  });
+
+  it('should return an empty history GIVEN an id that is not a uuid WHEN findStatusHistory is called', async () => {
+    const prisma = makePrisma();
+
+    expect(await new PostgresServiceOrderRepository(prisma).findStatusHistory('not-a-uuid')).toEqual([]);
+    expect(prisma.serviceOrderStatusHistory.findMany).not.toHaveBeenCalled();
+  });
+
   it('should aggregate execution time per service GIVEN finished lines WHEN getAvgExecutionByService is called', async () => {
     const prisma = makePrisma();
     prisma.$queryRaw.mockResolvedValue([

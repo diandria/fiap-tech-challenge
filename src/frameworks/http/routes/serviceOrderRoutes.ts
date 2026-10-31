@@ -77,6 +77,32 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    */
   router.patch('/:id/budget', budgetLimiter, authMiddleware, requireCustomer, (req, res, next) => controller.budgetDecision(req, res, next));
 
+  /**
+   * @openapi
+   * /service-orders/{id}/history:
+   *   get:
+   *     summary: Status history of a service order (staff, or the customer who owns it)
+   *     tags: [Service Orders]
+   *     security:
+   *       - bearerAuth: []
+   *       - customerBearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Status changes in chronological order; `from` is null for the opening
+   *       401:
+   *         description: Missing or invalid token
+   *       403:
+   *         description: Customer token for an order of another customer
+   *       404:
+   *         description: Not found
+   */
+  router.get('/:id/history', authMiddleware, (req, res, next) => controller.getHistory(req, res, next));
+
   router.use(authMiddleware);
 
   /**
