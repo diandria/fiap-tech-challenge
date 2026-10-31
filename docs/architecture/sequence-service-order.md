@@ -13,10 +13,14 @@ sequenceDiagram
 
     F->>G: POST /service-orders<br/>{ cliente, veículo, serviços, peças }
     G->>A: encaminha
-    A->>D: grava a ordem e reserva o estoque<br/>numa transação
+    A->>D: grava a ordem, reserva o estoque<br/>e põe EnqueueDiagnosis no outbox,<br/>numa transação
     D-->>A: ordem criada
     A-->>F: 201 { id, status inicial }
 ```
+
+A abertura é a primeira etapa da saga: o pedido de diagnóstico para o Execution Service sai pelo outbox,
+na mesma transação da ordem e da reserva. Daí em diante, o caminho da ordem está nos
+[diagramas de sequência da saga](sequence-service-order-saga.md).
 
 A reserva de estoque aparece como uma mensagem, não como um laço. Validar cada serviço no catálogo,
 conferir disponibilidade peça a peça e reverter reservas parciais em caso de falha é regra de domínio, e
@@ -31,30 +35,30 @@ declaradas.
 
 ```mermaid
 sequenceDiagram
-    actor M as Mecânico
-    participant G as API Gateway
+    participant Q as Fila de respostas da saga
     participant A as Aplicação
     participant D as Banco
     participant T as Tópico de eventos
     participant N as Função de notificações
     participant E as Canal de entrega
 
-    M->>G: PATCH /service-orders/{id}
-    G->>A: encaminha
+    Q-)A: resposta de Billing ou Execution
     A->>D: persiste o novo status
     A->>T: publica o evento<br/>com o contexto de rastreamento
-    A-->>M: 200
     T->>N: entrega
     N->>E: entrega a notificação<br/>como registro estruturado
 ```
 
-Este é o diagrama mais informativo dos quatro. Ele mostra a costura assíncrona: a resposta ao mecânico
-sai antes de o e-mail ser enviado, e a entrega acontece depois, noutro processo
+O status da ordem muda pelas respostas da saga, e não mais por uma chamada do mecânico ao OS. A única
+mudança feita por uma pessoa é a entrega (`PATCH /service-orders/{id}` com `DELIVERED`), que segue o mesmo
+caminho de notificação a partir da persistência.
+
+Este é o diagrama mais informativo dos quatro. Ele mostra a costura assíncrona: o status é gravado antes
+de o e-mail ser enviado, e a entrega acontece depois, noutro processo
 ([ADR-003](adr/ADR-003-padrao-de-comunicacao.md)).
 
-É também o único lugar da documentação onde a fronteira de mensageria fica visível, e onde se vê por que
-o contexto de rastreamento viaja no evento. Sem ele, o rastro terminaria na publicação, e a jornada
-apareceria como dois pedaços desconexos.
+É também onde se vê por que o contexto de rastreamento viaja no evento, como viaja nas mensagens da
+saga. Sem ele, o rastro terminaria na publicação, e a jornada apareceria como pedaços desconexos.
 
 ## O que os dois diagramas deixam de fora, de propósito
 
