@@ -4,7 +4,13 @@ import { ServiceOrder } from '../../entities/ServiceOrder';
  * Replies the participants send to the saga replies queue (ADR-015). The list
  * grows as the orchestrator learns each step.
  */
-export const SAGA_REPLY_TYPES = ['DiagnosisStarted', 'DiagnosisCompleted'] as const;
+export const SAGA_REPLY_TYPES = [
+  'DiagnosisStarted',
+  'DiagnosisCompleted',
+  'BudgetGenerated',
+  'BudgetApproved',
+  'BudgetRejected',
+] as const;
 
 export type SagaReplyType = (typeof SAGA_REPLY_TYPES)[number];
 
@@ -22,10 +28,15 @@ export interface SagaReply {
  */
 export type SagaReplyOutcome = 'applied' | 'duplicate' | 'ignored';
 
+/** Why a compensation started; sent along with the compensation commands. */
+export type CompensationReason = 'BUDGET_REJECTED';
+
 export interface SagaReplyResult {
   outcome: SagaReplyOutcome;
   /** Present when applied. */
   serviceOrder?: ServiceOrder;
+  /** Present when the reply started compensating the earlier steps. */
+  compensation?: CompensationReason;
 }
 
 export interface BudgetLine {

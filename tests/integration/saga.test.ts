@@ -1,4 +1,6 @@
-import { connectTestDB, disconnectTestDB, clearTestDB, prisma } from '../helpers/testSetup';
+import request from 'supertest';
+import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } from '../helpers/testSetup';
+import { signCustomerToken } from '../helpers/customerToken';
 import { PrismaUnitOfWork } from '../../src/adapters/gateways/PrismaUnitOfWork';
 import { PostgresServiceRepository } from '../../src/adapters/gateways/PostgresServiceRepository';
 import { PostgresCustomerRepository } from '../../src/adapters/gateways/PostgresCustomerRepository';
@@ -11,6 +13,7 @@ const silentLogger = { warn: jest.fn(), error: jest.fn() };
 let saga: ServiceOrderSaga;
 
 beforeAll(async () => {
+  process.env.JWT_SECRET = 'saga-test-secret';
   await connectTestDB();
   saga = new ServiceOrderSaga(
     new PrismaUnitOfWork(prisma, noTrace),
@@ -23,8 +26,10 @@ beforeAll(async () => {
 afterAll(async () => { await disconnectTestDB(); });
 afterEach(async () => { await clearTestDB(); });
 
-/** An order in DIAGNOSIS with one service at 120.00 and two units of an item at 30.00. */
-async function seedOrderInDiagnosis(): Promise<{ orderId: string; serviceId: string; itemId: string }> {
+/** An order with one service at 120.00 and two reserved units of an item at 30.00, in the given status. */
+async function seedOrder(
+  status: 'DIAGNOSIS' | 'WAITING_APPROVAL' = 'DIAGNOSIS',
+): Promise<{ orderId: string; customerId: string; serviceId: string; itemId: string }> {
   const customer = await prisma.customer.create({
     data: { name: 'Maria Souza', taxId: '52998224725', taxType: 'CPF', email: 'maria@example.com', phone: '11999999999' },
   });
@@ -37,18 +42,18 @@ async function seedOrderInDiagnosis(): Promise<{ orderId: string; serviceId: str
     data: {
       customerId: customer.id,
       vehicleId: vehicle.id,
-      status: 'DIAGNOSIS',
+      status,
       services: { create: [{ serviceId: service.id }] },
       items: { create: [{ itemId: item.id, quantity: 2 }] },
     },
   });
-  return { orderId: order.id, serviceId: service.id, itemId: item.id };
+  return { orderId: order.id, customerId: customer.id, serviceId: service.id, itemId: item.id };
 }
 
 describe('Service order saga', () => {
   it('GIVEN an order in DIAGNOSIS with one service and one item WHEN DiagnosisCompleted is handled THEN the order is WAITING_APPROVAL and a GenerateBudget with both priced lines is in the outbox', async () => {
     // GIVEN
-    const { orderId, serviceId, itemId } = await seedOrderInDiagnosis();
+    const { orderId, serviceId, itemId } = await seedOrder();
 
     // WHEN
     const result = await saga.handle(sagaReply('DiagnosisCompleted', orderId));
@@ -77,7 +82,7 @@ describe('Service order saga', () => {
 
   it('GIVEN DiagnosisCompleted already handled WHEN the same messageId arrives again THEN the outbox has a single GenerateBudget', async () => {
     // GIVEN
-    const { orderId } = await seedOrderInDiagnosis();
+    const { orderId } = await seedOrder();
     const reply = sagaReply('DiagnosisCompleted', orderId);
     await saga.handle(reply);
 
@@ -91,7 +96,7 @@ describe('Service order saga', () => {
 
   it('GIVEN an order still RECEIVED WHEN DiagnosisCompleted arrives THEN it is ignored and nothing is written but the processed record', async () => {
     // GIVEN
-    const { orderId } = await seedOrderInDiagnosis();
+    const { orderId } = await seedOrder();
     await prisma.serviceOrder.update({ where: { id: orderId }, data: { status: 'RECEIVED' } });
 
     // WHEN
@@ -102,5 +107,72 @@ describe('Service order saga', () => {
     expect((await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } })).status).toBe('RECEIVED');
     expect(await prisma.outboxMessage.count()).toBe(0);
     expect(await prisma.processedMessage.count()).toBe(1);
+  });
+
+  it('GIVEN an order WAITING_APPROVAL WHEN BudgetApproved is handled THEN the order is APPROVED and RequestPayment is in the outbox', async () => {
+    // GIVEN
+    const { orderId } = await seedOrder('WAITING_APPROVAL');
+
+    // WHEN
+    const result = await saga.handle(sagaReply('BudgetApproved', orderId, { budgetId: '33333333-3333-4333-8333-333333333333' }));
+
+    // THEN
+    expect(result.outcome).toBe('applied');
+    expect((await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } })).status).toBe('APPROVED');
+    const outbox = await prisma.outboxMessage.findMany();
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]).toMatchObject({ destination: 'billing-commands', type: 'RequestPayment', serviceOrderId: orderId });
+  });
+
+  it('GIVEN an order WAITING_APPROVAL WHEN a BudgetGenerated reply carrying 180.00 is handled THEN GET /service-orders/:id/status shows budgetTotal 180', async () => {
+    // GIVEN
+    const { orderId, customerId } = await seedOrder('WAITING_APPROVAL');
+
+    // WHEN
+    await saga.handle(sagaReply('BudgetGenerated', orderId, { budgetId: '33333333-3333-4333-8333-333333333333', total: 180 }));
+
+    // THEN
+    const res = await request(createTestApp())
+      .get(`/service-orders/${orderId}/status`)
+      .set('Authorization', `Bearer ${signCustomerToken(customerId)}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ status: 'WAITING_APPROVAL', budgetTotal: 180 });
+  });
+
+  it('GIVEN an order WAITING_APPROVAL with 2 units reserved WHEN BudgetRejected is handled THEN the order is REJECTED, reserved quantity drops by 2 and CancelExecution is in the outbox', async () => {
+    // GIVEN
+    const { orderId, itemId } = await seedOrder('WAITING_APPROVAL');
+
+    // WHEN
+    const result = await saga.handle(sagaReply('BudgetRejected', orderId, { budgetId: '33333333-3333-4333-8333-333333333333' }));
+
+    // THEN
+    expect(result).toMatchObject({ outcome: 'applied', compensation: 'BUDGET_REJECTED' });
+    expect((await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } })).status).toBe('REJECTED');
+    expect(await prisma.item.findUniqueOrThrow({ where: { id: itemId } })).toMatchObject({ stockQuantity: 10, reservedQuantity: 0 });
+    const outbox = await prisma.outboxMessage.findMany();
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]).toMatchObject({
+      destination: 'execution-commands',
+      type: 'CancelExecution',
+      serviceOrderId: orderId,
+      payload: { reason: 'BUDGET_REJECTED' },
+    });
+  });
+
+  it('GIVEN a reservation smaller than the order WHEN BudgetRejected is handled THEN it fails and nothing changes', async () => {
+    // GIVEN
+    const { orderId, itemId } = await seedOrder('WAITING_APPROVAL');
+    await prisma.item.update({ where: { id: itemId }, data: { reservedQuantity: 1 } });
+
+    // WHEN
+    const handling = saga.handle(sagaReply('BudgetRejected', orderId, { budgetId: '33333333-3333-4333-8333-333333333333' }));
+
+    // THEN
+    await expect(handling).rejects.toThrow('Cannot release');
+    expect((await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } })).status).toBe('WAITING_APPROVAL');
+    expect((await prisma.item.findUniqueOrThrow({ where: { id: itemId } })).reservedQuantity).toBe(1);
+    expect(await prisma.outboxMessage.count()).toBe(0);
+    expect(await prisma.processedMessage.count()).toBe(0);
   });
 });

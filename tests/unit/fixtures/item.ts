@@ -40,4 +40,7 @@ export const makeItemRepo = (
   reserve: jest.fn().mockImplementation((_id: string, quantity: number) =>
     Promise.resolve(found !== null && getAvailableQuantity(found) >= quantity)
   ),
+  release: jest.fn().mockImplementation((_id: string, quantity: number) =>
+    Promise.resolve(found !== null && found.reservedQuantity >= quantity)
+  ),
 });
