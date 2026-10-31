@@ -42,6 +42,11 @@ export class SqsQueuePoller {
     this.options = { ...DEFAULT_OPTIONS, ...options };
   }
 
+  /** The short name of the queue, as it appears in logs and metrics. */
+  get queueName(): string {
+    return this.queue.name;
+  }
+
   start(): void {
     this.stopped = false;
     this.abort = new AbortController();

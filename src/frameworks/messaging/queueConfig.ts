@@ -3,9 +3,17 @@ import { QueueUrls } from '../../adapters/messaging/SqsMessageSender';
 export interface QueueConfig {
   commands: QueueUrls;
   sagaReplies: string;
+  /** Where a command lands after the participant failed it five times; the saga reads them to compensate. */
+  deadLetters: QueueUrls;
 }
 
-const VARIABLES = ['QUEUE_URL_BILLING_COMMANDS', 'QUEUE_URL_EXECUTION_COMMANDS', 'QUEUE_URL_SAGA_REPLIES'] as const;
+const VARIABLES = [
+  'QUEUE_URL_BILLING_COMMANDS',
+  'QUEUE_URL_EXECUTION_COMMANDS',
+  'QUEUE_URL_SAGA_REPLIES',
+  'DLQ_URL_BILLING_COMMANDS',
+  'DLQ_URL_EXECUTION_COMMANDS',
+] as const;
 
 /**
  * Reads the saga queue urls. None set means messaging is off, which is the
@@ -25,5 +33,9 @@ export function readQueueConfig(env: Record<string, string | undefined> = proces
       'execution-commands': env.QUEUE_URL_EXECUTION_COMMANDS as string,
     },
     sagaReplies: env.QUEUE_URL_SAGA_REPLIES as string,
+    deadLetters: {
+      'billing-commands': env.DLQ_URL_BILLING_COMMANDS as string,
+      'execution-commands': env.DLQ_URL_EXECUTION_COMMANDS as string,
+    },
   };
 }
