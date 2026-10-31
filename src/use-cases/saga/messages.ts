@@ -32,10 +32,12 @@ export interface SagaReply {
  * duplicate: the same message was handled before; nothing changed.
  * ignored: the order was not in the status the reply expects; nothing changed.
  */
-export type SagaReplyOutcome = 'applied' | 'duplicate' | 'ignored';
+export const SAGA_REPLY_OUTCOMES = ['applied', 'duplicate', 'ignored'] as const;
+export type SagaReplyOutcome = (typeof SAGA_REPLY_OUTCOMES)[number];
 
 /** Why a compensation started; sent along with the compensation commands. */
-export type CompensationReason = 'BUDGET_REJECTED' | 'PAYMENT_FAILED' | 'STEP_FAILED';
+export const COMPENSATION_REASONS = ['BUDGET_REJECTED', 'PAYMENT_FAILED', 'STEP_FAILED'] as const;
+export type CompensationReason = (typeof COMPENSATION_REASONS)[number];
 
 export interface SagaReplyResult {
   outcome: SagaReplyOutcome;
