@@ -162,3 +162,19 @@ model ServiceOrderStatusHistory {
   @@index([serviceOrderId, changedAt])
   @@map("service_order_status_history")
 }
+
+// Messages waiting to be published, written in the same transaction as the
+// change that produced them. The relay publishes and marks them.
+model OutboxMessage {
+  id             String    @id @db.Uuid
+  destination    String
+  type           String
+  serviceOrderId String    @map("service_order_id") @db.Uuid
+  payload        Json
+  traceparent    String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  publishedAt    DateTime? @map("published_at")
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox_messages")
+}
