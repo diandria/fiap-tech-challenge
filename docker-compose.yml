@@ -19,6 +19,24 @@ services:
       timeout: 3s
       retries: 5
 
+  # SQS for the saga queues, with the same names as on AWS. Pinned to the last
+  # community release: newer images refuse to start without a license token.
+  localstack:
+    image: localstack/localstack:4.9.2
+    container_name: car-repair-shop-localstack
+    environment:
+      SERVICES: sqs
+      AWS_DEFAULT_REGION: us-east-1
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./scripts/localstack:/etc/localstack/init/ready.d:ro
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   app:
     build: .
     ports:

@@ -217,7 +217,17 @@ npm install
 docker-compose up -d
 ```
 
-Sobe `app` (porta 3000) e `postgres` (porta 5432).
+Sobe `app` (porta 3000), `postgres` (porta 5432) e `localstack` (porta 4566), que faz o papel do SQS.
+Ao ficar pronto, o LocalStack roda `scripts/localstack/create-queues.sh` e cria as filas da saga com os
+mesmos nomes e parâmetros da AWS, cada uma com sua fila de descarte. Para conferir:
+
+```bash
+docker exec car-repair-shop-localstack awslocal sqs list-queues
+```
+
+A imagem fica fixa na `4.9.2` porque as versões mais novas do LocalStack só sobem com um token de licença.
+Os testes de integração de mensageria sobem o próprio LocalStack pelo Testcontainers e não dependem deste
+container.
 
 Na primeira execução, aplique as migrations:
 
