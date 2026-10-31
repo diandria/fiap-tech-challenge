@@ -44,7 +44,6 @@ import { GetItemByIdUseCase } from './use-cases/items/GetItemByIdUseCase';
 import { ListItemsUseCase } from './use-cases/items/ListItemsUseCase';
 import { UpdateItemUseCase } from './use-cases/items/UpdateItemUseCase';
 import { DeleteItemUseCase } from './use-cases/items/DeleteItemUseCase';
-import { CalculateBudgetUseCase } from './use-cases/service-orders/CalculateBudgetUseCase';
 import { CreateServiceOrderUseCase } from './use-cases/service-orders/CreateServiceOrderUseCase';
 import { GetServiceOrderUseCase } from './use-cases/service-orders/GetServiceOrderUseCase';
 import { ListServiceOrdersUseCase } from './use-cases/service-orders/ListServiceOrdersUseCase';
@@ -53,15 +52,10 @@ import { RemoveServiceFromOSUseCase } from './use-cases/service-orders/RemoveSer
 import { AddItemToOSUseCase } from './use-cases/service-orders/AddItemToOSUseCase';
 import { RemoveItemFromOSUseCase } from './use-cases/service-orders/RemoveItemFromOSUseCase';
 import { NotifyStatusChangeUseCase } from './use-cases/service-orders/NotifyStatusChangeUseCase';
-import { NotifyBudgetUseCase } from './use-cases/service-orders/NotifyBudgetUseCase';
-import { StartDiagnosisUseCase } from './use-cases/service-orders/StartDiagnosisUseCase';
-import { FinishDiagnosisUseCase } from './use-cases/service-orders/FinishDiagnosisUseCase';
 import { ApproveBudgetUseCase } from './use-cases/service-orders/ApproveBudgetUseCase';
 import { RejectBudgetUseCase } from './use-cases/service-orders/RejectBudgetUseCase';
-import { StartExecutionUseCase } from './use-cases/service-orders/StartExecutionUseCase';
 import { StartServiceUseCase } from './use-cases/service-orders/StartServiceUseCase';
 import { FinishServiceUseCase } from './use-cases/service-orders/FinishServiceUseCase';
-import { FinishOSUseCase } from './use-cases/service-orders/FinishOSUseCase';
 import { DeliverOSUseCase } from './use-cases/service-orders/DeliverOSUseCase';
 import { GetServiceOrderHistoryUseCase } from './use-cases/service-orders/GetServiceOrderHistoryUseCase';
 import { GetAvgExecutionTimeUseCase } from './use-cases/service-orders/GetAvgExecutionTimeUseCase';
@@ -127,7 +121,6 @@ async function main(): Promise<void> {
     new ListItemsUseCase(itemRepo), new UpdateItemUseCase(itemRepo), new DeleteItemUseCase(itemRepo),
   );
   const notifyStatusChange = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier, appLogger);
-  const notifyBudget = new NotifyBudgetUseCase(osRepo, customerRepo, notifier, appLogger);
 
   const businessMetrics = new PrometheusBusinessMetrics();
 
@@ -140,22 +133,12 @@ async function main(): Promise<void> {
     new ListServiceOrdersUseCase(osRepo),
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
     new AddItemToOSUseCase(unitOfWork), new RemoveItemFromOSUseCase(unitOfWork),
-    new MeasuredStatusTransition(new StartDiagnosisUseCase(osRepo, notifyStatusChange), businessMetrics),
-    new MeasuredStatusTransition(
-      new FinishDiagnosisUseCase(osRepo, notifyStatusChange, notifyBudget, new CalculateBudgetUseCase(serviceRepo, itemRepo)),
-      businessMetrics,
-    ),
     new MeasuredBudgetDecision(new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange), businessMetrics),
     new MeasuredBudgetDecision(
       new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
       businessMetrics,
     ),
-    new MeasuredStatusTransition(
-      new StartExecutionUseCase(osRepo, itemRepo, notifyStatusChange),
-      businessMetrics,
-    ),
     new StartServiceUseCase(osRepo), new FinishServiceUseCase(osRepo),
-    new MeasuredStatusTransition(new FinishOSUseCase(osRepo, notifyStatusChange), businessMetrics),
     new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange), businessMetrics),
     new GetAvgExecutionTimeUseCase(osRepo),
     new GetServiceOrderHistoryUseCase(osRepo),

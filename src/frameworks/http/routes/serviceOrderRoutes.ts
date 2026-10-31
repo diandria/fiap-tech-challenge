@@ -109,11 +109,13 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    * @openapi
    * /service-orders/{id}:
    *   patch:
-   *     summary: Update OS status — internal state transitions (mechanic, admin)
+   *     summary: Record the delivery of a finished order (mechanic, admin)
    *     description: |
-   *       Body-driven state transition for non-customer-facing transitions.
-   *       Customer budget approval/rejection lives at `PATCH /service-orders/{id}/budget`.
-   *       Side effect: the `DIAGNOSIS → WAITING_APPROVAL` transition fires a best-effort customer notification, published to the events topic in production and logged in development; failure does not roll back the status change.
+   *       Every other status is driven by the service order saga, from the replies of the Billing and
+   *       Execution services: diagnosis, budget, payment and repair. Handing the car back to the customer
+   *       is the one step still recorded by hand, and only `DELIVERED` is accepted here.
+   *       Side effect: a best-effort customer notification, published to the events topic in production
+   *       and logged in development; failure does not roll back the status change.
    *     tags: [Service Orders]
    *     security:
    *       - bearerAuth: []
@@ -132,12 +134,12 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *             properties:
    *               status:
    *                 type: string
-   *                 enum: [DIAGNOSIS, WAITING_APPROVAL, EXECUTION, FINISHED, DELIVERED]
+   *                 enum: [DELIVERED]
    *     responses:
    *       200:
    *         description: Updated service order
    *       400:
-   *         description: Invalid status or transition
+   *         description: Any status other than DELIVERED, or an order that is not FINISHED
    *       401:
    *         description: Missing or invalid token
    *       403:

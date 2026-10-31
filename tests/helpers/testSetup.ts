@@ -50,17 +50,11 @@ import { AddServiceToOSUseCase } from '../../src/use-cases/service-orders/AddSer
 import { RemoveServiceFromOSUseCase } from '../../src/use-cases/service-orders/RemoveServiceFromOSUseCase';
 import { AddItemToOSUseCase } from '../../src/use-cases/service-orders/AddItemToOSUseCase';
 import { RemoveItemFromOSUseCase } from '../../src/use-cases/service-orders/RemoveItemFromOSUseCase';
-import { CalculateBudgetUseCase } from '../../src/use-cases/service-orders/CalculateBudgetUseCase';
 import { NotifyStatusChangeUseCase } from '../../src/use-cases/service-orders/NotifyStatusChangeUseCase';
-import { NotifyBudgetUseCase } from '../../src/use-cases/service-orders/NotifyBudgetUseCase';
-import { StartDiagnosisUseCase } from '../../src/use-cases/service-orders/StartDiagnosisUseCase';
-import { FinishDiagnosisUseCase } from '../../src/use-cases/service-orders/FinishDiagnosisUseCase';
 import { ApproveBudgetUseCase } from '../../src/use-cases/service-orders/ApproveBudgetUseCase';
 import { RejectBudgetUseCase } from '../../src/use-cases/service-orders/RejectBudgetUseCase';
-import { StartExecutionUseCase } from '../../src/use-cases/service-orders/StartExecutionUseCase';
 import { StartServiceUseCase } from '../../src/use-cases/service-orders/StartServiceUseCase';
 import { FinishServiceUseCase } from '../../src/use-cases/service-orders/FinishServiceUseCase';
-import { FinishOSUseCase } from '../../src/use-cases/service-orders/FinishOSUseCase';
 import { DeliverOSUseCase } from '../../src/use-cases/service-orders/DeliverOSUseCase';
 import { GetServiceOrderHistoryUseCase } from '../../src/use-cases/service-orders/GetServiceOrderHistoryUseCase';
 import { GetAvgExecutionTimeUseCase } from '../../src/use-cases/service-orders/GetAvgExecutionTimeUseCase';
@@ -152,7 +146,6 @@ export function createTestApp(): Application {
     new ListItemsUseCase(itemRepo), new UpdateItemUseCase(itemRepo), new DeleteItemUseCase(itemRepo),
   );
   const notifyStatusChange = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier, appLogger);
-  const notifyBudget = new NotifyBudgetUseCase(osRepo, customerRepo, notifier, appLogger);
 
   const osController = new ServiceOrderController(
     new MeasuredCreateServiceOrder(
@@ -163,22 +156,12 @@ export function createTestApp(): Application {
     new ListServiceOrdersUseCase(osRepo),
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
     new AddItemToOSUseCase(unitOfWork), new RemoveItemFromOSUseCase(unitOfWork),
-    new MeasuredStatusTransition(new StartDiagnosisUseCase(osRepo, notifyStatusChange), businessMetrics),
-    new MeasuredStatusTransition(
-      new FinishDiagnosisUseCase(osRepo, notifyStatusChange, notifyBudget, new CalculateBudgetUseCase(serviceRepo, itemRepo)),
-      businessMetrics,
-    ),
     new MeasuredBudgetDecision(new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange), businessMetrics),
     new MeasuredBudgetDecision(
       new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
       businessMetrics,
     ),
-    new MeasuredStatusTransition(
-      new StartExecutionUseCase(osRepo, itemRepo, notifyStatusChange),
-      businessMetrics,
-    ),
     new StartServiceUseCase(osRepo), new FinishServiceUseCase(osRepo),
-    new MeasuredStatusTransition(new FinishOSUseCase(osRepo, notifyStatusChange), businessMetrics),
     new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange), businessMetrics),
     new GetAvgExecutionTimeUseCase(osRepo),
     new GetServiceOrderHistoryUseCase(osRepo),

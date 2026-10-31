@@ -17,14 +17,10 @@ function makeUseCases() {
     removeService: jest.fn().mockResolvedValue(os),
     addItem: jest.fn().mockResolvedValue(os),
     removeItem: jest.fn().mockResolvedValue(os),
-    startDiagnosis: jest.fn().mockResolvedValue(os),
-    finishDiagnosis: jest.fn().mockResolvedValue(os),
     approveBudget: jest.fn().mockResolvedValue(os),
     rejectBudget: jest.fn().mockResolvedValue(os),
-    startExecution: jest.fn().mockResolvedValue(os),
     startService: jest.fn().mockResolvedValue(os),
     finishService: jest.fn().mockResolvedValue(os),
-    finishOS: jest.fn().mockResolvedValue(os),
     deliverOS: jest.fn().mockResolvedValue(os),
     getAvgExecution: jest.fn().mockResolvedValue([]),
     getOSHistory: jest.fn().mockResolvedValue({ serviceOrderId: os.id, history: [] }),
@@ -36,10 +32,8 @@ function makeController(fns = makeUseCases()) {
     { execute: fns.createOS } as any, { execute: fns.getOS } as any, { execute: fns.listOS } as any,
     { execute: fns.addService } as any, { execute: fns.removeService } as any,
     { execute: fns.addItem } as any, { execute: fns.removeItem } as any,
-    { execute: fns.startDiagnosis } as any, { execute: fns.finishDiagnosis } as any,
     { execute: fns.approveBudget } as any, { execute: fns.rejectBudget } as any,
-    { execute: fns.startExecution } as any, { execute: fns.startService } as any,
-    { execute: fns.finishService } as any, { execute: fns.finishOS } as any,
+    { execute: fns.startService } as any, { execute: fns.finishService } as any,
     { execute: fns.deliverOS } as any, { execute: fns.getAvgExecution } as any,
     { execute: fns.getOSHistory } as any,
   );
@@ -89,29 +83,23 @@ describe('ServiceOrderController', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('updateStatus DIAGNOSIS: calls startDiagnosis', async () => {
+  it('updateStatus DELIVERED: calls deliverOS', async () => {
     const fns = makeUseCases();
     const controller = makeController(fns);
-    const req = { params: { id: os.id }, body: { status: 'DIAGNOSIS' } } as unknown as Request;
+    const req = { params: { id: os.id }, body: { status: 'DELIVERED' } } as unknown as Request;
     await controller.updateStatus(req, makeRes(), jest.fn());
-    expect(fns.startDiagnosis).toHaveBeenCalledWith(os.id);
+    expect(fns.deliverOS).toHaveBeenCalledWith(os.id);
   });
 
-  it('updateStatus WAITING_APPROVAL: calls finishDiagnosis', async () => {
-    const fns = makeUseCases();
-    const controller = makeController(fns);
-    const req = { params: { id: os.id }, body: { status: 'WAITING_APPROVAL' } } as unknown as Request;
-    await controller.updateStatus(req, makeRes(), jest.fn());
-    expect(fns.finishDiagnosis).toHaveBeenCalledWith(os.id);
-  });
-
-  it('updateStatus EXECUTION: calls startExecution', async () => {
-    const fns = makeUseCases();
-    const controller = makeController(fns);
-    const req = { params: { id: os.id }, body: { status: 'EXECUTION' } } as unknown as Request;
-    await controller.updateStatus(req, makeRes(), jest.fn());
-    expect(fns.startExecution).toHaveBeenCalledWith(os.id);
-  });
+  it.each(['DIAGNOSIS', 'WAITING_APPROVAL', 'APPROVED', 'PAID', 'EXECUTION', 'FINISHED', 'CANCELLED'])(
+    'updateStatus rejects every manual status except DELIVERED (%s)',
+    async (status) => {
+      const controller = makeController();
+      const next = jest.fn();
+      await controller.updateStatus({ params: { id: os.id }, body: { status } } as unknown as Request, makeRes(), next);
+      expect((next.mock.calls[0][0] as Error).message).toBe(`Unknown status transition: ${status}`);
+    },
+  );
 
   it('budgetDecision APPROVED: calls approveBudget with code', async () => {
     const fns = makeUseCases();

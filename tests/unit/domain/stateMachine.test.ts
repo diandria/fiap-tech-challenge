@@ -7,7 +7,6 @@ describe('canTransition', () => {
     ['DIAGNOSIS', 'WAITING_APPROVAL'],
     ['WAITING_APPROVAL', 'APPROVED'],
     ['WAITING_APPROVAL', 'REJECTED'],
-    ['APPROVED', 'EXECUTION'],
     ['APPROVED', 'PAID'],
     ['APPROVED', 'CANCELLED'],
     ['PAID', 'EXECUTION'],
@@ -29,6 +28,8 @@ describe('canTransition', () => {
     ['DELIVERED', 'RECEIVED'],
     ['REJECTED', 'EXECUTION'],
     ['PAID', 'CANCELLED'],
+    // The saga goes through PAID; the direct manual path is gone.
+    ['APPROVED', 'EXECUTION'],
     ['DIAGNOSIS', 'CANCELLED'],
     ['EXECUTION', 'CANCELLED'],
     ['PAID', 'FINISHED'],
