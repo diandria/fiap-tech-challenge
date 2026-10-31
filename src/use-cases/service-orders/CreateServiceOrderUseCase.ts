@@ -1,7 +1,6 @@
 import { IServiceRepository } from '../ports/IServiceRepository';
 import { IUnitOfWork } from '../ports/IUnitOfWork';
 import { ServiceOrder, OSService, OSItem } from '../../entities/ServiceOrder';
-import { getAvailableQuantity } from '../../entities/Item';
 import { NotFoundError, ValidationError } from '../../entities/errors/AppError';
 import { ICreateServiceOrder, CreateServiceOrderInput } from '../ports/input/ICreateServiceOrder';
 
@@ -22,10 +21,9 @@ export class CreateServiceOrderUseCase implements ICreateServiceOrder {
       for (const { itemId, quantity } of input.items ?? []) {
         const item = await items.findById(itemId);
         if (!item) throw new NotFoundError(`Item ${itemId}`);
-        if (getAvailableQuantity(item) < quantity) {
+        if (!(await items.reserve(itemId, quantity))) {
           throw new ValidationError(`Insufficient stock for item ${itemId}`);
         }
-        await items.update(itemId, { reservedQuantity: item.reservedQuantity + quantity });
         reservedItems.push({ itemId, quantity });
       }
 

@@ -10,6 +10,7 @@ function makePrisma() {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    $executeRaw: jest.fn(),
   } as any;
 }
 
@@ -71,5 +72,27 @@ describe('PostgresItemRepository', () => {
 
     expect(await new PostgresItemRepository(prisma).delete('99999999-9999-4999-8999-999999999999')).toBe(false);
     expect(prisma.item.delete).not.toHaveBeenCalled();
+  });
+
+  it('should report the reservation GIVEN the conditional update changed the row WHEN reserve is called', async () => {
+    const prisma = makePrisma();
+    prisma.$executeRaw.mockResolvedValue(1);
+
+    expect(await new PostgresItemRepository(prisma).reserve('66666666-6666-4666-8666-666666666666', 2)).toBe(true);
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('should refuse the reservation GIVEN the stock no longer allows it WHEN reserve is called', async () => {
+    const prisma = makePrisma();
+    prisma.$executeRaw.mockResolvedValue(0);
+
+    expect(await new PostgresItemRepository(prisma).reserve('66666666-6666-4666-8666-666666666666', 2)).toBe(false);
+  });
+
+  it('should refuse the reservation GIVEN an id that is not a uuid WHEN reserve is called', async () => {
+    const prisma = makePrisma();
+
+    expect(await new PostgresItemRepository(prisma).reserve('not-a-uuid', 1)).toBe(false);
+    expect(prisma.$executeRaw).not.toHaveBeenCalled();
   });
 });

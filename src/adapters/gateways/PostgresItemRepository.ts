@@ -50,6 +50,22 @@ export class PostgresItemRepository implements IItemRepository {
     return this.toEntity(row as ItemRow);
   }
 
+  /**
+   * A conditional update rather than read, check and write: concurrent
+   * reservations of the last units cannot all see the same balance, because
+   * the database checks it while holding the row lock.
+   */
+  async reserve(id: string, quantity: number): Promise<boolean> {
+    if (!isUuid(id)) return false;
+    const reservedRows = await this.prisma.$executeRaw`
+      UPDATE items
+         SET reserved_quantity = reserved_quantity + ${quantity}
+       WHERE id = ${id}::uuid
+         AND stock_quantity - reserved_quantity >= ${quantity}
+    `;
+    return reservedRows === 1;
+  }
+
   async delete(id: string): Promise<boolean> {
     if (!isUuid(id)) return false;
     const existing = await this.prisma.item.findUnique({ where: { id } });
