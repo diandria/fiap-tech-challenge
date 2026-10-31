@@ -108,7 +108,8 @@ export async function clearTestDB(): Promise<void> {
   // CASCADE honours the foreign keys; without it the TRUNCATE fails on a dependency.
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE service_order_items, service_order_services, service_orders,
-                   vehicles, customers, items, services, users, outbox_messages
+                   vehicles, customers, items, services, users, outbox_messages,
+                   processed_messages
     RESTART IDENTITY CASCADE
   `);
 }

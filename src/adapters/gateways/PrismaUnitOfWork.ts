@@ -4,6 +4,7 @@ import { ITraceContext } from '../../use-cases/ports/ITraceContext';
 import { PostgresServiceOrderRepository } from './PostgresServiceOrderRepository';
 import { PostgresItemRepository } from './PostgresItemRepository';
 import { PrismaOutbox } from './PrismaOutbox';
+import { PrismaProcessedMessages } from './PrismaProcessedMessages';
 
 export class PrismaUnitOfWork implements IUnitOfWork {
   constructor(
@@ -17,6 +18,7 @@ export class PrismaUnitOfWork implements IUnitOfWork {
         serviceOrders: new PostgresServiceOrderRepository(tx),
         items: new PostgresItemRepository(tx),
         outbox: new PrismaOutbox(tx, this.traceContext),
+        processedMessages: new PrismaProcessedMessages(tx),
       }),
     );
   }

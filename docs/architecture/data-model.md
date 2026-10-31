@@ -176,6 +176,15 @@ decidido, e continua válida como histórico de publicação mesmo que a ordem d
 | `traceparent` | Contexto de rastreamento de quem gravou, para o consumidor continuar o mesmo trace |
 | `published_at` | Nulo até ser publicada |
 
+### `processed_messages`, mensagens já tratadas
+
+As filas entregam cada mensagem pelo menos uma vez, então a mesma resposta pode chegar duas vezes. O id de
+toda mensagem tratada é gravado aqui, na mesma transação do efeito que ela produz. Quando a mesma mensagem
+chega de novo, o registro já existe, e ela é confirmada sem efeito nenhum.
+
+A gravação ignora o duplicado em vez de falhar com violação de unicidade: no PostgreSQL, um comando que
+falha dentro de uma transação aborta a transação inteira, e o consumidor ainda precisa dela para terminar.
+
 ## Restrições de domínio
 
 O que deixa de depender de disciplina da aplicação e passa a ser garantido pelo banco:
