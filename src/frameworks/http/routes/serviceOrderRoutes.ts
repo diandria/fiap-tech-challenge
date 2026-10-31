@@ -2,7 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { ServiceOrderController } from '../../../adapters/controllers/ServiceOrderController';
 import { authMiddleware } from '../middlewares/authMiddleware';
-import { requireRole, requireCustomer } from '../middlewares/roleMiddleware';
+import { requireRole, requireCustomer, requireStaff } from '../middlewares/roleMiddleware';
 
 const budgetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -176,8 +176,10 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *     responses:
    *       200:
    *         description: Array of active service orders sorted by operational priority
+   *       403:
+   *         description: Not a staff token
    */
-  router.get('/', (req, res, next) => controller.list(req, res, next));
+  router.get('/', requireStaff, (req, res, next) => controller.list(req, res, next));
 
   /**
    * @openapi
@@ -244,10 +246,12 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *     responses:
    *       200:
    *         description: Service order
+   *       403:
+   *         description: Not a staff token
    *       404:
    *         description: Not found
    */
-  router.get('/:id', (req, res, next) => controller.getById(req, res, next));
+  router.get('/:id', requireStaff, (req, res, next) => controller.getById(req, res, next));
 
   /**
    * @openapi

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ItemController } from '../../../adapters/controllers/ItemController';
 import { authMiddleware } from '../middlewares/authMiddleware';
-import { requireRole } from '../middlewares/roleMiddleware';
+import { requireRole, requireStaff } from '../middlewares/roleMiddleware';
 
 export function itemRoutes(controller: ItemController): Router {
   const router = Router();
@@ -17,8 +17,10 @@ export function itemRoutes(controller: ItemController): Router {
    *     responses:
    *       200:
    *         description: Array of items including availableQuantity
+   *       403:
+   *         description: Not a staff token
    */
-  router.get('/', (req, res, next) => controller.list(req, res, next));
+  router.get('/', requireStaff, (req, res, next) => controller.list(req, res, next));
 
   /**
    * @openapi
@@ -35,10 +37,12 @@ export function itemRoutes(controller: ItemController): Router {
    *     responses:
    *       200:
    *         description: Item including availableQuantity
+   *       403:
+   *         description: Not a staff token
    *       404:
    *         description: Not found
    */
-  router.get('/:id', (req, res, next) => controller.getById(req, res, next));
+  router.get('/:id', requireStaff, (req, res, next) => controller.getById(req, res, next));
 
   /**
    * @openapi

@@ -16,6 +16,17 @@ export function requireRole(...roles: UserRole[]) {
 }
 
 /**
+ * Authorises routes any shop employee may reach, whatever the role. Like
+ * requireRole, it rejects customer tokens by their `type`.
+ */
+export function requireStaff(req: Request, _res: Response, next: NextFunction): void {
+  if (req.user?.type !== 'staff') {
+    return next(new ForbiddenError());
+  }
+  next();
+}
+
+/**
  * Authorises routes only a customer may reach. Employees are rejected because
  * the ownership check needs the token's `sub`, which a staff token has not.
  */

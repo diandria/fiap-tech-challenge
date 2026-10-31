@@ -5,6 +5,7 @@ import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } f
 import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
 import { PostgresItemRepository } from '../../src/adapters/gateways/PostgresItemRepository';
+import { signCustomerToken } from '../helpers/customerToken';
 
 let app: Application;
 let adminToken: string;
@@ -124,5 +125,45 @@ describe('Role Authorization — /items', () => {
   it('GIVEN no Authorization header WHEN POST /items THEN returns 401', async () => {
     const res = await request(app).post('/items').send(validItem);
     expect(res.status).toBe(401);
+  });
+});
+
+describe('Customer tokens on staff-only inventory reads — /items', () => {
+  it('GIVEN a customer token WHEN GET /items THEN returns 403', async () => {
+    // GIVEN
+    await request(app).post('/items').set('Authorization', `Bearer ${adminToken}`).send(validItem);
+    const token = signCustomerToken('00000000-0000-4000-8000-000000000001');
+
+    // WHEN
+    const res = await request(app).get('/items').set('Authorization', `Bearer ${token}`);
+
+    // THEN
+    expect(res.status).toBe(403);
+    expect(Array.isArray(res.body)).toBe(false);
+  });
+
+  it('GIVEN a customer token WHEN GET /items/:id THEN returns 403', async () => {
+    // GIVEN
+    const created = await request(app).post('/items').set('Authorization', `Bearer ${adminToken}`).send(validItem);
+    const token = signCustomerToken('00000000-0000-4000-8000-000000000001');
+
+    // WHEN
+    const res = await request(app).get(`/items/${created.body.id}`).set('Authorization', `Bearer ${token}`);
+
+    // THEN
+    expect(res.status).toBe(403);
+    expect(res.body.stockQuantity).toBeUndefined();
+  });
+
+  it('GIVEN a mechanic token WHEN GET /items/:id THEN returns 200', async () => {
+    // GIVEN
+    const created = await request(app).post('/items').set('Authorization', `Bearer ${adminToken}`).send(validItem);
+
+    // WHEN
+    const res = await request(app).get(`/items/${created.body.id}`).set('Authorization', `Bearer ${mechanicToken}`);
+
+    // THEN
+    expect(res.status).toBe(200);
+    expect(res.body.availableQuantity).toBe(10);
   });
 });
