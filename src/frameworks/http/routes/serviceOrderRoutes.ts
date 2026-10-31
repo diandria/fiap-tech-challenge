@@ -188,7 +188,7 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *         name: status
    *         schema:
    *           type: string
-   *           enum: [RECEIVED, DIAGNOSIS, WAITING_APPROVAL, APPROVED, EXECUTION, FINISHED, DELIVERED, REJECTED]
+   *           enum: [RECEIVED, DIAGNOSIS, WAITING_APPROVAL, APPROVED, PAID, EXECUTION, FINISHED, DELIVERED, REJECTED, CANCELLED]
    *         description: When provided, disables the automatic exclusion of FINISHED and DELIVERED orders.
    *       - in: query
    *         name: customerId

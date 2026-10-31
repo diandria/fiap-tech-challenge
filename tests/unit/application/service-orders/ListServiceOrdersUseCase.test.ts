@@ -1,5 +1,5 @@
 import { ListServiceOrdersUseCase } from '../../../../src/use-cases/service-orders/ListServiceOrdersUseCase';
-import { makeOSRepo, receivedOS } from '../../fixtures/serviceOrder';
+import { makeOSRepo, receivedOS, executionOS, waitingApprovalOS } from '../../fixtures/serviceOrder';
 
 describe('ListServiceOrdersUseCase', () => {
   it('GIVEN no filters WHEN execute called THEN excludes FINISHED and DELIVERED by default', async () => {
@@ -19,5 +19,15 @@ describe('ListServiceOrdersUseCase', () => {
     const to = new Date('2024-12-31');
     await useCase.execute({ status: 'RECEIVED', customerId: 'c-1', from, to });
     expect(repo.findAll).toHaveBeenCalledWith({ status: 'RECEIVED', customerId: 'c-1', from, to });
+  });
+
+  it('GIVEN orders in several statuses WHEN execute called THEN PAID comes right after EXECUTION', async () => {
+    const repo = makeOSRepo(receivedOS);
+    const paid = { ...receivedOS, id: 'os-paid', status: 'PAID' as const };
+    (repo.findAll as jest.Mock).mockResolvedValue([receivedOS, waitingApprovalOS, paid, executionOS]);
+
+    const result = await new ListServiceOrdersUseCase(repo).execute();
+
+    expect(result.map((order) => order.status)).toEqual(['EXECUTION', 'PAID', 'WAITING_APPROVAL', 'RECEIVED']);
   });
 });

@@ -8,6 +8,9 @@ describe('canTransition', () => {
     ['WAITING_APPROVAL', 'APPROVED'],
     ['WAITING_APPROVAL', 'REJECTED'],
     ['APPROVED', 'EXECUTION'],
+    ['APPROVED', 'PAID'],
+    ['APPROVED', 'CANCELLED'],
+    ['PAID', 'EXECUTION'],
     ['EXECUTION', 'FINISHED'],
     ['FINISHED', 'DELIVERED'],
   ];
@@ -23,6 +26,11 @@ describe('canTransition', () => {
     ['FINISHED', 'EXECUTION'],
     ['DELIVERED', 'RECEIVED'],
     ['REJECTED', 'EXECUTION'],
+    ['PAID', 'CANCELLED'],
+    ['PAID', 'FINISHED'],
+    ['WAITING_APPROVAL', 'PAID'],
+    ['CANCELLED', 'RECEIVED'],
+    ['CANCELLED', 'EXECUTION'],
   ];
 
   allowed.forEach(([from, to]) => {

@@ -3,10 +3,12 @@ export type OSStatus =
   | 'DIAGNOSIS'
   | 'WAITING_APPROVAL'
   | 'APPROVED'
+  | 'PAID'
   | 'EXECUTION'
   | 'FINISHED'
   | 'DELIVERED'
-  | 'REJECTED';
+  | 'REJECTED'
+  | 'CANCELLED';
 
 export interface OSService {
   serviceId: string;

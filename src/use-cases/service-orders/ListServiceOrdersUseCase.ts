@@ -6,9 +6,10 @@ export class ListServiceOrdersUseCase {
 
   private readonly STATUS_PRIORITY: Partial<Record<OSStatus, number>> = {
     EXECUTION: 1,
-    WAITING_APPROVAL: 2,
-    DIAGNOSIS: 3,
-    RECEIVED: 4,
+    PAID: 2,
+    WAITING_APPROVAL: 3,
+    DIAGNOSIS: 4,
+    RECEIVED: 5,
   };
 
   private sortByPriority(orders: ServiceOrder[]): ServiceOrder[] {
