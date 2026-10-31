@@ -10,5 +10,5 @@ export const makeUnitOfWork = (
   osRepo: IServiceOrderRepository,
   itemRepo: IItemRepository,
 ): IUnitOfWork & { run: jest.Mock } => ({
-  run: jest.fn((work) => work({ serviceOrders: osRepo, items: itemRepo })),
+  run: jest.fn((work) => work({ serviceOrders: osRepo, items: itemRepo, outbox: { add: jest.fn() } })),
 });

@@ -16,6 +16,7 @@ import { PostgresItemRepository } from './adapters/gateways/PostgresItemReposito
 import { PostgresServiceOrderRepository } from './adapters/gateways/PostgresServiceOrderRepository';
 import { PostgresUserRepository } from './adapters/gateways/PostgresUserRepository';
 import { PrismaUnitOfWork } from './adapters/gateways/PrismaUnitOfWork';
+import { AsyncLocalStorageTraceContext } from './frameworks/logging/AsyncLocalStorageTraceContext';
 import { createNotificationService } from './frameworks/notifications/notificationFactory';
 
 import { LoginUseCase } from './use-cases/auth/LoginUseCase';
@@ -93,7 +94,7 @@ async function main(): Promise<void> {
   const itemRepo = new PostgresItemRepository(prisma);
   const osRepo = new PostgresServiceOrderRepository(prisma);
   const userRepo = new PostgresUserRepository(prisma);
-  const unitOfWork = new PrismaUnitOfWork(prisma);
+  const unitOfWork = new PrismaUnitOfWork(prisma, new AsyncLocalStorageTraceContext());
   const notifier = createNotificationService();
   const appLogger = new PinoLoggerAdapter(logger);
 

@@ -1,16 +1,22 @@
 import { PrismaClient } from '@prisma/client';
 import { IUnitOfWork, TransactionalRepositories } from '../../use-cases/ports/IUnitOfWork';
+import { ITraceContext } from '../../use-cases/ports/ITraceContext';
 import { PostgresServiceOrderRepository } from './PostgresServiceOrderRepository';
 import { PostgresItemRepository } from './PostgresItemRepository';
+import { PrismaOutbox } from './PrismaOutbox';
 
 export class PrismaUnitOfWork implements IUnitOfWork {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly traceContext: ITraceContext,
+  ) {}
 
   run<T>(work: (repositories: TransactionalRepositories) => Promise<T>): Promise<T> {
     return this.prisma.$transaction((tx) =>
       work({
         serviceOrders: new PostgresServiceOrderRepository(tx),
         items: new PostgresItemRepository(tx),
+        outbox: new PrismaOutbox(tx, this.traceContext),
       }),
     );
   }

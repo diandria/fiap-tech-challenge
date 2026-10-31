@@ -157,6 +157,25 @@ está no centro, com relacionamentos para quase tudo. A outra não é referencia
 nada. Se um dia for preciso saber qual mecânico executou qual serviço, aí aparece um relacionamento, e
 será uma decisão nova, com registro próprio.
 
+### `outbox_messages`, mensagens a publicar
+
+Guarda as mensagens que o OS precisa enviar a outros serviços, gravadas na mesma transação da mudança que
+as produziu ([ADR-015](adr/ADR-015-comunicacao-e-contrato-de-mensagens.md)). É isso que garante que a
+mudança e a mensagem existem juntas: se a transação falha, nenhuma das duas fica. Um processo separado
+publica as pendentes, em ordem de criação, e preenche `published_at`.
+
+A tabela não tem chave estrangeira para `service_orders`, de propósito. A mensagem é um registro do que foi
+decidido, e continua válida como histórico de publicação mesmo que a ordem deixe de existir.
+
+| Coluna | Uso |
+|---|---|
+| `id` | Id da mensagem; vira o `messageId` do envelope e a chave de deduplicação na fila |
+| `destination` | Fila de destino (`billing-commands`, `execution-commands`) |
+| `type`, `payload` | Tipo e conteúdo da mensagem |
+| `service_order_id` | Ordem a que a mensagem se refere; vira o grupo de ordenação na fila |
+| `traceparent` | Contexto de rastreamento de quem gravou, para o consumidor continuar o mesmo trace |
+| `published_at` | Nulo até ser publicada |
+
 ## Restrições de domínio
 
 O que deixa de depender de disciplina da aplicação e passa a ser garantido pelo banco:
@@ -186,6 +205,7 @@ Cada um existe por causa de uma consulta específica:
 | `vehicles(customer_id)` | Veículos de um cliente |
 | `customers(tax_id)` | Consulta por documento na autenticação (caminho quente, executado a cada login de cliente) |
 | `service_order_status_history(service_order_id, changed_at)` | Histórico de uma ordem, em ordem cronológica |
+| `outbox_messages(published_at, created_at)` | Mensagens ainda não publicadas, na ordem em que foram gravadas |
 
 ## Decisões de modelagem
 

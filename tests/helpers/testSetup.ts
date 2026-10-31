@@ -11,6 +11,7 @@ import { PostgresItemRepository } from '../../src/adapters/gateways/PostgresItem
 import { PostgresServiceOrderRepository } from '../../src/adapters/gateways/PostgresServiceOrderRepository';
 import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { PrismaUnitOfWork } from '../../src/adapters/gateways/PrismaUnitOfWork';
+import { AsyncLocalStorageTraceContext } from '../../src/frameworks/logging/AsyncLocalStorageTraceContext';
 import { ConsoleNotificationService } from '../../src/adapters/services/ConsoleNotificationService';
 import { PrometheusBusinessMetrics } from '../../src/frameworks/metrics/PrometheusBusinessMetrics';
 import { PrometheusIntegrationFailures } from '../../src/frameworks/metrics/PrometheusIntegrationFailures';
@@ -107,7 +108,7 @@ export async function clearTestDB(): Promise<void> {
   // CASCADE honours the foreign keys; without it the TRUNCATE fails on a dependency.
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE service_order_items, service_order_services, service_orders,
-                   vehicles, customers, items, services, users
+                   vehicles, customers, items, services, users, outbox_messages
     RESTART IDENTITY CASCADE
   `);
 }
@@ -119,7 +120,7 @@ export function createTestApp(): Application {
   const itemRepo = new PostgresItemRepository(prisma);
   const osRepo = new PostgresServiceOrderRepository(prisma);
   const userRepo = new PostgresUserRepository(prisma);
-  const unitOfWork = new PrismaUnitOfWork(prisma);
+  const unitOfWork = new PrismaUnitOfWork(prisma, new AsyncLocalStorageTraceContext());
   const businessMetrics = new PrometheusBusinessMetrics();
   const integrationFailures = new PrometheusIntegrationFailures();
   const notifier = new ConsoleNotificationService(logger, integrationFailures);
