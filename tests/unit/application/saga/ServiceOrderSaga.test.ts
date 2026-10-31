@@ -355,4 +355,15 @@ describe('ServiceOrderSaga', () => {
       expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
     });
   });
+
+  it('marks a result whose status changed, and only that one', async () => {
+    const changed = setup(receivedOS);
+    const unchanged = setup(waitingApprovalOS);
+
+    const moved = await changed.saga.handle(sagaReply('DiagnosisStarted', receivedOS.id));
+    const stored = await unchanged.saga.handle(sagaReply('BudgetGenerated', waitingApprovalOS.id, { budgetId: 'b-1', total: 180 }));
+
+    expect(moved.statusChanged).toBe(true);
+    expect(stored.statusChanged).toBeUndefined();
+  });
 });

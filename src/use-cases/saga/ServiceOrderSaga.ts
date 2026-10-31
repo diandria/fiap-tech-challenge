@@ -131,7 +131,7 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
 
       const applied = await effect(order, repositories);
       statusChanged = applied.serviceOrder.status !== order.status;
-      return { outcome: 'applied', ...applied };
+      return { outcome: 'applied', ...applied, ...(statusChanged && { statusChanged: true as const }) };
     });
 
     // Only a new status is news to the customer; a stored total is not.

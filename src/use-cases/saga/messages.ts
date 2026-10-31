@@ -41,6 +41,8 @@ export interface SagaReplyResult {
   outcome: SagaReplyOutcome;
   /** Present when applied. */
   serviceOrder?: ServiceOrder;
+  /** True when the message moved the order to a new status. */
+  statusChanged?: true;
   /** Present when the message started compensating the earlier steps. */
   compensation?: CompensationReason;
   /** True when a dead command can no longer be compensated and needs a person. */

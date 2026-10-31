@@ -136,9 +136,20 @@ jobs:
           TOPIC=$(aws sns list-topics \
             --query "Topics[?contains(TopicArn, 'car-repair-shop-service-order-events')].TopicArn | [0]" \
             --output text)
+          # The saga queues, created by infra-k8s. The service refuses to start
+          # with only part of them, so a missing one has to stop the deploy here.
+          queue_url() {
+            aws sqs get-queue-url --queue-name "car-repair-shop-$1.fifo" --query QueueUrl --output text 2>/dev/null || true
+          }
+          QUEUE_BILLING=$(queue_url billing-commands)
+          QUEUE_EXECUTION=$(queue_url execution-commands)
+          QUEUE_REPLIES=$(queue_url saga-replies)
+          DLQ_BILLING=$(queue_url billing-commands-dlq)
+          DLQ_EXECUTION=$(queue_url execution-commands-dlq)
 
           # Fail here, not later with a CrashLoop three layers from the cause.
-          for name in DB_HOST DB_USER DB_NAME DB_PASS JWT INTERNAL ADMIN TOPIC; do
+          for name in DB_HOST DB_USER DB_NAME DB_PASS JWT INTERNAL ADMIN TOPIC \
+                      QUEUE_BILLING QUEUE_EXECUTION QUEUE_REPLIES DLQ_BILLING DLQ_EXECUTION; do
             value="${!name}"
             if [ -z "$value" ] || [ "$value" = "None" ]; then
               echo "::error::required value missing or empty: $name"
@@ -157,6 +168,11 @@ jobs:
             echo "INTERNAL_TOKEN=$INTERNAL"
             echo "ADMIN_PASSWORD=$ADMIN"
             echo "SNS_TOPIC_ARN=$TOPIC"
+            echo "QUEUE_URL_BILLING_COMMANDS=$QUEUE_BILLING"
+            echo "QUEUE_URL_EXECUTION_COMMANDS=$QUEUE_EXECUTION"
+            echo "QUEUE_URL_SAGA_REPLIES=$QUEUE_REPLIES"
+            echo "DLQ_URL_BILLING_COMMANDS=$DLQ_BILLING"
+            echo "DLQ_URL_EXECUTION_COMMANDS=$DLQ_EXECUTION"
           } >> "$GITHUB_ENV"
 
       - name: Apply configuration and secrets
@@ -166,6 +182,11 @@ jobs:
           kubectl create configmap car-repair-shop-runtime -n car-repair-shop \
             --from-literal=NOTIFICATION_CHANNEL=sns \
             --from-literal=SNS_TOPIC_ARN="$SNS_TOPIC_ARN" \
+            --from-literal=QUEUE_URL_BILLING_COMMANDS="$QUEUE_URL_BILLING_COMMANDS" \
+            --from-literal=QUEUE_URL_EXECUTION_COMMANDS="$QUEUE_URL_EXECUTION_COMMANDS" \
+            --from-literal=QUEUE_URL_SAGA_REPLIES="$QUEUE_URL_SAGA_REPLIES" \
+            --from-literal=DLQ_URL_BILLING_COMMANDS="$DLQ_URL_BILLING_COMMANDS" \
+            --from-literal=DLQ_URL_EXECUTION_COMMANDS="$DLQ_URL_EXECUTION_COMMANDS" \
             --from-literal=OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo.observability.svc.cluster.local:4318 \
             --dry-run=client -o yaml | kubectl apply -f -
 

@@ -1,6 +1,8 @@
 import { IBusinessMetrics } from '../../src/use-cases/ports/IBusinessMetrics';
 import { IIntegrationFailures } from '../../src/use-cases/ports/IIntegrationFailures';
 import { OSStatus } from '../../src/entities/ServiceOrder';
+import { ISagaMetrics } from '../../src/use-cases/ports/ISagaMetrics';
+import { CompensationReason, SagaReplyOutcome } from '../../src/use-cases/saga/messages';
 
 /**
  * Test doubles for the metrics ports.
@@ -27,5 +29,23 @@ export class FakeIntegrationFailures implements IIntegrationFailures {
 
   record(integration: string, operation: string): void {
     this.recorded.push({ integration, operation });
+  }
+}
+
+export class FakeSagaMetrics implements ISagaMetrics {
+  readonly replies: { type: string; outcome: SagaReplyOutcome }[] = [];
+  readonly compensations: CompensationReason[] = [];
+  readonly stuck: string[] = [];
+
+  replyHandled(type: string, outcome: SagaReplyOutcome): void {
+    this.replies.push({ type, outcome });
+  }
+
+  compensated(reason: CompensationReason): void {
+    this.compensations.push(reason);
+  }
+
+  stepStuck(commandType: string): void {
+    this.stuck.push(commandType);
   }
 }

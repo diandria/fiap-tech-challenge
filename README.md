@@ -432,6 +432,11 @@ Passos: checkout no SHA exato → build e push da imagem no ECR com tag do SHA �
 
 Os segredos vêm do **SSM**, não de secrets do GitHub: `JWT_SECRET` e `INTERNAL_TOKEN` são escritos ali pelo Terraform das functions, e a aplicação lê o mesmo parâmetro. Não existem duas cópias para divergir.
 
+O ConfigMap de runtime recebe também as URLs das filas da saga, criadas pelo `infra-k8s`: as três filas
+(`billing-commands`, `execution-commands` e `saga-replies`) e as filas de descarte dos dois comandos, que o
+OS lê para compensar uma etapa que esgotou as tentativas. Se alguma não existir, o deploy para antes de
+aplicar qualquer coisa, porque o serviço se recusa a subir com só parte delas.
+
 **GitHub Secrets necessários** (`Settings → Secrets and variables → Actions`):
 
 | Secret | Descrição |

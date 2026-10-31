@@ -83,6 +83,10 @@ import { MeasuredCreateServiceOrder } from './adapters/decorators/MeasuredCreate
 import { PrometheusBusinessMetrics } from './frameworks/metrics/PrometheusBusinessMetrics';
 import { MeasuredStatusTransition } from './adapters/decorators/MeasuredStatusTransition';
 import { MeasuredBudgetDecision } from './adapters/decorators/MeasuredBudgetDecision';
+import { MeasuredServiceOrderSaga } from './adapters/decorators/MeasuredServiceOrderSaga';
+import { PrometheusSagaMetrics } from './frameworks/metrics/PrometheusSagaMetrics';
+import { ServiceOrderSaga } from './use-cases/saga/ServiceOrderSaga';
+import { createSagaMessaging } from './frameworks/messaging/messagingFactory';
 
 const PORT = process.env.PORT ?? 3000;
 
@@ -166,17 +170,27 @@ async function main(): Promise<void> {
     serviceOrders: serviceOrderRoutes(osController),
   }, databaseReadiness(prisma));
 
+  const saga = new MeasuredServiceOrderSaga(
+    new ServiceOrderSaga(unitOfWork, serviceRepo, customerRepo, notifyStatusChange, appLogger),
+    new PrometheusSagaMetrics(),
+    businessMetrics,
+  );
+  const messaging = createSagaMessaging({ prisma, saga, logger });
+
   // HTTP server starts before DB connects so health probes are reachable during startup
   const server = app.listen(PORT, () => { logger.info({ port: PORT }, 'server started'); });
-  // Drain in-flight requests so rollouts and scale-downs don't reset client
-  // connections; the force-exit fallback stays inside the 30s grace period.
-  process.on('SIGTERM', () => {
-    server.close(async () => { await disconnectPrisma(); process.exit(0); });
+  // Stop taking messages first, so none is cut halfway; then drain in-flight
+  // requests so rollouts don't reset client connections. The force-exit
+  // fallback stays inside the 30s grace period.
+  process.on('SIGTERM', async () => {
     setTimeout(() => process.exit(1), 25_000).unref();
+    await messaging?.stop();
+    server.close(async () => { await disconnectPrisma(); process.exit(0); });
   });
 
   await prisma.$connect();
   await seedDefaultAdmin(userRepo);
+  messaging?.start();
 }
 
 main().catch((err) => { logger.error({ err }, 'fatal error during startup'); process.exit(1); });
