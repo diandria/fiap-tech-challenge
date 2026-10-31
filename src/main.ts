@@ -93,6 +93,7 @@ async function main(): Promise<void> {
   const itemRepo = new PostgresItemRepository(prisma);
   const osRepo = new PostgresServiceOrderRepository(prisma);
   const userRepo = new PostgresUserRepository(prisma);
+  const unitOfWork = new PrismaUnitOfWork(prisma);
   const notifier = createNotificationService();
   const appLogger = new PinoLoggerAdapter(logger);
 
@@ -127,13 +128,13 @@ async function main(): Promise<void> {
 
   const osController = new ServiceOrderController(
     new MeasuredCreateServiceOrder(
-      new CreateServiceOrderUseCase(new PrismaUnitOfWork(prisma), serviceRepo),
+      new CreateServiceOrderUseCase(unitOfWork, serviceRepo),
       businessMetrics,
     ),
     new GetServiceOrderUseCase(osRepo),
     new ListServiceOrdersUseCase(osRepo),
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
-    new AddItemToOSUseCase(osRepo, itemRepo), new RemoveItemFromOSUseCase(osRepo, itemRepo),
+    new AddItemToOSUseCase(unitOfWork), new RemoveItemFromOSUseCase(unitOfWork),
     new MeasuredStatusTransition(new StartDiagnosisUseCase(osRepo, notifyStatusChange), businessMetrics),
     new MeasuredStatusTransition(
       new FinishDiagnosisUseCase(osRepo, notifyStatusChange, notifyBudget, new CalculateBudgetUseCase(serviceRepo, itemRepo)),

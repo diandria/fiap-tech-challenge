@@ -1,14 +1,8 @@
 import { CreateServiceOrderUseCase } from '../../../../src/use-cases/service-orders/CreateServiceOrderUseCase';
-import { IUnitOfWork } from '../../../../src/use-cases/ports/IUnitOfWork';
-import { IServiceOrderRepository } from '../../../../src/use-cases/ports/IServiceOrderRepository';
-import { IItemRepository } from '../../../../src/use-cases/ports/IItemRepository';
 import { makeOSRepo, receivedOS } from '../../fixtures/serviceOrder';
 import { makeServiceRepo, baseService } from '../../fixtures/service';
 import { makeItemRepo, stockedItem, depletedItem } from '../../fixtures/item';
-
-function makeUnitOfWork(osRepo: IServiceOrderRepository, itemRepo: IItemRepository): IUnitOfWork & { run: jest.Mock } {
-  return { run: jest.fn((work) => work({ serviceOrders: osRepo, items: itemRepo })) };
-}
+import { makeUnitOfWork } from '../../fixtures/unitOfWork';
 
 describe('CreateServiceOrderUseCase', () => {
   describe('without services and items', () => {
