@@ -14,7 +14,11 @@ export class DeliverOSUseCase implements IChangeServiceOrderStatus {
   async execute(osId: string): Promise<ServiceOrder> {
     const os = await findOSOrThrow(this.osRepo, osId);
     assertTransition(os.status, 'DELIVERED');
-    const updated = await this.osRepo.update(osId, { status: 'DELIVERED', deliveredAt: new Date() });
+    const updated = await this.osRepo.update(
+      osId,
+      { status: 'DELIVERED', deliveredAt: new Date() },
+      { expectedVersion: os.version },
+    );
     await this.notifyStatusChange.execute({ osId });
     return updated!;
   }

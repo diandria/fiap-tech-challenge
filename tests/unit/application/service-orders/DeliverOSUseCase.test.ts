@@ -33,4 +33,17 @@ describe('DeliverOSUseCase', () => {
     const useCase = new DeliverOSUseCase(makeOSRepo(null), makeNotifyStatusChange());
     await expect(useCase.execute('missing')).rejects.toMatchObject({ statusCode: 404 });
   });
+
+  it('GIVEN an order it read at some version WHEN execute called THEN passes that version to the repository', async () => {
+    const repo = makeOSRepo({ ...finishedOS, version: 7 });
+    const useCase = new DeliverOSUseCase(repo, makeNotifyStatusChange());
+
+    await useCase.execute('os-1');
+
+    expect(repo.update).toHaveBeenCalledWith(
+      'os-1',
+      expect.objectContaining({ status: 'DELIVERED' }),
+      { expectedVersion: 7 },
+    );
+  });
 });
