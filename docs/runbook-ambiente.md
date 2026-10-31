@@ -35,7 +35,8 @@ quando nasceu, não a atual.
 
 ```bash
 for r in fiap-tech-challenge fiap-tech-challenge-lambda \
-         fiap-tech-challenge-infra-k8s fiap-tech-challenge-infra-db; do
+         fiap-tech-challenge-infra-k8s fiap-tech-challenge-infra-db \
+         fiap-tech-challenge-billing fiap-tech-challenge-execution; do
   git -C ~/dev/$r checkout main && git -C ~/dev/$r pull
 done
 ```
@@ -58,13 +59,17 @@ aws ec2 describe-vpcs --max-items 1 >/dev/null && echo "credencial ok"
 > sessão mantendo o `get-caller-identity` respondendo. A diferença aparece vinte minutos adiante,
 > com uma mensagem que não aponta para a causa.
 
-### 3. Publicar as credenciais nos quatro repositórios
+### 3. Publicar as credenciais em todos os repositórios
 
 ```bash
-~/dev/fiap-tech-challenge-lambda/scripts/refresh-aws-secrets.sh --todos
+~/dev/fiap-tech-challenge-lambda/scripts/refresh-aws-secrets.sh --all
 ```
 
-Sem isso, o CD falha ao tocar a AWS.
+Sem isso, o CD falha ao tocar a AWS. O `--all` publica nos seis repositórios da lista do script. Uma
+opção desconhecida faz o script parar com erro, sem publicar nada.
+
+> Este passo já dizia `--todos`. O script não conhecia a opção, publicava só no repositório atual e
+> terminava sem erro, e os outros ficavam com a credencial vencida.
 
 ### 4. `infra-db` — VPC e banco (~7 min)
 
@@ -344,7 +349,7 @@ A sessão do Learner Lab dura cerca de 4 horas. O sintoma varia e raramente apon
 O que fazer:
 
 1. **Start Lab** novamente e copie as credenciais novas para `~/.aws/credentials`
-2. Rode `refresh-aws-secrets.sh` de novo — os secrets do GitHub têm a credencial **antiga**
+2. Rode `refresh-aws-secrets.sh --all` de novo — os secrets do GitHub têm a credencial **antiga**
 3. Se um `terraform apply` foi interrompido pela expiração, rode `terraform plan` antes de reaplicar:
    o estado pode ter recursos criados mas não registrados
 
