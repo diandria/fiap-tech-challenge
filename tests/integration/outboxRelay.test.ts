@@ -67,3 +67,20 @@ describe('Outbox relay', () => {
     expect(sent).toBe(0);
   });
 });
+
+describe('Outbox backlog', () => {
+  it('GIVEN one message published and two still pending WHEN the store counts the backlog THEN only the two pending count', async () => {
+    // GIVEN
+    await storeMessage('GenerateBudget');
+    await publish.execute(10);
+    await receiveAll(sqs, queues['billing-commands'].url);
+    await storeMessage('RequestPayment');
+    await storeMessage('CancelBudget');
+
+    // WHEN
+    const pending = await new PrismaOutboxStore(prisma).countPending();
+
+    // THEN
+    expect(pending).toBe(2);
+  });
+});
