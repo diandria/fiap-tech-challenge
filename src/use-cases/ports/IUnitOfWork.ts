@@ -1,12 +1,14 @@
 import { IServiceOrderRepository } from './IServiceOrderRepository';
 import { IItemRepository } from './IItemRepository';
 import { IOutbox } from './IOutbox';
+import { IProcessedMessages } from './IProcessedMessages';
 
 /** Repositories whose writes commit or roll back together. */
 export interface TransactionalRepositories {
   serviceOrders: IServiceOrderRepository;
   items: IItemRepository;
   outbox: IOutbox;
+  processedMessages: IProcessedMessages;
 }
 
 /**

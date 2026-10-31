@@ -178,3 +178,13 @@ model OutboxMessage {
   @@index([publishedAt, createdAt])
   @@map("outbox_messages")
 }
+
+// Ids of messages already handled. Recording the id in the same transaction as
+// the effect makes a redelivered message produce no effect the second time.
+model ProcessedMessage {
+  messageId   String   @id @map("message_id") @db.Uuid
+  type        String
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("processed_messages")
+}
