@@ -10,6 +10,7 @@ import { PostgresServiceRepository } from '../../src/adapters/gateways/PostgresS
 import { PostgresItemRepository } from '../../src/adapters/gateways/PostgresItemRepository';
 import { PostgresServiceOrderRepository } from '../../src/adapters/gateways/PostgresServiceOrderRepository';
 import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
+import { PrismaUnitOfWork } from '../../src/adapters/gateways/PrismaUnitOfWork';
 import { ConsoleNotificationService } from '../../src/adapters/services/ConsoleNotificationService';
 import { PrometheusBusinessMetrics } from '../../src/frameworks/metrics/PrometheusBusinessMetrics';
 import { PrometheusIntegrationFailures } from '../../src/frameworks/metrics/PrometheusIntegrationFailures';
@@ -118,6 +119,7 @@ export function createTestApp(): Application {
   const itemRepo = new PostgresItemRepository(prisma);
   const osRepo = new PostgresServiceOrderRepository(prisma);
   const userRepo = new PostgresUserRepository(prisma);
+  const unitOfWork = new PrismaUnitOfWork(prisma);
   const businessMetrics = new PrometheusBusinessMetrics();
   const integrationFailures = new PrometheusIntegrationFailures();
   const notifier = new ConsoleNotificationService(logger, integrationFailures);
@@ -152,13 +154,13 @@ export function createTestApp(): Application {
 
   const osController = new ServiceOrderController(
     new MeasuredCreateServiceOrder(
-      new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo),
+      new CreateServiceOrderUseCase(unitOfWork, serviceRepo),
       businessMetrics,
     ),
     new GetServiceOrderUseCase(osRepo),
     new ListServiceOrdersUseCase(osRepo),
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
-    new AddItemToOSUseCase(osRepo, itemRepo), new RemoveItemFromOSUseCase(osRepo, itemRepo),
+    new AddItemToOSUseCase(unitOfWork), new RemoveItemFromOSUseCase(unitOfWork),
     new MeasuredStatusTransition(new StartDiagnosisUseCase(osRepo, notifyStatusChange), businessMetrics),
     new MeasuredStatusTransition(
       new FinishDiagnosisUseCase(osRepo, notifyStatusChange, notifyBudget, new CalculateBudgetUseCase(serviceRepo, itemRepo)),

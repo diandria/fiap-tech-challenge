@@ -1,5 +1,6 @@
 import { isUuid } from './uuid';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { PrismaExecutor, withTransaction } from './prismaExecutor';
 import {
   IServiceOrderRepository,
   ListServiceOrdersFilter,
@@ -39,7 +40,7 @@ interface ServiceOrderRow {
 }
 
 export class PostgresServiceOrderRepository implements IServiceOrderRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaExecutor) {}
 
   private toService(row: ServiceLineRow): OSService {
     return {
@@ -102,7 +103,7 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
   }
 
   async create(data: Omit<ServiceOrder, 'id' | 'createdAt'>): Promise<ServiceOrder> {
-    return this.prisma.$transaction(async (tx) => {
+    return withTransaction(this.prisma, async (tx) => {
       const row = await tx.serviceOrder.create({
         data: {
           customerId: data.customerId,
@@ -131,7 +132,7 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
     const existing = await this.prisma.serviceOrder.findUnique({ where: { id } });
     if (!existing) return null;
 
-    return this.prisma.$transaction(async (tx) => {
+    return withTransaction(this.prisma, async (tx) => {
       if (data.services) {
         await tx.serviceOrderService.deleteMany({ where: { serviceOrderId: id } });
         await tx.serviceOrderService.createMany({
