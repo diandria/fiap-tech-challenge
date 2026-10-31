@@ -7,6 +7,7 @@ import { makeItemRepo, stockedItem, reservedItem } from '../../fixtures/item';
 import { makeServiceRepo, baseService } from '../../fixtures/service';
 import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 import { sagaReply } from '../../../support/sagaReplies';
+import { FailedSagaCommand } from '../../../../src/use-cases/saga/messages';
 
 const NOW = new Date('2026-10-31T15:00:00.000Z');
 
@@ -93,7 +94,7 @@ describe('ServiceOrderSaga', () => {
     expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
     expect(notifier.execute).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-      serviceOrderId: baseOS.id, replyType: 'DiagnosisStarted', status: 'DIAGNOSIS',
+      serviceOrderId: baseOS.id, messageType: 'DiagnosisStarted', status: 'DIAGNOSIS',
     }));
   });
 
@@ -263,12 +264,95 @@ describe('ServiceOrderSaga', () => {
     expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
     expect(repositories.outbox.add).not.toHaveBeenCalled();
     expect(notifier.execute).not.toHaveBeenCalled();
-    expect(logger.info).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ serviceOrderId: order.id, replyType: type }));
+    expect(logger.info).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ serviceOrderId: order.id, messageType: type }));
   });
 
   it('ignores a BudgetCancelled for a rejected order, whose budget was never asked to be cancelled', async () => {
     const { saga } = setup({ ...approvedOS, status: 'REJECTED' });
 
     expect(await saga.handle(sagaReply('BudgetCancelled', approvedOS.id))).toEqual({ outcome: 'ignored' });
+  });
+
+  describe('commands that exhausted their retries', () => {
+    const failed = (type: FailedSagaCommand['type'], serviceOrderId: string): FailedSagaCommand => ({
+      messageId: 'dead-1', type, serviceOrderId,
+    });
+
+    it('releases stock and cancels the order when EnqueueDiagnosis died', async () => {
+      const order = { ...receivedOS, items: [{ itemId: 'i-1', quantity: 2 }] };
+      const { saga, repositories, notifier } = setup(order, { items: makeItemRepo(reservedItem) });
+
+      const result = await saga.handleFailedCommand(failed('EnqueueDiagnosis', order.id));
+
+      expect(result).toMatchObject({ outcome: 'applied', compensation: 'STEP_FAILED', serviceOrder: { status: 'CANCELLED' } });
+      expect(repositories.items.release).toHaveBeenCalledWith('i-1', 2);
+      expect(repositories.outbox.add).not.toHaveBeenCalled();
+      expect(repositories.processedMessages.markProcessed).toHaveBeenCalledWith('dead-1', 'EnqueueDiagnosis');
+      expect(notifier.execute).toHaveBeenCalledWith({ osId: order.id });
+    });
+
+    it('releases stock, cancels the order and the execution when GenerateBudget died', async () => {
+      const { saga, repositories } = setup(waitingApprovalOS, { items: makeItemRepo(reservedItem) });
+
+      const result = await saga.handleFailedCommand(failed('GenerateBudget', waitingApprovalOS.id));
+
+      expect(result).toMatchObject({ outcome: 'applied', compensation: 'STEP_FAILED', serviceOrder: { status: 'CANCELLED' } });
+      expect(repositories.items.release).toHaveBeenCalledWith('i-1', 2);
+      expect((repositories.outbox.add as jest.Mock).mock.calls).toEqual([[{
+        destination: 'execution-commands', type: 'CancelExecution', serviceOrderId: waitingApprovalOS.id, payload: { reason: 'STEP_FAILED' },
+      }]]);
+    });
+
+    it('also cancels the budget when RequestPayment died', async () => {
+      const { saga, repositories } = setup(approvedOS, { items: makeItemRepo(reservedItem) });
+
+      await saga.handleFailedCommand(failed('RequestPayment', approvedOS.id));
+
+      expect((repositories.outbox.add as jest.Mock).mock.calls.map(([message]) => [message.type, message.payload])).toEqual([
+        ['CancelExecution', { reason: 'STEP_FAILED' }],
+        ['CancelBudget', { reason: 'STEP_FAILED' }],
+      ]);
+    });
+
+    it('only reports a dead EnqueueRepair, because payment was already confirmed', async () => {
+      const paid = { ...approvedOS, status: 'PAID' as const };
+      const { saga, repositories, logger, notifier } = setup(paid);
+
+      const result = await saga.handleFailedCommand(failed('EnqueueRepair', paid.id));
+
+      expect(result).toEqual({ outcome: 'applied', serviceOrder: paid, stuck: true });
+      expect(repositories.items.release).not.toHaveBeenCalled();
+      expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
+      expect(repositories.outbox.add).not.toHaveBeenCalled();
+      expect(notifier.execute).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ serviceOrderId: paid.id, messageType: 'EnqueueRepair' }));
+    });
+
+    it.each(['CancelExecution', 'CancelBudget'] as const)('never compensates a dead compensation command (%s)', async (type) => {
+      const cancelled = { ...approvedOS, status: 'CANCELLED' as const };
+      const { saga, repositories, logger } = setup(cancelled);
+
+      const result = await saga.handleFailedCommand(failed(type, cancelled.id));
+
+      expect(result).toMatchObject({ outcome: 'applied', stuck: true });
+      expect(result.compensation).toBeUndefined();
+      expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
+      expect(repositories.outbox.add).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('ignores a dead GenerateBudget when the order already moved on', async () => {
+      const { saga, repositories } = setup(approvedOS);
+
+      expect(await saga.handleFailedCommand(failed('GenerateBudget', approvedOS.id))).toEqual({ outcome: 'ignored' });
+      expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
+    });
+
+    it('returns duplicate for a dead command handled before', async () => {
+      const { saga, repositories } = setup(waitingApprovalOS, { firstDelivery: false });
+
+      expect(await saga.handleFailedCommand(failed('GenerateBudget', waitingApprovalOS.id))).toEqual({ outcome: 'duplicate' });
+      expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
+    });
   });
 });

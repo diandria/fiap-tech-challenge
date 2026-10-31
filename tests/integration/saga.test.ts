@@ -265,4 +265,21 @@ describe('Service order saga', () => {
     expect(await prisma.outboxMessage.count()).toBe(1);
     expect(await prisma.processedMessage.count()).toBe(2);
   });
+
+  it('GIVEN an order WAITING_APPROVAL with 2 units reserved WHEN its GenerateBudget command is handled as failed THEN the order is CANCELLED, the reservation is released and CancelExecution is in the outbox', async () => {
+    // GIVEN
+    const { orderId, itemId } = await seedOrder('WAITING_APPROVAL');
+
+    // WHEN
+    const result = await saga.handleFailedCommand({ messageId: '55555555-5555-4555-8555-555555555555', type: 'GenerateBudget', serviceOrderId: orderId });
+
+    // THEN
+    expect(result).toMatchObject({ outcome: 'applied', compensation: 'STEP_FAILED' });
+    expect((await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } })).status).toBe('CANCELLED');
+    expect((await prisma.item.findUniqueOrThrow({ where: { id: itemId } })).reservedQuantity).toBe(0);
+    const outbox = await prisma.outboxMessage.findMany();
+    expect(outbox.map((message) => [message.destination, message.type, message.payload])).toEqual([
+      ['execution-commands', 'CancelExecution', { reason: 'STEP_FAILED' }],
+    ]);
+  });
 });

@@ -11,6 +11,8 @@ describe('canTransition', () => {
     ['APPROVED', 'PAID'],
     ['APPROVED', 'CANCELLED'],
     ['PAID', 'EXECUTION'],
+    ['RECEIVED', 'CANCELLED'],
+    ['WAITING_APPROVAL', 'CANCELLED'],
     ['EXECUTION', 'FINISHED'],
     ['FINISHED', 'DELIVERED'],
   ];
@@ -27,6 +29,8 @@ describe('canTransition', () => {
     ['DELIVERED', 'RECEIVED'],
     ['REJECTED', 'EXECUTION'],
     ['PAID', 'CANCELLED'],
+    ['DIAGNOSIS', 'CANCELLED'],
+    ['EXECUTION', 'CANCELLED'],
     ['PAID', 'FINISHED'],
     ['WAITING_APPROVAL', 'PAID'],
     ['CANCELLED', 'RECEIVED'],
