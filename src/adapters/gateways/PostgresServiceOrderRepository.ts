@@ -115,6 +115,9 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
         },
         include: INCLUDE_RELATIONS,
       });
+      await tx.serviceOrderStatusHistory.create({
+        data: { serviceOrderId: row.id, fromStatus: null, toStatus: row.status },
+      });
       return this.toEntity(row as unknown as ServiceOrderRow);
     });
   }
@@ -163,6 +166,13 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
         data: scalar,
         include: INCLUDE_RELATIONS,
       });
+
+      if (data.status !== undefined && data.status !== existing.status) {
+        await tx.serviceOrderStatusHistory.create({
+          data: { serviceOrderId: id, fromStatus: existing.status, toStatus: data.status },
+        });
+      }
+
       return this.toEntity(row as unknown as ServiceOrderRow);
     });
   }
