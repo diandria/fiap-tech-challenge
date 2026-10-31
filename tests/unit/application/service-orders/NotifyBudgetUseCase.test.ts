@@ -3,7 +3,7 @@ import { INotificationService } from '../../../../src/use-cases/ports/INotificat
 import { makeOSRepo, baseOS } from '../../fixtures/serviceOrder';
 import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 
-const fakeLogger = () => ({ warn: jest.fn(), error: jest.fn() });
+const fakeLogger = () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn() });
 
 const makeNotifier = (): INotificationService => ({
   notifyStatusChanged: jest.fn().mockResolvedValue(undefined),

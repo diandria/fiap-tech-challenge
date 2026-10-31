@@ -8,7 +8,7 @@ import { ServiceOrderSaga } from '../../src/use-cases/saga/ServiceOrderSaga';
 import { sagaReply } from '../support/sagaReplies';
 
 const noTrace = { currentTraceparent: () => undefined };
-const silentLogger = { warn: jest.fn(), error: jest.fn() };
+const silentLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
 let saga: ServiceOrderSaga;
 
@@ -28,7 +28,7 @@ afterEach(async () => { await clearTestDB(); });
 
 /** An order with one service at 120.00 and two reserved units of an item at 30.00, in the given status. */
 async function seedOrder(
-  status: 'DIAGNOSIS' | 'WAITING_APPROVAL' | 'APPROVED' = 'DIAGNOSIS',
+  status: 'DIAGNOSIS' | 'WAITING_APPROVAL' | 'APPROVED' | 'PAID' | 'EXECUTION' = 'DIAGNOSIS',
   stock: { stockQuantity: number; reservedQuantity: number; ordered: number } = { stockQuantity: 10, reservedQuantity: 2, ordered: 2 },
 ): Promise<{ orderId: string; customerId: string; serviceId: string; itemId: string }> {
   const customer = await prisma.customer.create({
@@ -216,5 +216,53 @@ describe('Service order saga', () => {
       ['billing-commands', 'CancelBudget', { reason: 'PAYMENT_FAILED' }],
       ['execution-commands', 'CancelExecution', { reason: 'PAYMENT_FAILED' }],
     ]);
+  });
+
+  it('GIVEN a PAID order WHEN RepairStarted is handled THEN the order is EXECUTION with startedAt set', async () => {
+    // GIVEN
+    const { orderId } = await seedOrder('PAID', { stockQuantity: 4, reservedQuantity: 0, ordered: 1 });
+
+    // WHEN
+    const result = await saga.handle(sagaReply('RepairStarted', orderId));
+
+    // THEN
+    expect(result.outcome).toBe('applied');
+    const order = await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } });
+    expect(order.status).toBe('EXECUTION');
+    expect(order.startedAt).toBeInstanceOf(Date);
+  });
+
+  it('GIVEN an order in EXECUTION WHEN RepairCompleted is handled THEN the order is FINISHED and the history ends with FINISHED', async () => {
+    // GIVEN
+    const { orderId } = await seedOrder('EXECUTION', { stockQuantity: 4, reservedQuantity: 0, ordered: 1 });
+
+    // WHEN
+    const result = await saga.handle(sagaReply('RepairCompleted', orderId));
+
+    // THEN
+    expect(result.outcome).toBe('applied');
+    const order = await prisma.serviceOrder.findUniqueOrThrow({
+      where: { id: orderId },
+      include: { statusHistory: { orderBy: { changedAt: 'asc' } } },
+    });
+    expect(order.status).toBe('FINISHED');
+    expect(order.finishedAt).toBeInstanceOf(Date);
+    expect(order.statusHistory.at(-1)).toMatchObject({ fromStatus: 'EXECUTION', toStatus: 'FINISHED' });
+  });
+
+  it('GIVEN an order rejected by the customer WHEN ExecutionCancelled is handled THEN nothing changes but the message is recorded', async () => {
+    // GIVEN
+    const { orderId } = await seedOrder('WAITING_APPROVAL');
+    await saga.handle(sagaReply('BudgetRejected', orderId, { budgetId: '33333333-3333-4333-8333-333333333333' }));
+    const before = await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } });
+
+    // WHEN
+    const result = await saga.handle(sagaReply('ExecutionCancelled', orderId));
+
+    // THEN
+    expect(result.outcome).toBe('applied');
+    expect(await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } })).toMatchObject({ status: 'REJECTED', version: before.version });
+    expect(await prisma.outboxMessage.count()).toBe(1);
+    expect(await prisma.processedMessage.count()).toBe(2);
   });
 });

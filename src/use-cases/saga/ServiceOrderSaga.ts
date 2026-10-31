@@ -32,6 +32,12 @@ const EXPECTED_STATUS: Record<SagaReplyType, OSStatus[]> = {
   BudgetRejected: ['WAITING_APPROVAL'],
   PaymentConfirmed: ['APPROVED'],
   PaymentFailed: ['APPROVED'],
+  RepairStarted: ['PAID'],
+  RepairCompleted: ['EXECUTION'],
+  // Confirmations of a compensation. The budget is only cancelled when a
+  // payment fails, so its confirmation only fits a CANCELLED order.
+  ExecutionCancelled: ['REJECTED', 'CANCELLED'],
+  BudgetCancelled: ['CANCELLED'],
 };
 
 /** Replies that undo the earlier steps, and the reason the compensation commands carry. */
@@ -54,6 +60,7 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
     private readonly customers: ICustomerRepository,
     private readonly notifyStatusChange: IStatusChangeNotifier,
     private readonly logger: ILogger,
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
   async handle(reply: SagaReply): Promise<SagaReplyResult> {
@@ -102,6 +109,13 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
         return this.paymentConfirmed(order, repositories);
       case 'PaymentFailed':
         return this.paymentFailed(order, repositories);
+      case 'RepairStarted':
+        return this.repairStarted(order, repositories);
+      case 'RepairCompleted':
+        return this.repairCompleted(order, repositories);
+      case 'ExecutionCancelled':
+      case 'BudgetCancelled':
+        return this.compensationConfirmed(order, reply);
     }
   }
 
@@ -211,6 +225,30 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
     await repositories.outbox.add({ destination: 'execution-commands', type: 'CancelExecution', serviceOrderId: order.id, payload });
     await repositories.outbox.add({ destination: 'billing-commands', type: 'CancelBudget', serviceOrderId: order.id, payload });
     return updated;
+  }
+
+  private repairStarted(order: ServiceOrder, { serviceOrders }: TransactionalRepositories): Promise<ServiceOrder> {
+    return this.moveTo(order, 'EXECUTION', serviceOrders, { startedAt: this.now() });
+  }
+
+  /** The end of the saga. Delivery to the customer stays a manual step for the staff. */
+  private repairCompleted(order: ServiceOrder, { serviceOrders }: TransactionalRepositories): Promise<ServiceOrder> {
+    return this.moveTo(order, 'FINISHED', serviceOrders, { finishedAt: this.now() });
+  }
+
+  /**
+   * A participant confirms it undid its step. Nothing changes here, but the
+   * confirmation is consumed and recorded, so the saga closes visibly in the
+   * logs and the trace, and a missing one shows up as a message stuck in the
+   * dead-letter queue.
+   */
+  private async compensationConfirmed(order: ServiceOrder, reply: SagaReply): Promise<ServiceOrder> {
+    this.logger.info('saga compensation confirmed', {
+      serviceOrderId: order.id,
+      replyType: reply.type,
+      status: order.status,
+    });
+    return order;
   }
 
   private async repairCommandFor(order: ServiceOrder): Promise<EnqueueRepairCommand> {
