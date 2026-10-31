@@ -1,5 +1,5 @@
 import { OSStatus, ServiceOrder } from '../../entities/ServiceOrder';
-import { NotFoundError } from '../../entities/errors/AppError';
+import { NotFoundError, ValidationError } from '../../entities/errors/AppError';
 import { assertTransition } from '../../entities/serviceOrderStateMachine';
 import { IUnitOfWork, TransactionalRepositories } from '../ports/IUnitOfWork';
 import { IServiceRepository } from '../ports/IServiceRepository';
@@ -20,6 +20,8 @@ import { Service } from '../../entities/Service';
 const EXPECTED_STATUS: Record<SagaReplyType, OSStatus[]> = {
   DiagnosisStarted: ['RECEIVED'],
   DiagnosisCompleted: ['DIAGNOSIS'],
+  BudgetGenerated: ['WAITING_APPROVAL'],
+  BudgetApproved: ['WAITING_APPROVAL'],
 };
 
 /**
@@ -39,6 +41,7 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
   ) {}
 
   async handle(reply: SagaReply): Promise<SagaReplyResult> {
+    let statusChanged = false;
     const result = await this.unitOfWork.run(async (repositories): Promise<SagaReplyResult> => {
       if (!(await repositories.processedMessages.markProcessed(reply.messageId, reply.type))) {
         return { outcome: 'duplicate' };
@@ -54,10 +57,13 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
         return { outcome: 'ignored' };
       }
 
-      return { outcome: 'applied', serviceOrder: await this.apply(reply, order, repositories) };
+      const updated = await this.apply(reply, order, repositories);
+      statusChanged = updated.status !== order.status;
+      return { outcome: 'applied', serviceOrder: updated };
     });
 
-    if (result.outcome === 'applied') {
+    // Only a new status is news to the customer; a stored total is not.
+    if (statusChanged) {
       await this.notifyStatusChange.execute({ osId: reply.serviceOrderId });
     }
     return result;
@@ -69,6 +75,10 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
         return this.diagnosisStarted(order, repositories);
       case 'DiagnosisCompleted':
         return this.diagnosisCompleted(order, repositories);
+      case 'BudgetGenerated':
+        return this.budgetGenerated(order, reply, repositories);
+      case 'BudgetApproved':
+        return this.budgetApproved(order, repositories);
     }
   }
 
@@ -110,7 +120,22 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
     };
   }
 
-  /** Changes the status with the version that was read, so a concurrent write fails instead of being overwritten. */
+  /** The Billing Service computed the budget; the order keeps its total for the status queries. */
+  private async budgetGenerated(order: ServiceOrder, reply: SagaReply, { serviceOrders }: TransactionalRepositories): Promise<ServiceOrder> {
+    const { total } = reply.payload;
+    if (typeof total !== 'number' || !Number.isFinite(total)) {
+      throw new ValidationError('The budget total must be a number');
+    }
+    return this.save(order, { budgetTotal: total }, serviceOrders);
+  }
+
+  private async budgetApproved(order: ServiceOrder, repositories: TransactionalRepositories): Promise<ServiceOrder> {
+    const updated = await this.moveTo(order, 'APPROVED', repositories.serviceOrders);
+    await repositories.outbox.add({ destination: 'billing-commands', type: 'RequestPayment', serviceOrderId: order.id, payload: {} });
+    return updated;
+  }
+
+  /** Moves the order to a new status, if the state machine allows it. */
   private async moveTo(
     order: ServiceOrder,
     status: OSStatus,
@@ -118,7 +143,16 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
     changes: Partial<Omit<ServiceOrder, 'id' | 'version' | 'status'>> = {},
   ): Promise<ServiceOrder> {
     assertTransition(order.status, status);
-    const updated = await serviceOrders.update(order.id, { ...changes, status }, { expectedVersion: order.version });
+    return this.save(order, { ...changes, status }, serviceOrders);
+  }
+
+  /** Writes with the version that was read, so a concurrent write fails instead of being overwritten. */
+  private async save(
+    order: ServiceOrder,
+    changes: Partial<Omit<ServiceOrder, 'id' | 'version'>>,
+    serviceOrders: TransactionalRepositories['serviceOrders'],
+  ): Promise<ServiceOrder> {
+    const updated = await serviceOrders.update(order.id, changes, { expectedVersion: order.version });
     if (!updated) throw new NotFoundError('Service order');
     return updated;
   }

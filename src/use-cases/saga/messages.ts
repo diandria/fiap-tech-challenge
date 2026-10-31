@@ -4,7 +4,12 @@ import { ServiceOrder } from '../../entities/ServiceOrder';
  * Replies the participants send to the saga replies queue (ADR-015). The list
  * grows as the orchestrator learns each step.
  */
-export const SAGA_REPLY_TYPES = ['DiagnosisStarted', 'DiagnosisCompleted'] as const;
+export const SAGA_REPLY_TYPES = [
+  'DiagnosisStarted',
+  'DiagnosisCompleted',
+  'BudgetGenerated',
+  'BudgetApproved',
+] as const;
 
 export type SagaReplyType = (typeof SAGA_REPLY_TYPES)[number];
 

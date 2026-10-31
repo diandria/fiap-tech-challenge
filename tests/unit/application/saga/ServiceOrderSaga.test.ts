@@ -1,7 +1,7 @@
 import { ServiceOrderSaga } from '../../../../src/use-cases/saga/ServiceOrderSaga';
 import { ServiceOrder } from '../../../../src/entities/ServiceOrder';
 import { IUnitOfWork, TransactionalRepositories } from '../../../../src/use-cases/ports/IUnitOfWork';
-import { makeOSRepo, receivedOS, baseOS } from '../../fixtures/serviceOrder';
+import { makeOSRepo, receivedOS, baseOS, waitingApprovalOS } from '../../fixtures/serviceOrder';
 import { makeItemRepo, stockedItem } from '../../fixtures/item';
 import { makeServiceRepo, baseService } from '../../fixtures/service';
 import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
@@ -108,5 +108,39 @@ describe('ServiceOrderSaga', () => {
 
     expect(notifier.execute).toHaveBeenCalledWith({ osId: receivedOS.id });
     expect(events).toEqual(['commit', 'notify']);
+  });
+
+  it('stores the budget total from BudgetGenerated and keeps the status', async () => {
+    const { saga, repositories, notifier } = setup(waitingApprovalOS);
+
+    const result = await saga.handle(sagaReply('BudgetGenerated', waitingApprovalOS.id, { budgetId: 'b-1', total: 180 }));
+
+    expect(result.outcome).toBe('applied');
+    expect(repositories.serviceOrders.update).toHaveBeenCalledWith(waitingApprovalOS.id, { budgetTotal: 180 }, { expectedVersion: waitingApprovalOS.version });
+    expect(repositories.outbox.add).not.toHaveBeenCalled();
+    expect(notifier.execute).not.toHaveBeenCalled();
+  });
+
+  it('refuses a budget reply whose total is not a number', async () => {
+    const { saga, repositories } = setup(waitingApprovalOS);
+
+    await expect(saga.handle(sagaReply('BudgetGenerated', waitingApprovalOS.id, { budgetId: 'b-1' }))).rejects.toThrow('total must be a number');
+    expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
+  });
+
+  it('approves the order and requests payment on BudgetApproved', async () => {
+    const { saga, repositories, notifier } = setup(waitingApprovalOS);
+
+    const result = await saga.handle(sagaReply('BudgetApproved', waitingApprovalOS.id, { budgetId: 'b-1' }));
+
+    expect(result).toMatchObject({ outcome: 'applied', serviceOrder: { status: 'APPROVED' } });
+    expect(repositories.serviceOrders.update).toHaveBeenCalledWith(waitingApprovalOS.id, { status: 'APPROVED' }, { expectedVersion: waitingApprovalOS.version });
+    expect(repositories.outbox.add).toHaveBeenCalledWith({
+      destination: 'billing-commands',
+      type: 'RequestPayment',
+      serviceOrderId: waitingApprovalOS.id,
+      payload: {},
+    });
+    expect(notifier.execute).toHaveBeenCalledWith({ osId: waitingApprovalOS.id });
   });
 });
