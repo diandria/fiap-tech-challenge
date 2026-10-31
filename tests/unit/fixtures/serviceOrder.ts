@@ -10,6 +10,7 @@ export const baseOS: ServiceOrder = {
   services: [],
   items: [],
   createdAt: new Date('2026-01-01'),
+  version: 0,
 };
 
 export const receivedOS: ServiceOrder = { ...baseOS, status: 'RECEIVED' };

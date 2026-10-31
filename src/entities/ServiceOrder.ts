@@ -31,4 +31,6 @@ export interface ServiceOrder {
   startedAt?: Date;
   finishedAt?: Date;
   deliveredAt?: Date;
+  /** Incremented on every write; lets an update detect that it read a stale order. */
+  version: number;
 }

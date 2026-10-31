@@ -5,9 +5,11 @@ import {
   IServiceOrderRepository,
   ListServiceOrdersFilter,
   AvgExecutionResult,
+  UpdateServiceOrderOptions,
 } from '../../use-cases/ports/IServiceOrderRepository';
 import { ServiceOrder, OSStatus, OSService } from '../../entities/ServiceOrder';
 import { ServiceOrderStatusChange } from '../../entities/ServiceOrderStatusChange';
+import { ConflictError } from '../../entities/errors/AppError';
 
 const INCLUDE_RELATIONS = {
   services: { select: { serviceId: true, startedAt: true, finishedAt: true } },
@@ -35,6 +37,7 @@ interface ServiceOrderRow {
   startedAt: Date | null;
   finishedAt: Date | null;
   deliveredAt: Date | null;
+  version: number;
   services: ServiceLineRow[];
   items: ItemLineRow[];
 }
@@ -63,6 +66,7 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
       ...(row.startedAt ? { startedAt: row.startedAt } : {}),
       ...(row.finishedAt ? { finishedAt: row.finishedAt } : {}),
       ...(row.deliveredAt ? { deliveredAt: row.deliveredAt } : {}),
+      version: row.version,
     };
   }
 
@@ -102,7 +106,7 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
     return row ? this.toEntity(row as unknown as ServiceOrderRow) : null;
   }
 
-  async create(data: Omit<ServiceOrder, 'id' | 'createdAt'>): Promise<ServiceOrder> {
+  async create(data: Omit<ServiceOrder, 'id' | 'createdAt' | 'version'>): Promise<ServiceOrder> {
     return withTransaction(this.prisma, async (tx) => {
       const row = await tx.serviceOrder.create({
         data: {
@@ -126,13 +130,28 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
 
   async update(
     id: string,
-    data: Partial<Omit<ServiceOrder, 'id'>>,
+    data: Partial<Omit<ServiceOrder, 'id' | 'version'>>,
+    options: UpdateServiceOrderOptions = {},
   ): Promise<ServiceOrder | null> {
     if (!isUuid(id)) return null;
-    const existing = await this.prisma.serviceOrder.findUnique({ where: { id } });
-    if (!existing) return null;
 
     return withTransaction(this.prisma, async (tx) => {
+      // Claiming the version first takes the row lock, so concurrent updates of
+      // the same order run one after the other. With an expected version, a
+      // caller that read a stale order loses the claim instead of overwriting.
+      const versionFilter = options.expectedVersion === undefined ? {} : { version: options.expectedVersion };
+      const claimed = await tx.serviceOrder.updateMany({
+        where: { id, ...versionFilter },
+        data: { version: { increment: 1 } },
+      });
+      if (claimed.count === 0) {
+        const exists = await tx.serviceOrder.count({ where: { id } });
+        if (exists === 0) return null;
+        throw new ConflictError('Service order was changed by another operation');
+      }
+
+      const previous = await tx.serviceOrder.findUniqueOrThrow({ where: { id }, select: { status: true } });
+
       if (data.services) {
         await tx.serviceOrderService.deleteMany({ where: { serviceOrderId: id } });
         await tx.serviceOrderService.createMany({
@@ -169,9 +188,9 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
         include: INCLUDE_RELATIONS,
       });
 
-      if (data.status !== undefined && data.status !== existing.status) {
+      if (data.status !== undefined && data.status !== previous.status) {
         await tx.serviceOrderStatusHistory.create({
-          data: { serviceOrderId: id, fromStatus: existing.status, toStatus: data.status },
+          data: { serviceOrderId: id, fromStatus: previous.status, toStatus: data.status },
         });
       }
 

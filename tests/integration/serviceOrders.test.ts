@@ -892,3 +892,27 @@ describe('GET /service-orders/:id/history', () => {
     expect(res.body.error).toMatch(/Service order not found/);
   });
 });
+
+describe('PATCH /service-orders/:id — concurrent updates of the same order', () => {
+  it('GIVEN a FINISHED order WHEN several deliveries are requested concurrently THEN exactly one is applied and recorded', async () => {
+    // GIVEN
+    const created = await request(app).post('/service-orders').set('Authorization', `Bearer ${attendantToken}`)
+      .send({ customerId, vehicleId });
+    await prisma.serviceOrder.update({ where: { id: created.body.id }, data: { status: 'FINISHED' } });
+
+    // WHEN
+    const responses = await Promise.all(Array.from({ length: 5 }, () =>
+      request(app).patch(`/service-orders/${created.body.id}`).set('Authorization', `Bearer ${mechanicToken}`)
+        .send({ status: 'DELIVERED' }),
+    ));
+
+    // THEN
+    const statuses = responses.map((r) => r.status);
+    expect(statuses.filter((status) => status === 200)).toHaveLength(1);
+    expect(statuses.filter((status) => status !== 200).every((status) => status === 409 || status === 400)).toBe(true);
+    const deliveries = await prisma.serviceOrderStatusHistory.count({
+      where: { serviceOrderId: created.body.id, toStatus: 'DELIVERED' },
+    });
+    expect(deliveries).toBe(1);
+  });
+});
