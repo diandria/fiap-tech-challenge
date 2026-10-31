@@ -449,10 +449,10 @@ São só esses três. `JWT_SECRET`, `INTERNAL_TOKEN` e a senha do admin **não**
 vêm do SSM, escritos pelo Terraform. Mantê-los aqui recriaria duas cópias do que deve ser um valor
 só.
 
-As credenciais do Learner Lab expiram junto com a sessão. Para renová-las nos quatro repositórios:
+As credenciais do Learner Lab expiram junto com a sessão. Para renová-las em todos os repositórios:
 
 ```bash
-~/dev/fiap-tech-challenge-lambda/scripts/refresh-aws-secrets.sh --todos
+~/dev/fiap-tech-challenge-lambda/scripts/refresh-aws-secrets.sh --all
 ```
 
 Cada deploy fica registrado em **Deployments → production**.
