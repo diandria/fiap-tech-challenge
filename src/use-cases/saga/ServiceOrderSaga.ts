@@ -32,6 +32,8 @@ const EXPECTED_STATUS: Record<SagaReplyType, OSStatus[]> = {
   BudgetRejected: ['WAITING_APPROVAL'],
   PaymentConfirmed: ['APPROVED'],
   PaymentFailed: ['APPROVED'],
+  RepairStarted: ['PAID'],
+  RepairCompleted: ['EXECUTION'],
 };
 
 /** Replies that undo the earlier steps, and the reason the compensation commands carry. */
@@ -54,6 +56,7 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
     private readonly customers: ICustomerRepository,
     private readonly notifyStatusChange: IStatusChangeNotifier,
     private readonly logger: ILogger,
+    private readonly now: () => Date = () => new Date(),
   ) {}
 
   async handle(reply: SagaReply): Promise<SagaReplyResult> {
@@ -102,6 +105,10 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
         return this.paymentConfirmed(order, repositories);
       case 'PaymentFailed':
         return this.paymentFailed(order, repositories);
+      case 'RepairStarted':
+        return this.repairStarted(order, repositories);
+      case 'RepairCompleted':
+        return this.repairCompleted(order, repositories);
     }
   }
 
@@ -211,6 +218,15 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
     await repositories.outbox.add({ destination: 'execution-commands', type: 'CancelExecution', serviceOrderId: order.id, payload });
     await repositories.outbox.add({ destination: 'billing-commands', type: 'CancelBudget', serviceOrderId: order.id, payload });
     return updated;
+  }
+
+  private repairStarted(order: ServiceOrder, { serviceOrders }: TransactionalRepositories): Promise<ServiceOrder> {
+    return this.moveTo(order, 'EXECUTION', serviceOrders, { startedAt: this.now() });
+  }
+
+  /** The end of the saga. Delivery to the customer stays a manual step for the staff. */
+  private repairCompleted(order: ServiceOrder, { serviceOrders }: TransactionalRepositories): Promise<ServiceOrder> {
+    return this.moveTo(order, 'FINISHED', serviceOrders, { finishedAt: this.now() });
   }
 
   private async repairCommandFor(order: ServiceOrder): Promise<EnqueueRepairCommand> {

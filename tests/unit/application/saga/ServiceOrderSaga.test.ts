@@ -2,11 +2,13 @@ import { ServiceOrderSaga } from '../../../../src/use-cases/saga/ServiceOrderSag
 import { ServiceOrder } from '../../../../src/entities/ServiceOrder';
 import { IUnitOfWork, TransactionalRepositories } from '../../../../src/use-cases/ports/IUnitOfWork';
 import { IItemRepository } from '../../../../src/use-cases/ports/IItemRepository';
-import { makeOSRepo, receivedOS, baseOS, waitingApprovalOS, approvedOS } from '../../fixtures/serviceOrder';
+import { makeOSRepo, receivedOS, baseOS, waitingApprovalOS, approvedOS, executionOS } from '../../fixtures/serviceOrder';
 import { makeItemRepo, stockedItem, reservedItem } from '../../fixtures/item';
 import { makeServiceRepo, baseService } from '../../fixtures/service';
 import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 import { sagaReply } from '../../../support/sagaReplies';
+
+const NOW = new Date('2026-10-31T15:00:00.000Z');
 
 function setup(order: ServiceOrder | null, options: { firstDelivery?: boolean; items?: IItemRepository } = {}) {
   const events: string[] = [];
@@ -25,7 +27,7 @@ function setup(order: ServiceOrder | null, options: { firstDelivery?: boolean; i
   };
   const notifier = { execute: jest.fn(async () => { events.push('notify'); }) };
   const logger = { warn: jest.fn(), error: jest.fn() };
-  const saga = new ServiceOrderSaga(unitOfWork, makeServiceRepo(), makeCustomerRepo(), notifier, logger);
+  const saga = new ServiceOrderSaga(unitOfWork, makeServiceRepo(), makeCustomerRepo(), notifier, logger, () => NOW);
   return { saga, repositories, unitOfWork, notifier, logger, events };
 }
 
@@ -217,5 +219,32 @@ describe('ServiceOrderSaga', () => {
     expect(repositories.outbox.add).toHaveBeenCalledWith({
       destination: 'billing-commands', type: 'CancelBudget', serviceOrderId: approvedOS.id, payload: { reason: 'PAYMENT_FAILED' },
     });
+  });
+
+  it('moves PAID to EXECUTION and records startedAt on RepairStarted', async () => {
+    const paid = { ...approvedOS, status: 'PAID' as const };
+    const { saga, repositories, notifier } = setup(paid);
+
+    const result = await saga.handle(sagaReply('RepairStarted', paid.id));
+
+    expect(result).toMatchObject({ outcome: 'applied', serviceOrder: { status: 'EXECUTION' } });
+    expect(repositories.serviceOrders.update).toHaveBeenCalledWith(paid.id, { status: 'EXECUTION', startedAt: NOW }, { expectedVersion: paid.version });
+    expect(notifier.execute).toHaveBeenCalledWith({ osId: paid.id });
+  });
+
+  it('moves EXECUTION to FINISHED and records finishedAt on RepairCompleted', async () => {
+    const { saga, repositories } = setup(executionOS);
+
+    const result = await saga.handle(sagaReply('RepairCompleted', executionOS.id));
+
+    expect(result).toMatchObject({ outcome: 'applied', serviceOrder: { status: 'FINISHED' } });
+    expect(repositories.serviceOrders.update).toHaveBeenCalledWith(executionOS.id, { status: 'FINISHED', finishedAt: NOW }, { expectedVersion: executionOS.version });
+  });
+
+  it('ignores a RepairStarted for an order that was not paid', async () => {
+    const { saga, repositories } = setup(approvedOS);
+
+    expect(await saga.handle(sagaReply('RepairStarted', approvedOS.id))).toEqual({ outcome: 'ignored' });
+    expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
   });
 });

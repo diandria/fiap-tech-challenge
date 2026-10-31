@@ -12,6 +12,8 @@ export const SAGA_REPLY_TYPES = [
   'BudgetRejected',
   'PaymentConfirmed',
   'PaymentFailed',
+  'RepairStarted',
+  'RepairCompleted',
 ] as const;
 
 export type SagaReplyType = (typeof SAGA_REPLY_TYPES)[number];
