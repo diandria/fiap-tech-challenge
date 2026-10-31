@@ -6,6 +6,13 @@ contrário.
 
 A justificativa da escolha do banco está na [RFC-002](rfc/RFC-002-banco-de-dados.md).
 
+## Dono dos dados
+
+Este documento descreve só o banco do OS Service. Desde a divisão em microsserviços
+([ADR-013](adr/ADR-013-decomposicao-em-microsservicos.md)), cada serviço tem o próprio banco
+([ADR-016](adr/ADR-016-banco-por-servico.md)): o modelo do Billing e o do Execution são documentados nos
+repositórios deles, e nenhuma tabela daqui é lida por outro serviço.
+
 ## Diagrama
 
 ```mermaid
