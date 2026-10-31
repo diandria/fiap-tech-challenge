@@ -10,6 +10,7 @@ import { PostgresServiceRepository } from '../../src/adapters/gateways/PostgresS
 import { PostgresItemRepository } from '../../src/adapters/gateways/PostgresItemRepository';
 import { PostgresServiceOrderRepository } from '../../src/adapters/gateways/PostgresServiceOrderRepository';
 import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
+import { PrismaUnitOfWork } from '../../src/adapters/gateways/PrismaUnitOfWork';
 import { ConsoleNotificationService } from '../../src/adapters/services/ConsoleNotificationService';
 import { PrometheusBusinessMetrics } from '../../src/frameworks/metrics/PrometheusBusinessMetrics';
 import { PrometheusIntegrationFailures } from '../../src/frameworks/metrics/PrometheusIntegrationFailures';
@@ -152,7 +153,7 @@ export function createTestApp(): Application {
 
   const osController = new ServiceOrderController(
     new MeasuredCreateServiceOrder(
-      new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo),
+      new CreateServiceOrderUseCase(new PrismaUnitOfWork(prisma), serviceRepo),
       businessMetrics,
     ),
     new GetServiceOrderUseCase(osRepo),

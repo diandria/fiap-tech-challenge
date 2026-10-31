@@ -541,6 +541,24 @@ describe('POST /service-orders — creation with services and items', () => {
   });
 });
 
+describe('POST /service-orders — stock reservation is part of the opening transaction', () => {
+  it('GIVEN items reserved for an order whose insert then fails WHEN POST /service-orders THEN no reservation remains', async () => {
+    // GIVEN
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const missingVehicleId = '99999999-9999-4999-8999-999999999999';
+
+    // WHEN
+    const res = await request(app).post('/service-orders').set(auth)
+      .send({ customerId, vehicleId: missingVehicleId, items: [{ itemId, quantity: 2 }] });
+
+    // THEN
+    expect(res.status).not.toBe(201);
+    const item = await prisma.item.findUniqueOrThrow({ where: { id: itemId } });
+    expect(item.reservedQuantity).toBe(0);
+    expect(await prisma.serviceOrder.count()).toBe(0);
+  });
+});
+
 describe('DELETE /service-orders/:id/services/:serviceId — diagnosis refinement', () => {
   async function createOSInDiagnosisWithService(): Promise<{ osId: string }> {
     const auth = { Authorization: `Bearer ${adminToken}` };

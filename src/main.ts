@@ -15,6 +15,7 @@ import { PostgresServiceRepository } from './adapters/gateways/PostgresServiceRe
 import { PostgresItemRepository } from './adapters/gateways/PostgresItemRepository';
 import { PostgresServiceOrderRepository } from './adapters/gateways/PostgresServiceOrderRepository';
 import { PostgresUserRepository } from './adapters/gateways/PostgresUserRepository';
+import { PrismaUnitOfWork } from './adapters/gateways/PrismaUnitOfWork';
 import { createNotificationService } from './frameworks/notifications/notificationFactory';
 
 import { LoginUseCase } from './use-cases/auth/LoginUseCase';
@@ -126,7 +127,7 @@ async function main(): Promise<void> {
 
   const osController = new ServiceOrderController(
     new MeasuredCreateServiceOrder(
-      new CreateServiceOrderUseCase(osRepo, serviceRepo, itemRepo),
+      new CreateServiceOrderUseCase(new PrismaUnitOfWork(prisma), serviceRepo),
       businessMetrics,
     ),
     new GetServiceOrderUseCase(osRepo),

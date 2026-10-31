@@ -1,6 +1,5 @@
-import { IServiceOrderRepository } from '../ports/IServiceOrderRepository';
 import { IServiceRepository } from '../ports/IServiceRepository';
-import { IItemRepository } from '../ports/IItemRepository';
+import { IUnitOfWork } from '../ports/IUnitOfWork';
 import { ServiceOrder, OSService, OSItem } from '../../entities/ServiceOrder';
 import { getAvailableQuantity } from '../../entities/Item';
 import { NotFoundError, ValidationError } from '../../entities/errors/AppError';
@@ -8,48 +7,45 @@ import { ICreateServiceOrder, CreateServiceOrderInput } from '../ports/input/ICr
 
 export class CreateServiceOrderUseCase implements ICreateServiceOrder {
   constructor(
-    private readonly osRepo: IServiceOrderRepository,
+    private readonly unitOfWork: IUnitOfWork,
     private readonly serviceRepo: IServiceRepository,
-    private readonly itemRepo: IItemRepository,
   ) {}
 
   async execute(input: CreateServiceOrderInput): Promise<ServiceOrder> {
-    const resolvedServices: OSService[] = [];
-    for (const serviceId of input.services ?? []) {
-      const service = await this.serviceRepo.findById(serviceId);
-      if (!service) throw new NotFoundError(`Service ${serviceId}`);
-      resolvedServices.push({ serviceId });
-    }
+    const services = await this.resolveServices(input.services ?? []);
 
-    const resolvedItems: OSItem[] = [];
-    try {
+    // Reserving stock and inserting the order are one local transaction: if
+    // the insert fails, the reservations are rolled back with it.
+    return this.unitOfWork.run(async ({ serviceOrders, items }) => {
+      const reservedItems: OSItem[] = [];
+
       for (const { itemId, quantity } of input.items ?? []) {
-        const item = await this.itemRepo.findById(itemId);
+        const item = await items.findById(itemId);
         if (!item) throw new NotFoundError(`Item ${itemId}`);
         if (getAvailableQuantity(item) < quantity) {
           throw new ValidationError(`Insufficient stock for item ${itemId}`);
         }
-        await this.itemRepo.update(itemId, { reservedQuantity: item.reservedQuantity + quantity });
-        resolvedItems.push({ itemId, quantity });
+        await items.update(itemId, { reservedQuantity: item.reservedQuantity + quantity });
+        reservedItems.push({ itemId, quantity });
       }
-    } catch (err) {
-      for (const { itemId, quantity } of resolvedItems) {
-        const item = await this.itemRepo.findById(itemId);
-        if (item) {
-          await this.itemRepo.update(itemId, {
-            reservedQuantity: Math.max(0, item.reservedQuantity - quantity),
-          });
-        }
-      }
-      throw err;
-    }
 
-    return this.osRepo.create({
-      customerId: input.customerId,
-      vehicleId: input.vehicleId,
-      status: 'RECEIVED',
-      services: resolvedServices,
-      items: resolvedItems,
+      return serviceOrders.create({
+        customerId: input.customerId,
+        vehicleId: input.vehicleId,
+        status: 'RECEIVED',
+        services,
+        items: reservedItems,
+      });
     });
+  }
+
+  private async resolveServices(serviceIds: string[]): Promise<OSService[]> {
+    const resolved: OSService[] = [];
+    for (const serviceId of serviceIds) {
+      const service = await this.serviceRepo.findById(serviceId);
+      if (!service) throw new NotFoundError(`Service ${serviceId}`);
+      resolved.push({ serviceId });
+    }
+    return resolved;
   }
 }
