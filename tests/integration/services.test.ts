@@ -4,6 +4,7 @@ import { Application } from 'express';
 import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } from '../helpers/testSetup';
 import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
+import { signCustomerToken } from '../helpers/customerToken';
 
 let app: Application;
 let adminToken: string;
@@ -187,5 +188,33 @@ describe('GET /services/avg-time', () => {
       'Oil Change',
       'Wheel Alignment',
     ]);
+  });
+});
+
+describe('Customer tokens on staff-only catalogue reads — /services', () => {
+  it('GIVEN a customer token WHEN GET /services THEN returns 403', async () => {
+    // GIVEN
+    await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
+    const token = signCustomerToken('00000000-0000-4000-8000-000000000001');
+
+    // WHEN
+    const res = await request(app).get('/services').set('Authorization', `Bearer ${token}`);
+
+    // THEN
+    expect(res.status).toBe(403);
+    expect(Array.isArray(res.body)).toBe(false);
+  });
+
+  it('GIVEN a customer token WHEN GET /services/:id THEN returns 403', async () => {
+    // GIVEN
+    const created = await request(app).post('/services').set('Authorization', `Bearer ${adminToken}`).send(validService);
+    const token = signCustomerToken('00000000-0000-4000-8000-000000000001');
+
+    // WHEN
+    const res = await request(app).get(`/services/${created.body.id}`).set('Authorization', `Bearer ${token}`);
+
+    // THEN
+    expect(res.status).toBe(403);
+    expect(res.body.price).toBeUndefined();
   });
 });

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { ServiceController } from '../../../adapters/controllers/ServiceController';
 import { authMiddleware } from '../middlewares/authMiddleware';
-import { requireRole } from '../middlewares/roleMiddleware';
+import { requireRole, requireStaff } from '../middlewares/roleMiddleware';
 
 export function serviceRoutes(controller: ServiceController): Router {
   const router = Router();
@@ -17,9 +17,11 @@ export function serviceRoutes(controller: ServiceController): Router {
    *         description: Array of services
    *       401:
    *         description: Missing or invalid token
+   *       403:
+   *         description: Not a staff token
    */
   // Was public in Phase 2. Now requires auth: the catalogue carries prices.
-  router.get('/', authMiddleware, (req, res, next) => controller.list(req, res, next));
+  router.get('/', authMiddleware, requireStaff, (req, res, next) => controller.list(req, res, next));
 
   /**
    * @openapi
@@ -63,10 +65,12 @@ export function serviceRoutes(controller: ServiceController): Router {
    *     responses:
    *       200:
    *         description: Service object
+   *       403:
+   *         description: Not a staff token
    *       404:
    *         description: Not found
    */
-  router.get('/:id', authMiddleware, (req, res, next) => controller.getById(req, res, next));
+  router.get('/:id', authMiddleware, requireStaff, (req, res, next) => controller.getById(req, res, next));
 
   /**
    * @openapi

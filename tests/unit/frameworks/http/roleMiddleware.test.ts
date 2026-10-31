@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { requireRole, requireCustomer } from '../../../../src/frameworks/http/middlewares/roleMiddleware';
+import { requireRole, requireCustomer, requireStaff } from '../../../../src/frameworks/http/middlewares/roleMiddleware';
 import { ForbiddenError } from '../../../../src/entities/errors/AppError';
 import { JwtPayload } from '../../../../src/frameworks/http/middlewares/authMiddleware';
 
@@ -74,6 +74,32 @@ describe('requireCustomer', () => {
     const next = jest.fn() as NextFunction;
 
     requireCustomer(reqAs(undefined), {} as Response, next);
+
+    expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+  });
+});
+
+describe('requireStaff', () => {
+  it.each(['admin', 'attendant', 'mechanic'] as const)('should allow GIVEN a %s token WHEN authorizing', (role) => {
+    const next = jest.fn() as NextFunction;
+
+    requireStaff(reqAs(staff(role)), {} as Response, next);
+
+    expect(next).toHaveBeenCalledWith();
+  });
+
+  it('should reject a customer token GIVEN a staff-only route WHEN authorizing', () => {
+    const next = jest.fn() as NextFunction;
+
+    requireStaff(reqAs(customer), {} as Response, next);
+
+    expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+  });
+
+  it('should reject GIVEN no authenticated user WHEN authorizing', () => {
+    const next = jest.fn() as NextFunction;
+
+    requireStaff(reqAs(undefined), {} as Response, next);
 
     expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
   });

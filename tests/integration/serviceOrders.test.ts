@@ -762,3 +762,33 @@ describe('GET /service-orders — active listing and priority sort', () => {
     expect(posFirst).toBeLessThan(posSecond);
   });
 });
+
+describe('Customer tokens on staff-only service order reads', () => {
+  it('GIVEN a customer token WHEN GET /service-orders THEN returns 403', async () => {
+    // GIVEN
+    await request(app).post('/service-orders').set('Authorization', `Bearer ${attendantToken}`)
+      .send({ customerId, vehicleId });
+    const token = customerToken(customerId);
+
+    // WHEN
+    const res = await request(app).get('/service-orders').set('Authorization', `Bearer ${token}`);
+
+    // THEN
+    expect(res.status).toBe(403);
+    expect(Array.isArray(res.body)).toBe(false);
+  });
+
+  it('GIVEN a customer token WHEN GET /service-orders/:id THEN returns 403', async () => {
+    // GIVEN
+    const created = await request(app).post('/service-orders').set('Authorization', `Bearer ${attendantToken}`)
+      .send({ customerId, vehicleId });
+    const token = customerToken(customerId);
+
+    // WHEN
+    const res = await request(app).get(`/service-orders/${created.body.id}`).set('Authorization', `Bearer ${token}`);
+
+    // THEN
+    expect(res.status).toBe(403);
+    expect(res.body.customerId).toBeUndefined();
+  });
+});
