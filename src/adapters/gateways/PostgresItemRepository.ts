@@ -1,5 +1,6 @@
 import { isUuid } from './uuid';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { PrismaExecutor } from './prismaExecutor';
 import { IItemRepository } from '../../use-cases/ports/IItemRepository';
 import { Item } from '../../entities/Item';
 
@@ -12,7 +13,7 @@ interface ItemRow {
 }
 
 export class PostgresItemRepository implements IItemRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaExecutor) {}
 
   private toEntity(row: ItemRow): Item {
     return {
