@@ -138,4 +138,41 @@ describe('Service order saga', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ status: 'WAITING_APPROVAL', budgetTotal: 180 });
   });
+
+  it('GIVEN an order WAITING_APPROVAL with 2 units reserved WHEN BudgetRejected is handled THEN the order is REJECTED, reserved quantity drops by 2 and CancelExecution is in the outbox', async () => {
+    // GIVEN
+    const { orderId, itemId } = await seedOrder('WAITING_APPROVAL');
+
+    // WHEN
+    const result = await saga.handle(sagaReply('BudgetRejected', orderId, { budgetId: '33333333-3333-4333-8333-333333333333' }));
+
+    // THEN
+    expect(result).toMatchObject({ outcome: 'applied', compensation: 'BUDGET_REJECTED' });
+    expect((await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } })).status).toBe('REJECTED');
+    expect(await prisma.item.findUniqueOrThrow({ where: { id: itemId } })).toMatchObject({ stockQuantity: 10, reservedQuantity: 0 });
+    const outbox = await prisma.outboxMessage.findMany();
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]).toMatchObject({
+      destination: 'execution-commands',
+      type: 'CancelExecution',
+      serviceOrderId: orderId,
+      payload: { reason: 'BUDGET_REJECTED' },
+    });
+  });
+
+  it('GIVEN a reservation smaller than the order WHEN BudgetRejected is handled THEN it fails and nothing changes', async () => {
+    // GIVEN
+    const { orderId, itemId } = await seedOrder('WAITING_APPROVAL');
+    await prisma.item.update({ where: { id: itemId }, data: { reservedQuantity: 1 } });
+
+    // WHEN
+    const handling = saga.handle(sagaReply('BudgetRejected', orderId, { budgetId: '33333333-3333-4333-8333-333333333333' }));
+
+    // THEN
+    await expect(handling).rejects.toThrow('Cannot release');
+    expect((await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } })).status).toBe('WAITING_APPROVAL');
+    expect((await prisma.item.findUniqueOrThrow({ where: { id: itemId } })).reservedQuantity).toBe(1);
+    expect(await prisma.outboxMessage.count()).toBe(0);
+    expect(await prisma.processedMessage.count()).toBe(0);
+  });
 });

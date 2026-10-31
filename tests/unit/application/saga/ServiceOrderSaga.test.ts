@@ -1,17 +1,18 @@
 import { ServiceOrderSaga } from '../../../../src/use-cases/saga/ServiceOrderSaga';
 import { ServiceOrder } from '../../../../src/entities/ServiceOrder';
 import { IUnitOfWork, TransactionalRepositories } from '../../../../src/use-cases/ports/IUnitOfWork';
+import { IItemRepository } from '../../../../src/use-cases/ports/IItemRepository';
 import { makeOSRepo, receivedOS, baseOS, waitingApprovalOS } from '../../fixtures/serviceOrder';
-import { makeItemRepo, stockedItem } from '../../fixtures/item';
+import { makeItemRepo, stockedItem, reservedItem } from '../../fixtures/item';
 import { makeServiceRepo, baseService } from '../../fixtures/service';
 import { makeCustomerRepo, cpfCustomer } from '../../fixtures/customer';
 import { sagaReply } from '../../../support/sagaReplies';
 
-function setup(order: ServiceOrder | null, options: { firstDelivery?: boolean } = {}) {
+function setup(order: ServiceOrder | null, options: { firstDelivery?: boolean; items?: IItemRepository } = {}) {
   const events: string[] = [];
   const repositories: TransactionalRepositories = {
     serviceOrders: makeOSRepo(order),
-    items: makeItemRepo(),
+    items: options.items ?? makeItemRepo(),
     outbox: { add: jest.fn() },
     processedMessages: { markProcessed: jest.fn().mockResolvedValue(options.firstDelivery ?? true) },
   };
@@ -142,5 +143,35 @@ describe('ServiceOrderSaga', () => {
       payload: {},
     });
     expect(notifier.execute).toHaveBeenCalledWith({ osId: waitingApprovalOS.id });
+  });
+
+  it('releases every reserved item, rejects the order and cancels execution on BudgetRejected', async () => {
+    const order = { ...waitingApprovalOS, items: [{ itemId: 'i-1', quantity: 2 }, { itemId: 'i-2', quantity: 1 }] };
+    const { saga, repositories } = setup(order, { items: makeItemRepo(reservedItem) });
+
+    const result = await saga.handle(sagaReply('BudgetRejected', order.id, { budgetId: 'b-1' }));
+
+    expect(result).toMatchObject({ outcome: 'applied', compensation: 'BUDGET_REJECTED', serviceOrder: { status: 'REJECTED' } });
+    expect(repositories.items.release).toHaveBeenNthCalledWith(1, 'i-1', 2);
+    expect(repositories.items.release).toHaveBeenNthCalledWith(2, 'i-2', 1);
+    expect(repositories.serviceOrders.update).toHaveBeenCalledWith(order.id, { status: 'REJECTED' }, { expectedVersion: order.version });
+    expect(repositories.outbox.add).toHaveBeenCalledWith({
+      destination: 'execution-commands',
+      type: 'CancelExecution',
+      serviceOrderId: order.id,
+      payload: { reason: 'BUDGET_REJECTED' },
+    });
+  });
+
+  it('fails without changes when a release is refused', async () => {
+    const items = makeItemRepo(reservedItem);
+    (items.release as jest.Mock).mockResolvedValueOnce(false);
+    const { saga, repositories, notifier } = setup(waitingApprovalOS, { items });
+
+    await expect(saga.handle(sagaReply('BudgetRejected', waitingApprovalOS.id, { budgetId: 'b-1' }))).rejects.toThrow('i-1');
+
+    expect(repositories.serviceOrders.update).not.toHaveBeenCalled();
+    expect(repositories.outbox.add).not.toHaveBeenCalled();
+    expect(notifier.execute).not.toHaveBeenCalled();
   });
 });

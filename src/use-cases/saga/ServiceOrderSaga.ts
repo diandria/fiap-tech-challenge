@@ -7,7 +7,7 @@ import { ICustomerRepository } from '../ports/ICustomerRepository';
 import { IStatusChangeNotifier } from '../ports/IStatusChangeNotifier';
 import { ILogger } from '../ports/ILogger';
 import { IServiceOrderSaga } from '../ports/input/IServiceOrderSaga';
-import { GenerateBudgetCommand, SagaReply, SagaReplyResult, SagaReplyType } from './messages';
+import { CompensationReason, GenerateBudgetCommand, SagaReply, SagaReplyResult, SagaReplyType } from './messages';
 import { buildBudgetLines } from './buildBudgetLines';
 import { Item } from '../../entities/Item';
 import { Service } from '../../entities/Service';
@@ -22,6 +22,12 @@ const EXPECTED_STATUS: Record<SagaReplyType, OSStatus[]> = {
   DiagnosisCompleted: ['DIAGNOSIS'],
   BudgetGenerated: ['WAITING_APPROVAL'],
   BudgetApproved: ['WAITING_APPROVAL'],
+  BudgetRejected: ['WAITING_APPROVAL'],
+};
+
+/** Replies that undo the earlier steps, and the reason the compensation commands carry. */
+const COMPENSATION: Partial<Record<SagaReplyType, CompensationReason>> = {
+  BudgetRejected: 'BUDGET_REJECTED',
 };
 
 /**
@@ -59,7 +65,8 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
 
       const updated = await this.apply(reply, order, repositories);
       statusChanged = updated.status !== order.status;
-      return { outcome: 'applied', serviceOrder: updated };
+      const compensation = COMPENSATION[reply.type];
+      return { outcome: 'applied', serviceOrder: updated, ...(compensation && { compensation }) };
     });
 
     // Only a new status is news to the customer; a stored total is not.
@@ -79,6 +86,8 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
         return this.budgetGenerated(order, reply, repositories);
       case 'BudgetApproved':
         return this.budgetApproved(order, repositories);
+      case 'BudgetRejected':
+        return this.budgetRejected(order, repositories);
     }
   }
 
@@ -133,6 +142,33 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
     const updated = await this.moveTo(order, 'APPROVED', repositories.serviceOrders);
     await repositories.outbox.add({ destination: 'billing-commands', type: 'RequestPayment', serviceOrderId: order.id, payload: {} });
     return updated;
+  }
+
+  /**
+   * Compensates the opening of the order and the diagnosis. The local undo
+   * (stock released, order rejected) and the request to the Execution Service
+   * commit together: there is no state where the order is rejected and the
+   * mechanic's queue never hears about it.
+   */
+  private async budgetRejected(order: ServiceOrder, repositories: TransactionalRepositories): Promise<ServiceOrder> {
+    await this.releaseReservations(order, repositories);
+    const updated = await this.moveTo(order, 'REJECTED', repositories.serviceOrders);
+    await repositories.outbox.add({
+      destination: 'execution-commands',
+      type: 'CancelExecution',
+      serviceOrderId: order.id,
+      payload: { reason: COMPENSATION.BudgetRejected },
+    });
+    return updated;
+  }
+
+  /** A release that does not fit the reservation means the stock is inconsistent; the reply must fail. */
+  private async releaseReservations(order: ServiceOrder, { items }: TransactionalRepositories): Promise<void> {
+    for (const { itemId, quantity } of order.items) {
+      if (!(await items.release(itemId, quantity))) {
+        throw new ValidationError(`Cannot release ${quantity} reserved units of item ${itemId}`);
+      }
+    }
   }
 
   /** Moves the order to a new status, if the state machine allows it. */
