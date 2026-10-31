@@ -5,6 +5,8 @@ const config: Config = {
   testEnvironment: 'node',
   testTimeout: 120_000,
   roots: ['<rootDir>/tests'],
+  // The default patterns, plus the step files of the Gherkin scenarios.
+  testMatch: ['**/?(*.)+(spec|test).[jt]s?(x)', '**/*.steps.ts'],
   maxWorkers: 4,
   collectCoverageFrom: [
     'src/**/*.ts',
