@@ -10,7 +10,7 @@ describe('AddItemToOSUseCase', () => {
     const itemRepo = makeItemRepo(item);
     const useCase = new AddItemToOSUseCase(makeUnitOfWork(osRepo, itemRepo));
     await useCase.execute('os-1', 'i-1', 3);
-    expect(itemRepo.update).toHaveBeenCalledWith('i-1', { reservedQuantity: 5 });
+    expect(itemRepo.reserve).toHaveBeenCalledWith('i-1', 3);
     expect(osRepo.update).toHaveBeenCalled();
   });
 
@@ -60,7 +60,18 @@ describe('AddItemToOSUseCase', () => {
 
     await expect(useCase.execute('os-1', 'i-1', 1)).rejects.toThrow('connection lost');
 
-    expect(itemRepo.update).toHaveBeenCalledWith('i-1', { reservedQuantity: 1 });
+    expect(itemRepo.reserve).toHaveBeenCalledWith('i-1', 1);
     await expect(unitOfWork.run.mock.results[0].value).rejects.toThrow('connection lost');
+  });
+
+  it('GIVEN another order took the stock after it was read WHEN the reservation is refused THEN throws ValidationError and leaves the order unchanged', async () => {
+    const osRepo = makeOSRepo(baseOS);
+    const itemRepo = makeItemRepo(stockedItem);
+    (itemRepo.reserve as jest.Mock).mockResolvedValue(false);
+    const useCase = new AddItemToOSUseCase(makeUnitOfWork(osRepo, itemRepo));
+
+    await expect(useCase.execute('os-1', 'i-1', 1)).rejects.toMatchObject({ statusCode: 400 });
+
+    expect(osRepo.update).not.toHaveBeenCalled();
   });
 });

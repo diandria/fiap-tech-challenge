@@ -56,7 +56,7 @@ describe('CreateServiceOrderUseCase', () => {
       const result = await useCase.execute({ customerId: 'c-1', vehicleId: 'v-1', items: [{ itemId: 'i-1', quantity: 2 }] });
 
       expect(itemRepo.findById).toHaveBeenCalledWith('i-1');
-      expect(itemRepo.update).toHaveBeenCalledWith('i-1', { reservedQuantity: 2 });
+      expect(itemRepo.reserve).toHaveBeenCalledWith('i-1', 2);
       expect(osRepo.create).toHaveBeenCalledWith(expect.objectContaining({ items: [{ itemId: 'i-1', quantity: 2 }] }));
       expect(result.items).toHaveLength(1);
     });
@@ -87,7 +87,7 @@ describe('CreateServiceOrderUseCase', () => {
       const osRepo = makeOSRepo(receivedOS);
       const itemRepo = {
         ...makeItemRepo(stockedItem),
-        findById: jest.fn().mockResolvedValueOnce(stockedItem).mockResolvedValueOnce(depletedItem),
+        reserve: jest.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false),
       };
       const unitOfWork = makeUnitOfWork(osRepo, itemRepo);
       const useCase = new CreateServiceOrderUseCase(unitOfWork, makeServiceRepo());
@@ -112,6 +112,21 @@ describe('CreateServiceOrderUseCase', () => {
 
       await expect(execution).rejects.toThrow('foreign key violation');
       await expect(unitOfWork.run.mock.results[0].value).rejects.toThrow('foreign key violation');
+    });
+  });
+
+  describe('concurrent reservations', () => {
+    it('GIVEN another order took the stock after it was read WHEN the reservation is refused THEN throws ValidationError and does not create OS', async () => {
+      const osRepo = makeOSRepo(receivedOS);
+      const itemRepo = makeItemRepo(stockedItem);
+      (itemRepo.reserve as jest.Mock).mockResolvedValue(false);
+      const useCase = new CreateServiceOrderUseCase(makeUnitOfWork(osRepo, itemRepo), makeServiceRepo());
+
+      await expect(
+        useCase.execute({ customerId: 'c-1', vehicleId: 'v-1', items: [{ itemId: 'i-1', quantity: 1 }] }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+
+      expect(osRepo.create).not.toHaveBeenCalled();
     });
   });
 

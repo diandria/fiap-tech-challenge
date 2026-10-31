@@ -542,6 +542,24 @@ describe('POST /service-orders — creation with services and items', () => {
 });
 
 describe('POST /service-orders — stock reservation is part of the opening transaction', () => {
+  it('GIVEN an item with one unit available WHEN several orders reserve it concurrently THEN exactly one is opened and one unit is reserved', async () => {
+    // GIVEN
+    const auth = { Authorization: `Bearer ${adminToken}` };
+    const lastUnit = await request(app).post('/items').set(auth).send({ name: 'Last Unit', price: 10, stockQuantity: 1 });
+
+    // WHEN
+    const responses = await Promise.all(Array.from({ length: 5 }, () =>
+      request(app).post('/service-orders').set(auth)
+        .send({ customerId, vehicleId, items: [{ itemId: lastUnit.body.id, quantity: 1 }] }),
+    ));
+
+    // THEN
+    const statuses = responses.map((r) => r.status).sort();
+    expect(statuses).toEqual([201, 400, 400, 400, 400]);
+    const item = await prisma.item.findUniqueOrThrow({ where: { id: lastUnit.body.id } });
+    expect(item.reservedQuantity).toBe(1);
+  });
+
   it('GIVEN items reserved for an order whose insert then fails WHEN POST /service-orders THEN no reservation remains', async () => {
     // GIVEN
     const auth = { Authorization: `Bearer ${adminToken}` };

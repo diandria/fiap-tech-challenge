@@ -1,6 +1,5 @@
 import { IUnitOfWork } from '../ports/IUnitOfWork';
 import { ServiceOrder } from '../../entities/ServiceOrder';
-import { getAvailableQuantity } from '../../entities/Item';
 import { NotFoundError, ValidationError } from '../../entities/errors/AppError';
 import { findOSOrThrow } from '../utils/serviceOrderUtils';
 
@@ -16,11 +15,9 @@ export class AddItemToOSUseCase {
       const item = await items.findById(itemId);
       if (!item) throw new NotFoundError('Item');
 
-      if (getAvailableQuantity(item) < quantity) {
+      if (!(await items.reserve(itemId, quantity))) {
         throw new ValidationError('Insufficient stock available');
       }
-
-      await items.update(itemId, { reservedQuantity: item.reservedQuantity + quantity });
 
       const existing = os.items.find((i) => i.itemId === itemId);
       const lines = existing

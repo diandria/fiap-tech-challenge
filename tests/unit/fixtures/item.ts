@@ -1,4 +1,4 @@
-import { Item } from '../../../src/entities/Item';
+import { Item, getAvailableQuantity } from '../../../src/entities/Item';
 import { IItemRepository } from '../../../src/use-cases/ports/IItemRepository';
 
 export const stockedItem: Item = {
@@ -37,4 +37,7 @@ export const makeItemRepo = (
     Promise.resolve(options?.updateResult ?? (found ? { ...found, ...data } : null))
   ),
   delete: jest.fn().mockResolvedValue(true),
+  reserve: jest.fn().mockImplementation((_id: string, quantity: number) =>
+    Promise.resolve(found !== null && getAvailableQuantity(found) >= quantity)
+  ),
 });
