@@ -6,6 +6,7 @@ import {
   AvgExecutionResult,
 } from '../../use-cases/ports/IServiceOrderRepository';
 import { ServiceOrder, OSStatus, OSService } from '../../entities/ServiceOrder';
+import { ServiceOrderStatusChange } from '../../entities/ServiceOrderStatusChange';
 
 const INCLUDE_RELATIONS = {
   services: { select: { serviceId: true, startedAt: true, finishedAt: true } },
@@ -115,6 +116,9 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
         },
         include: INCLUDE_RELATIONS,
       });
+      await tx.serviceOrderStatusHistory.create({
+        data: { serviceOrderId: row.id, fromStatus: null, toStatus: row.status },
+      });
       return this.toEntity(row as unknown as ServiceOrderRow);
     });
   }
@@ -163,8 +167,24 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
         data: scalar,
         include: INCLUDE_RELATIONS,
       });
+
+      if (data.status !== undefined && data.status !== existing.status) {
+        await tx.serviceOrderStatusHistory.create({
+          data: { serviceOrderId: id, fromStatus: existing.status, toStatus: data.status },
+        });
+      }
+
       return this.toEntity(row as unknown as ServiceOrderRow);
     });
+  }
+
+  async findStatusHistory(serviceOrderId: string): Promise<ServiceOrderStatusChange[]> {
+    if (!isUuid(serviceOrderId)) return [];
+    const rows = await this.prisma.serviceOrderStatusHistory.findMany({
+      where: { serviceOrderId },
+      orderBy: { changedAt: 'asc' },
+    });
+    return rows.map((r) => ({ from: r.fromStatus, to: r.toStatus, changedAt: r.changedAt }));
   }
 
   async getAvgExecutionByService(): Promise<AvgExecutionResult[]> {

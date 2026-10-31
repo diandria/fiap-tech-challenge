@@ -1,4 +1,5 @@
 import { ServiceOrder, OSStatus } from '../../entities/ServiceOrder';
+import { ServiceOrderStatusChange } from '../../entities/ServiceOrderStatusChange';
 
 export interface ListServiceOrdersFilter {
   status?: OSStatus;
@@ -20,4 +21,6 @@ export interface IServiceOrderRepository {
   create(data: Omit<ServiceOrder, 'id' | 'createdAt'>): Promise<ServiceOrder>;
   update(id: string, data: Partial<Omit<ServiceOrder, 'id'>>): Promise<ServiceOrder | null>;
   getAvgExecutionByService(): Promise<AvgExecutionResult[]>;
+  /** Status changes of the order, oldest first. */
+  findStatusHistory(serviceOrderId: string): Promise<ServiceOrderStatusChange[]>;
 }

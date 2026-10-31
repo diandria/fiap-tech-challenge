@@ -792,3 +792,67 @@ describe('Customer tokens on staff-only service order reads', () => {
     expect(res.body.customerId).toBeUndefined();
   });
 });
+
+describe('GET /service-orders/:id/history', () => {
+  async function orderInDiagnosis(): Promise<string> {
+    const created = await request(app).post('/service-orders').set('Authorization', `Bearer ${attendantToken}`)
+      .send({ customerId, vehicleId });
+    await request(app).patch(`/service-orders/${created.body.id}`).set('Authorization', `Bearer ${mechanicToken}`)
+      .send({ status: 'DIAGNOSIS' });
+    return created.body.id;
+  }
+
+  it('GIVEN an order moved to DIAGNOSIS WHEN GET /service-orders/:id/history as staff THEN returns RECEIVED and DIAGNOSIS in order', async () => {
+    // GIVEN
+    const osId = await orderInDiagnosis();
+
+    // WHEN
+    const res = await request(app).get(`/service-orders/${osId}/history`).set('Authorization', `Bearer ${attendantToken}`);
+
+    // THEN
+    expect(res.status).toBe(200);
+    expect(res.body.serviceOrderId).toBe(osId);
+    expect(res.body.history.map((change: { from: string | null; to: string }) => [change.from, change.to])).toEqual([
+      [null, 'RECEIVED'],
+      ['RECEIVED', 'DIAGNOSIS'],
+    ]);
+  });
+
+  it('GIVEN the owner customer token WHEN GET /service-orders/:id/history THEN returns 200 with the history', async () => {
+    // GIVEN
+    const osId = await orderInDiagnosis();
+
+    // WHEN
+    const res = await request(app).get(`/service-orders/${osId}/history`)
+      .set('Authorization', `Bearer ${customerToken(customerId)}`);
+
+    // THEN
+    expect(res.status).toBe(200);
+    expect(res.body.history).toHaveLength(2);
+  });
+
+  it('GIVEN another customer token WHEN GET /service-orders/:id/history THEN returns 403', async () => {
+    // GIVEN
+    const osId = await orderInDiagnosis();
+
+    // WHEN
+    const res = await request(app).get(`/service-orders/${osId}/history`)
+      .set('Authorization', `Bearer ${customerToken('00000000-0000-0000-0000-000000000000')}`);
+
+    // THEN
+    expect(res.status).toBe(403);
+    expect(res.body.history).toBeUndefined();
+  });
+
+  it('GIVEN an unknown id WHEN GET /service-orders/:id/history THEN returns 404 with the not found error', async () => {
+    // GIVEN
+    const unknownId = '99999999-9999-4999-8999-999999999999';
+
+    // WHEN
+    const res = await request(app).get(`/service-orders/${unknownId}/history`).set('Authorization', `Bearer ${attendantToken}`);
+
+    // THEN
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/Service order not found/);
+  });
+});

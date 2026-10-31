@@ -60,6 +60,7 @@ import { StartServiceUseCase } from '../../src/use-cases/service-orders/StartSer
 import { FinishServiceUseCase } from '../../src/use-cases/service-orders/FinishServiceUseCase';
 import { FinishOSUseCase } from '../../src/use-cases/service-orders/FinishOSUseCase';
 import { DeliverOSUseCase } from '../../src/use-cases/service-orders/DeliverOSUseCase';
+import { GetServiceOrderHistoryUseCase } from '../../src/use-cases/service-orders/GetServiceOrderHistoryUseCase';
 import { GetAvgExecutionTimeUseCase } from '../../src/use-cases/service-orders/GetAvgExecutionTimeUseCase';
 
 import { AuthController } from '../../src/adapters/controllers/AuthController';
@@ -176,6 +177,7 @@ export function createTestApp(): Application {
     new MeasuredStatusTransition(new FinishOSUseCase(osRepo, notifyStatusChange), businessMetrics),
     new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange), businessMetrics),
     new GetAvgExecutionTimeUseCase(osRepo),
+    new GetServiceOrderHistoryUseCase(osRepo),
   );
 
   return createApp({

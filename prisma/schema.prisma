@@ -111,10 +111,11 @@ model ServiceOrder {
   finishedAt  DateTime? @map("finished_at")
   deliveredAt DateTime? @map("delivered_at")
 
-  customer Customer              @relation(fields: [customerId], references: [id])
-  vehicle  Vehicle               @relation(fields: [vehicleId], references: [id])
-  services ServiceOrderService[]
-  items    ServiceOrderItem[]
+  customer      Customer                    @relation(fields: [customerId], references: [id])
+  vehicle       Vehicle                     @relation(fields: [vehicleId], references: [id])
+  services      ServiceOrderService[]
+  items         ServiceOrderItem[]
+  statusHistory ServiceOrderStatusHistory[]
 
   @@index([status, createdAt])
   @@index([customerId])
@@ -146,4 +147,17 @@ model ServiceOrderItem {
 
   @@unique([serviceOrderId, itemId])
   @@map("service_order_items")
+}
+
+model ServiceOrderStatusHistory {
+  id             String    @id @default(uuid()) @db.Uuid
+  serviceOrderId String    @map("service_order_id") @db.Uuid
+  fromStatus     OSStatus? @map("from_status")
+  toStatus       OSStatus  @map("to_status")
+  changedAt      DateTime  @default(now()) @map("changed_at")
+
+  serviceOrder ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
+  @@index([serviceOrderId, changedAt])
+  @@map("service_order_status_history")
 }

@@ -24,6 +24,7 @@ erDiagram
     service_orders ||--o{ service_order_items : contem
     services  ||--o{ service_order_services : referenciado_por
     items     ||--o{ service_order_items : referenciado_por
+    service_orders ||--o{ service_order_status_history : registra
 
     customers {
         uuid id PK
@@ -87,6 +88,13 @@ erDiagram
         uuid item_id FK
         int quantity "CHECK > 0"
     }
+    service_order_status_history {
+        uuid id PK
+        uuid service_order_id FK
+        enum from_status "nulo na abertura"
+        enum to_status
+        timestamp changed_at
+    }
 ```
 
 ## Relacionamentos
@@ -127,6 +135,16 @@ Mesma estrutura, com um atributo diferente: a quantidade daquela peça naquela o
 `quantity > 0` impede registrar uma peça com quantidade zero ou negativa, o que corromperia o cálculo do
 orçamento em silêncio.
 
+### `service_order_status_history` (1:N a partir da ordem)
+
+Cada mudança de status da ordem vira uma linha, com o status de origem, o de destino e o momento. A
+abertura é registrada com origem nula. As colunas de horário da própria ordem (`started_at`,
+`finished_at`, `delivered_at`) contam só três momentos; o histórico conta todos, inclusive os que não
+têm coluna, como a entrada em diagnóstico ou a aprovação do orçamento.
+
+O registro é feito na mesma transação que muda o status, então não existe mudança sem histórico. A
+remoção em cascata acompanha a ordem: histórico de uma ordem que não existe mais não tem utilidade.
+
 ### `users`, isolada de propósito
 
 A tabela não tem nenhuma chave estrangeira, e não é esquecimento. O funcionário é um ator do sistema, não
@@ -166,6 +184,7 @@ Cada um existe por causa de uma consulta específica:
 | `service_orders(customer_id)` | Ordens de um cliente e verificação de titularidade |
 | `vehicles(customer_id)` | Veículos de um cliente |
 | `customers(tax_id)` | Consulta por documento na autenticação (caminho quente, executado a cada login de cliente) |
+| `service_order_status_history(service_order_id, changed_at)` | Histórico de uma ordem, em ordem cronológica |
 
 ## Decisões de modelagem
 

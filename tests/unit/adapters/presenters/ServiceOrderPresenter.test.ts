@@ -11,4 +11,8 @@ describe('ServiceOrderPresenter', () => {
     const data = { id: os.id, status: os.status, budgetTotal: os.budgetTotal };
     expect(ServiceOrderPresenter.status(data)).toEqual({ status: 200, body: data });
   });
+  it('history returns 200 with the order id and its changes', () => {
+    const data = { serviceOrderId: os.id, history: [{ from: null, to: 'RECEIVED' as const, changedAt: new Date('2026-01-01') }] };
+    expect(ServiceOrderPresenter.history(data)).toEqual({ status: 200, body: data });
+  });
 });
