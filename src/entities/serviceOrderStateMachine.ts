@@ -2,9 +2,9 @@ import { OSStatus } from './ServiceOrder';
 import { ValidationError } from './errors/AppError';
 
 const VALID_TRANSITIONS: Record<OSStatus, OSStatus[]> = {
-  RECEIVED: ['DIAGNOSIS'],
+  RECEIVED: ['DIAGNOSIS', 'CANCELLED'],
   DIAGNOSIS: ['WAITING_APPROVAL'],
-  WAITING_APPROVAL: ['APPROVED', 'REJECTED'],
+  WAITING_APPROVAL: ['APPROVED', 'REJECTED', 'CANCELLED'],
   // EXECUTION stays reachable from APPROVED while the manual flow is still in
   // use; the saga goes through PAID, and the direct path leaves at the cutover.
   APPROVED: ['EXECUTION', 'PAID', 'CANCELLED'],

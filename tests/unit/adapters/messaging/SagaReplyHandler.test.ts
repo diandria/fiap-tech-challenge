@@ -10,7 +10,7 @@ const envelope = {
 
 describe('SagaReplyHandler', () => {
   it('passes a typed reply to the saga and rejects an unknown type', async () => {
-    const saga = { handle: jest.fn().mockResolvedValue({ outcome: 'applied' }) };
+    const saga = { handle: jest.fn().mockResolvedValue({ outcome: 'applied' }), handleFailedCommand: jest.fn() };
     const handler = new SagaReplyHandler(saga);
 
     await handler.handle(envelope);

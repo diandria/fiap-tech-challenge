@@ -10,7 +10,9 @@ import { IServiceOrderSaga } from '../ports/input/IServiceOrderSaga';
 import {
   CompensationReason,
   EnqueueRepairCommand,
+  FailedSagaCommand,
   GenerateBudgetCommand,
+  SagaCommandType,
   SagaReply,
   SagaReplyResult,
   SagaReplyType,
@@ -47,6 +49,30 @@ const COMPENSATION: Partial<Record<SagaReplyType, CompensationReason>> = {
 };
 
 /**
+ * What a dead command means, by the status the order should still be in.
+ * Before the payment is confirmed the step is undone like a refusal would be;
+ * from the repair on, and for any compensation command, nothing is undone:
+ * the failure is reported for a person to look at. A compensation that fails
+ * never starts another compensation, which could loop.
+ */
+const FAILED_COMMAND: Record<SagaCommandType, { expected: OSStatus[] | 'any'; cancel: ('execution' | 'budget')[] | 'report' }> = {
+  EnqueueDiagnosis: { expected: ['RECEIVED'], cancel: [] },
+  GenerateBudget: { expected: ['WAITING_APPROVAL'], cancel: ['execution'] },
+  RequestPayment: { expected: ['APPROVED'], cancel: ['execution', 'budget'] },
+  EnqueueRepair: { expected: ['PAID'], cancel: 'report' },
+  CancelExecution: { expected: 'any', cancel: 'report' },
+  CancelBudget: { expected: 'any', cancel: 'report' },
+};
+
+interface SagaMessage {
+  messageId: string;
+  type: string;
+  serviceOrderId: string;
+}
+
+type Effect = Required<Pick<SagaReplyResult, 'serviceOrder'>> & Pick<SagaReplyResult, 'compensation' | 'stuck'>;
+
+/**
  * The orchestrator of the service order saga: the one place that knows the
  * whole flow. Every reply is handled the same way, in a single unit of work:
  * record the message id, read the order again, check its status, apply the
@@ -63,32 +89,54 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  async handle(reply: SagaReply): Promise<SagaReplyResult> {
+  handle(reply: SagaReply): Promise<SagaReplyResult> {
+    return this.process(reply, EXPECTED_STATUS[reply.type], async (order, repositories) => {
+      const compensation = COMPENSATION[reply.type];
+      return { serviceOrder: await this.apply(reply, order, repositories), ...(compensation && { compensation }) };
+    });
+  }
+
+  handleFailedCommand(command: FailedSagaCommand): Promise<SagaReplyResult> {
+    const { expected, cancel } = FAILED_COMMAND[command.type];
+    return this.process(command, expected, async (order, repositories) => {
+      if (cancel === 'report') return this.reportStuck(order, command);
+      return { serviceOrder: await this.stepFailed(order, cancel, repositories), compensation: 'STEP_FAILED' };
+    });
+  }
+
+  /**
+   * The algorithm every message follows, in one unit of work: record the
+   * message id, read the order again, check its status, apply the effect.
+   */
+  private async process(
+    message: SagaMessage,
+    expected: OSStatus[] | 'any',
+    effect: (order: ServiceOrder, repositories: TransactionalRepositories) => Promise<Effect>,
+  ): Promise<SagaReplyResult> {
     let statusChanged = false;
     const result = await this.unitOfWork.run(async (repositories): Promise<SagaReplyResult> => {
-      if (!(await repositories.processedMessages.markProcessed(reply.messageId, reply.type))) {
+      if (!(await repositories.processedMessages.markProcessed(message.messageId, message.type))) {
         return { outcome: 'duplicate' };
       }
 
-      const order = await repositories.serviceOrders.findById(reply.serviceOrderId);
-      if (!order || !EXPECTED_STATUS[reply.type].includes(order.status)) {
-        this.logger.warn('saga reply ignored: the order is not in the status it expects', {
-          serviceOrderId: reply.serviceOrderId,
-          replyType: reply.type,
+      const order = await repositories.serviceOrders.findById(message.serviceOrderId);
+      if (!order || (expected !== 'any' && !expected.includes(order.status))) {
+        this.logger.warn('saga message ignored: the order is not in the status it expects', {
+          serviceOrderId: message.serviceOrderId,
+          messageType: message.type,
           status: order?.status ?? null,
         });
         return { outcome: 'ignored' };
       }
 
-      const updated = await this.apply(reply, order, repositories);
-      statusChanged = updated.status !== order.status;
-      const compensation = COMPENSATION[reply.type];
-      return { outcome: 'applied', serviceOrder: updated, ...(compensation && { compensation }) };
+      const applied = await effect(order, repositories);
+      statusChanged = applied.serviceOrder.status !== order.status;
+      return { outcome: 'applied', ...applied };
     });
 
     // Only a new status is news to the customer; a stored total is not.
     if (statusChanged) {
-      await this.notifyStatusChange.execute({ osId: reply.serviceOrderId });
+      await this.notifyStatusChange.execute({ osId: message.serviceOrderId });
     }
     return result;
   }
@@ -245,10 +293,47 @@ export class ServiceOrderSaga implements IServiceOrderSaga {
   private async compensationConfirmed(order: ServiceOrder, reply: SagaReply): Promise<ServiceOrder> {
     this.logger.info('saga compensation confirmed', {
       serviceOrderId: order.id,
-      replyType: reply.type,
+      messageType: reply.type,
       status: order.status,
     });
     return order;
+  }
+
+  /**
+   * A participant could not process a command five times. The orchestrator is
+   * the one that knows which steps came before, so it undoes them: the stock
+   * reservation here, and the steps already done by the other services.
+   */
+  private async stepFailed(
+    order: ServiceOrder,
+    cancel: ('execution' | 'budget')[],
+    repositories: TransactionalRepositories,
+  ): Promise<ServiceOrder> {
+    await this.releaseReservations(order, repositories);
+    const updated = await this.moveTo(order, 'CANCELLED', repositories.serviceOrders);
+    const payload = { reason: 'STEP_FAILED' };
+    if (cancel.includes('execution')) {
+      await repositories.outbox.add({ destination: 'execution-commands', type: 'CancelExecution', serviceOrderId: order.id, payload });
+    }
+    if (cancel.includes('budget')) {
+      await repositories.outbox.add({ destination: 'billing-commands', type: 'CancelBudget', serviceOrderId: order.id, payload });
+    }
+    return updated;
+  }
+
+  /**
+   * Past the payment, or for a compensation command, there is nothing left to
+   * undo. The dead message is deleted from its queue once handled, so this log
+   * line, with everything the message said, becomes its record.
+   */
+  private async reportStuck(order: ServiceOrder, command: FailedSagaCommand): Promise<Effect> {
+    this.logger.error('saga step failed after its retries and cannot be compensated', {
+      serviceOrderId: order.id,
+      messageType: command.type,
+      messageId: command.messageId,
+      status: order.status,
+    });
+    return { serviceOrder: order, stuck: true };
   }
 
   private async repairCommandFor(order: ServiceOrder): Promise<EnqueueRepairCommand> {

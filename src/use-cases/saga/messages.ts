@@ -35,14 +35,35 @@ export interface SagaReply {
 export type SagaReplyOutcome = 'applied' | 'duplicate' | 'ignored';
 
 /** Why a compensation started; sent along with the compensation commands. */
-export type CompensationReason = 'BUDGET_REJECTED' | 'PAYMENT_FAILED';
+export type CompensationReason = 'BUDGET_REJECTED' | 'PAYMENT_FAILED' | 'STEP_FAILED';
 
 export interface SagaReplyResult {
   outcome: SagaReplyOutcome;
   /** Present when applied. */
   serviceOrder?: ServiceOrder;
-  /** Present when the reply started compensating the earlier steps. */
+  /** Present when the message started compensating the earlier steps. */
   compensation?: CompensationReason;
+  /** True when a dead command can no longer be compensated and needs a person. */
+  stuck?: boolean;
+}
+
+/** Commands the OS Service sends, as they come back from a dead-letter queue. */
+export const SAGA_COMMAND_TYPES = [
+  'EnqueueDiagnosis',
+  'GenerateBudget',
+  'RequestPayment',
+  'EnqueueRepair',
+  'CancelExecution',
+  'CancelBudget',
+] as const;
+
+export type SagaCommandType = (typeof SAGA_COMMAND_TYPES)[number];
+
+/** A command a participant received five times and could not process. */
+export interface FailedSagaCommand {
+  messageId: string;
+  type: SagaCommandType;
+  serviceOrderId: string;
 }
 
 export interface BudgetLine {
