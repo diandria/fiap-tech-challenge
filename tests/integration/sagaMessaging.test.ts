@@ -7,6 +7,7 @@ import { PostgresServiceRepository } from '../../src/adapters/gateways/PostgresS
 import { PostgresCustomerRepository } from '../../src/adapters/gateways/PostgresCustomerRepository';
 import { ServiceOrderSaga } from '../../src/use-cases/saga/ServiceOrderSaga';
 import { createSagaMessaging, SagaMessaging } from '../../src/frameworks/messaging/messagingFactory';
+import { registry } from '../../src/frameworks/metrics/registry';
 
 let sqs: SQSClient;
 let queues: Record<SagaQueue, FifoQueue>;
@@ -90,5 +91,18 @@ describe('Saga messaging', () => {
       expect.objectContaining({ type: 'GenerateBudget', serviceOrderId: orderId }),
     ]);
     expect(commands[0].Attributes?.MessageGroupId).toBe(orderId);
+  });
+
+  it('GIVEN a command waiting in the outbox WHEN Prometheus scrapes THEN outbox_pending_messages reports it', async () => {
+    // GIVEN
+    const orderId = await seedOrderInDiagnosis();
+    await new PrismaUnitOfWork(prisma, { currentTraceparent: () => undefined }).run(({ outbox }) =>
+      outbox.add({ destination: 'billing-commands', type: 'GenerateBudget', serviceOrderId: orderId, payload: {} }));
+
+    // WHEN
+    const scrape = await registry.metrics();
+
+    // THEN
+    expect(scrape).toMatch(/outbox_pending_messages\{[^}]*\} 1/);
   });
 });

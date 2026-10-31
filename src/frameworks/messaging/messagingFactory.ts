@@ -8,6 +8,7 @@ import { SqsMessageSender } from '../../adapters/messaging/SqsMessageSender';
 import { SagaReplyHandler } from '../../adapters/messaging/SagaReplyHandler';
 import { FailedCommandHandler } from '../../adapters/messaging/FailedCommandHandler';
 import { PrometheusIntegrationFailures } from '../metrics/PrometheusIntegrationFailures';
+import { registerOutboxBacklog } from '../metrics/outboxBacklog';
 import { OutboxRelay } from './OutboxRelay';
 import { SqsQueuePoller } from './SqsQueuePoller';
 import { readQueueConfig } from './queueConfig';
@@ -40,8 +41,10 @@ export function createSagaMessaging({ prisma, saga, logger, env = process.env, s
     return undefined;
   }
 
+  const outbox = new PrismaOutboxStore(prisma);
   const sender = new SqsMessageSender(sqs, queues.commands, new PrometheusIntegrationFailures());
-  const relay = new OutboxRelay(new PublishPendingMessagesUseCase(new PrismaOutboxStore(prisma), sender), logger);
+  const relay = new OutboxRelay(new PublishPendingMessagesUseCase(outbox, sender), logger);
+  registerOutboxBacklog(() => outbox.countPending(), logger);
 
   const failedCommands = new FailedCommandHandler(saga);
   const pollers = [
