@@ -24,6 +24,7 @@ const makeSequentialItemRepo = (): IItemRepository => ({
   delete: jest.fn(),
   reserve: jest.fn(),
   release: jest.fn(),
+  consume: jest.fn(),
 });
 
 describe('RejectBudgetUseCase', () => {
@@ -70,7 +71,7 @@ describe('RejectBudgetUseCase', () => {
   it('GIVEN non-existing item in order WHEN execute called THEN throws NotFoundError', async () => {
     const nullItemRepo: IItemRepository = {
       findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
-      create: jest.fn(), update: jest.fn(), delete: jest.fn(), reserve: jest.fn(), release: jest.fn(),
+      create: jest.fn(), update: jest.fn(), delete: jest.fn(), reserve: jest.fn(), release: jest.fn(), consume: jest.fn(),
     };
     const useCase = new RejectBudgetUseCase(makeOSRepo(twoItemOS), makeCustomerRepo(cnpjCustomer), nullItemRepo, makeNotifyStatusChange());
     await expect(useCase.execute({ osId: 'os-1', code: '1122' })).rejects.toMatchObject({ statusCode: 404 });

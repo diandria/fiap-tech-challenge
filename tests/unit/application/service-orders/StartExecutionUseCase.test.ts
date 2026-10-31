@@ -23,6 +23,7 @@ const makeSequentialItemRepo = (): IItemRepository => ({
   delete: jest.fn(),
   reserve: jest.fn(),
   release: jest.fn(),
+  consume: jest.fn(),
 });
 
 describe('StartExecutionUseCase', () => {
@@ -66,7 +67,7 @@ describe('StartExecutionUseCase', () => {
   it('GIVEN non-existing item in catalog WHEN execute called THEN throws NotFoundError', async () => {
     const nullItemRepo: IItemRepository = {
       findAll: jest.fn(), findById: jest.fn().mockResolvedValue(null),
-      create: jest.fn(), update: jest.fn(), delete: jest.fn(), reserve: jest.fn(), release: jest.fn(),
+      create: jest.fn(), update: jest.fn(), delete: jest.fn(), reserve: jest.fn(), release: jest.fn(), consume: jest.fn(),
     };
     const useCase = new StartExecutionUseCase(makeOSRepo(twoItemApprovedOS), nullItemRepo, makeNotifyStatusChange());
     await expect(useCase.execute('os-1')).rejects.toMatchObject({ statusCode: 404 });

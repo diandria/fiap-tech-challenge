@@ -28,7 +28,8 @@ afterEach(async () => { await clearTestDB(); });
 
 /** An order with one service at 120.00 and two reserved units of an item at 30.00, in the given status. */
 async function seedOrder(
-  status: 'DIAGNOSIS' | 'WAITING_APPROVAL' = 'DIAGNOSIS',
+  status: 'DIAGNOSIS' | 'WAITING_APPROVAL' | 'APPROVED' = 'DIAGNOSIS',
+  stock: { stockQuantity: number; reservedQuantity: number; ordered: number } = { stockQuantity: 10, reservedQuantity: 2, ordered: 2 },
 ): Promise<{ orderId: string; customerId: string; serviceId: string; itemId: string }> {
   const customer = await prisma.customer.create({
     data: { name: 'Maria Souza', taxId: '52998224725', taxType: 'CPF', email: 'maria@example.com', phone: '11999999999' },
@@ -37,14 +38,16 @@ async function seedOrder(
     data: { customerId: customer.id, plate: 'ABC1D23', brand: 'Fiat', model: 'Uno', year: 2018 },
   });
   const service = await prisma.service.create({ data: { name: 'Oil change', price: 120, estimatedMinutes: 30 } });
-  const item = await prisma.item.create({ data: { name: 'Oil filter', price: 30, stockQuantity: 10, reservedQuantity: 2 } });
+  const item = await prisma.item.create({
+    data: { name: 'Oil filter', price: 30, stockQuantity: stock.stockQuantity, reservedQuantity: stock.reservedQuantity },
+  });
   const order = await prisma.serviceOrder.create({
     data: {
       customerId: customer.id,
       vehicleId: vehicle.id,
       status,
       services: { create: [{ serviceId: service.id }] },
-      items: { create: [{ itemId: item.id, quantity: 2 }] },
+      items: { create: [{ itemId: item.id, quantity: stock.ordered }] },
     },
   });
   return { orderId: order.id, customerId: customer.id, serviceId: service.id, itemId: item.id };
@@ -174,5 +177,44 @@ describe('Service order saga', () => {
     expect((await prisma.item.findUniqueOrThrow({ where: { id: itemId } })).reservedQuantity).toBe(1);
     expect(await prisma.outboxMessage.count()).toBe(0);
     expect(await prisma.processedMessage.count()).toBe(0);
+  });
+
+  it('GIVEN an APPROVED order with 1 unit reserved out of 5 in stock WHEN PaymentConfirmed is handled THEN the order is PAID, stock is 4 with 0 reserved and EnqueueRepair is in the outbox', async () => {
+    // GIVEN
+    const { orderId, itemId, serviceId } = await seedOrder('APPROVED', { stockQuantity: 5, reservedQuantity: 1, ordered: 1 });
+
+    // WHEN
+    const result = await saga.handle(sagaReply('PaymentConfirmed', orderId, { paymentId: '44444444-4444-4444-8444-444444444444', amount: 150 }));
+
+    // THEN
+    expect(result.outcome).toBe('applied');
+    expect((await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } })).status).toBe('PAID');
+    expect(await prisma.item.findUniqueOrThrow({ where: { id: itemId } })).toMatchObject({ stockQuantity: 4, reservedQuantity: 0 });
+    const outbox = await prisma.outboxMessage.findMany();
+    expect(outbox).toHaveLength(1);
+    expect(outbox[0]).toMatchObject({
+      destination: 'execution-commands',
+      type: 'EnqueueRepair',
+      serviceOrderId: orderId,
+      payload: { tasks: [{ serviceId, name: 'Oil change' }] },
+    });
+  });
+
+  it('GIVEN an APPROVED order with 1 unit reserved WHEN PaymentFailed is handled THEN the order is CANCELLED, the reservation is released and both CancelExecution and CancelBudget are in the outbox', async () => {
+    // GIVEN
+    const { orderId, itemId } = await seedOrder('APPROVED', { stockQuantity: 5, reservedQuantity: 1, ordered: 1 });
+
+    // WHEN
+    const result = await saga.handle(sagaReply('PaymentFailed', orderId, { paymentId: '44444444-4444-4444-8444-444444444444', reason: 'cc_rejected_other_reason' }));
+
+    // THEN
+    expect(result).toMatchObject({ outcome: 'applied', compensation: 'PAYMENT_FAILED' });
+    expect((await prisma.serviceOrder.findUniqueOrThrow({ where: { id: orderId } })).status).toBe('CANCELLED');
+    expect(await prisma.item.findUniqueOrThrow({ where: { id: itemId } })).toMatchObject({ stockQuantity: 5, reservedQuantity: 0 });
+    const outbox = await prisma.outboxMessage.findMany({ orderBy: { destination: 'asc' } });
+    expect(outbox.map((message) => [message.destination, message.type, message.payload])).toEqual([
+      ['billing-commands', 'CancelBudget', { reason: 'PAYMENT_FAILED' }],
+      ['execution-commands', 'CancelExecution', { reason: 'PAYMENT_FAILED' }],
+    ]);
   });
 });

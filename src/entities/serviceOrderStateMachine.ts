@@ -5,11 +5,15 @@ const VALID_TRANSITIONS: Record<OSStatus, OSStatus[]> = {
   RECEIVED: ['DIAGNOSIS'],
   DIAGNOSIS: ['WAITING_APPROVAL'],
   WAITING_APPROVAL: ['APPROVED', 'REJECTED'],
-  APPROVED: ['EXECUTION'],
+  // EXECUTION stays reachable from APPROVED while the manual flow is still in
+  // use; the saga goes through PAID, and the direct path leaves at the cutover.
+  APPROVED: ['EXECUTION', 'PAID', 'CANCELLED'],
+  PAID: ['EXECUTION'],
   EXECUTION: ['FINISHED'],
   FINISHED: ['DELIVERED'],
   DELIVERED: [],
   REJECTED: [],
+  CANCELLED: [],
 };
 
 export function canTransition(from: OSStatus, to: OSStatus): boolean {
