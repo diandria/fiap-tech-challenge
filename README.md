@@ -186,12 +186,14 @@ status e decide o orçamento **apenas da própria OS**: a titularidade é verifi
 uso, e não só a autenticação.
 
 A confirmação com os primeiros 4 dígitos do CPF/CNPJ **permanece** em `PATCH
-/service-orders/:id/budget`. O token diz *quem* está agindo; o código diz que a pessoa quis aprovar
-*aquele* orçamento, e não clicou por engano.
+/service-orders/:id/budget`, que desde a Fase 4 é atendida pelo Billing Service no mesmo caminho. O
+token diz *quem* está agindo; o código diz que a pessoa quis aprovar *aquele* orçamento, e não clicou
+por engano.
 
 > **A matriz completa** de rotas, perfis e fluxos está em
 > [`docs/architecture/authorization-matrix.md`](docs/architecture/authorization-matrix.md) — todas as
-> 40 rotas, quem acessa cada uma, e o critério das que continuam públicas.
+> rotas, quem acessa cada uma, o critério das que continuam públicas e as que passaram para o Billing
+> e o Execution.
 
 ---
 
@@ -547,5 +549,5 @@ cliente. Não estão no Swagger da aplicação com o cadeado de staff: no Swagge
 | Endpoint | Descrição |
 |---|---|
 | `GET /service-orders/:id/status` | Lê status e orçamento da OS |
-| `PATCH /service-orders/:id/budget` | Aprova ou rejeita orçamento; exige o `code` e é rate-limited |
+| `PATCH /service-orders/:id/budget` | Aprova ou rejeita orçamento; exige o `code`. Atendida pelo **Billing Service**, pelo mesmo caminho no gateway |
 
