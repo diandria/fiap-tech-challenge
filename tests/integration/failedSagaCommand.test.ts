@@ -1,7 +1,7 @@
 import pino from 'pino';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { connectTestDB, disconnectTestDB, clearTestDB, prisma } from '../helpers/testSetup';
-import { startLocalStack, stopLocalStack, createFifoQueue, FifoQueue } from '../helpers/localstack';
+import { startLocalStack, stopLocalStack, createFifoQueue, pollUntilDeadLettered, FifoQueue } from '../helpers/localstack';
 import { PrismaUnitOfWork } from '../../src/adapters/gateways/PrismaUnitOfWork';
 import { PostgresServiceRepository } from '../../src/adapters/gateways/PostgresServiceRepository';
 import { PostgresCustomerRepository } from '../../src/adapters/gateways/PostgresCustomerRepository';
@@ -72,8 +72,7 @@ describe('Failed saga commands', () => {
       silentLog,
       { waitTimeSeconds: 2 },
     );
-    await billing.pollOnce();
-    await billing.pollOnce();
+    await pollUntilDeadLettered(sqs, billing, billingCommands.deadLetterUrl);
     const deadLetters = new SqsQueuePoller(
       sqs,
       { name: 'billing-commands-dlq', url: billingCommands.deadLetterUrl },
