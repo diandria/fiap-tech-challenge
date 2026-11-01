@@ -12,8 +12,6 @@ export type OSStatus =
 
 export interface OSService {
   serviceId: string;
-  startedAt?: Date;
-  finishedAt?: Date;
 }
 
 export interface OSItem {

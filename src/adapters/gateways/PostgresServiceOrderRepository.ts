@@ -11,14 +11,12 @@ import { ServiceOrderStatusChange } from '../../entities/ServiceOrderStatusChang
 import { ConflictError } from '../../entities/errors/AppError';
 
 const INCLUDE_RELATIONS = {
-  services: { select: { serviceId: true, startedAt: true, finishedAt: true } },
+  services: { select: { serviceId: true } },
   items: { select: { itemId: true, quantity: true } },
 } as const;
 
 interface ServiceLineRow {
   serviceId: string;
-  startedAt: Date | null;
-  finishedAt: Date | null;
 }
 
 interface ItemLineRow {
@@ -45,11 +43,7 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
   constructor(private readonly prisma: PrismaExecutor) {}
 
   private toService(row: ServiceLineRow): OSService {
-    return {
-      serviceId: row.serviceId,
-      ...(row.startedAt ? { startedAt: row.startedAt } : {}),
-      ...(row.finishedAt ? { finishedAt: row.finishedAt } : {}),
-    };
+    return { serviceId: row.serviceId };
   }
 
   private toEntity(row: ServiceOrderRow): ServiceOrder {
@@ -154,12 +148,7 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
       if (data.services) {
         await tx.serviceOrderService.deleteMany({ where: { serviceOrderId: id } });
         await tx.serviceOrderService.createMany({
-          data: data.services.map((s) => ({
-            serviceOrderId: id,
-            serviceId: s.serviceId,
-            startedAt: s.startedAt ?? null,
-            finishedAt: s.finishedAt ?? null,
-          })),
+          data: data.services.map((s) => ({ serviceOrderId: id, serviceId: s.serviceId })),
         });
       }
 
