@@ -1,7 +1,8 @@
 # Runbook — ambiente efêmero
 
 Documento operacional. O ambiente é recriado do zero a cada sessão do Learner Lab, e este é o
-procedimento para subir, verificar e derrubar.
+procedimento para subir, verificar e derrubar os três serviços da Fase 4 (OS, Billing e Execution) e a
+plataforma que eles dividem.
 
 **Escrito para ser seguido sob pressão**, com o ambiente derrubado e tempo contado.
 
@@ -13,20 +14,31 @@ procedimento para subir, verificar e derrubar.
 | Etapa | Tempo |
 |---|---|
 | `infra-db` (VPC + RDS) | ~7 min |
-| `infra-k8s` — primeira fase (EKS + addons + observabilidade) | ~22 min |
-| Service da aplicação (nasce o NLB) | ~3 min |
+| Banco do Billing (RDS) e tabelas do Execution (DynamoDB) | a cronometrar |
+| `infra-k8s` — primeira fase (EKS + addons + observabilidade + filas) | ~22 min |
+| Services dos três serviços (nascem os NLBs) | ~3 min medidos com um; a cronometrar com três |
 | `lambda` (duas functions + tópico) | ~2 min |
+| Credenciais do Mercado Pago no SSM | a cronometrar |
 | `infra-k8s` — segunda fase (integração e rotas do gateway) | ~1 min |
-| Deploy da aplicação (build, push, migration, rollout) | ~3 min |
-| Verificação de fumaça | ~3 min |
-| **Total** | **~41 min** |
+| Deploy dos serviços (build, push, migration, rollout) | ~3 min medidos no OS; Billing e Execution a cronometrar |
+| Verificação de fumaça | a cronometrar |
 
-**Todos os tempos foram cronometrados num ciclo completo do zero em 31/08/2026.** Não são
-estimativa.
+**Os tempos com valor foram cronometrados num ciclo completo do zero em 31/08/2026**, com um serviço
+só. As etapas novas da Fase 4 ficam como "a cronometrar" até a primeira subida completa: não são
+estimativa. O banco do Billing não depende do `infra-db` e pode subir junto com ele, e os três deploys
+rodam em paralelo.
 
 ---
 
 ## Subida
+
+### 0. Só numa conta nova do Learner Lab
+
+Quando a faculdade troca a conta do lab, o bucket de estado do Terraform não existe na conta nova. Crie
+o bucket como descreve o README do `infra-db` (seção "Bucket de estado"), e confira que o `backend.tf`
+dos cinco repositórios com Terraform (`infra-db`, `infra-k8s`, `lambda`, `terraform/` do Billing e
+`terraform/` do Execution) aponta para `fiap-tech-challenge-tfstate-<id da conta>`. Os parâmetros do
+SSM e as credenciais do Mercado Pago também são da conta: o passo 9 cadastra de novo.
 
 ### 1. Todos os repositórios na `main`
 
@@ -80,13 +92,31 @@ terraform init -input=false && terraform apply -auto-approve
 
 Cria a VPC, o RDS e os parâmetros no SSM: senha do banco e **senha do admin da aplicação**.
 
-### 5. `infra-k8s` — primeira fase, sem as rotas do gateway (~22 min)
+### 5. Banco do Billing e tabelas do Execution
 
-**O `infra-k8s` é aplicado em duas fases**, e entre elas entram o Service da aplicação e o lambda.
+Cada serviço novo tem o próprio `terraform/`, com estado próprio. Nenhum lê o estado de outro repositório,
+então os dois podem rodar enquanto o `infra-db` sobe:
+
+```bash
+cd ~/dev/fiap-tech-challenge-billing
+terraform -chdir=terraform init -input=false && terraform -chdir=terraform apply -auto-approve
+
+cd ~/dev/fiap-tech-challenge-execution
+terraform -chdir=terraform init -input=false && terraform -chdir=terraform apply -auto-approve
+```
+
+O Billing ganha o RDS `car-repair-shop-billing-db` e a senha em `/car-repair-shop/billing/db/password`.
+O Execution ganha as três tabelas do DynamoDB. O CD do Execution confere que as três estão `ACTIVE`
+antes do rollout; o do Billing lê o endereço do banco direto do RDS.
+
+### 6. `infra-k8s` — primeira fase, sem as rotas do gateway (~22 min)
+
+**O `infra-k8s` é aplicado em duas fases**, e entre elas entram os Services dos três serviços, o lambda e
+as credenciais do Mercado Pago.
 Não é preciosismo: há duas dependências que só se resolvem nessa ordem.
 
-- a integração do gateway precisa do ARN do listener do **NLB**, e o NLB nasce do Service da
-  aplicação, que mora no repositório do código (`k8s/02-service/`)
+- a integração do gateway precisa do ARN do listener do **NLB** de cada serviço, e cada NLB nasce do
+  Service daquele serviço, que mora no repositório do código (`k8s/02-service/`)
 - a rota `POST /auth/cpf` precisa do **ARN da function**, que só existe depois do apply do lambda
 - e o lambda precisa do `api_gateway_url`, que sai desta primeira fase
 
@@ -107,6 +137,10 @@ terraform init -input=false && terraform apply -auto-approve -var enable_gateway
 > deixam inconsistência de três camadas (estado do Terraform, release do Helm e o Secret que guarda
 > o release), e reconciliar isso leva mais tempo que deixar terminar.
 
+Esta fase também cria o que os três serviços dividem: as filas da saga (`billing-commands`,
+`execution-commands` e `saga-replies`, cada uma com a fila de descarte), um registro no ECR e um
+namespace por serviço.
+
 **Este passo não vale só pelo `Apply complete!`.** Confira que a observabilidade subiu de verdade:
 
 ```bash
@@ -117,16 +151,18 @@ Os onze pods precisam estar `Running`. O `tempo-0` é o que costuma cair, em `Cr
 `OOMKilled` — e quando ele cai a aplicação continua exportando spans para um coletor inexistente,
 **sem nenhum erro no log**. Tudo parece certo e a aba de traces do Grafana fica vazia.
 
-### 6. Service da aplicação — nasce o NLB (~3 min)
+### 7. Services dos três serviços — nascem os NLBs
 
 ```bash
 aws eks update-kubeconfig --name car-repair-shop --region us-east-1
 kubectl apply -f ~/dev/fiap-tech-challenge/k8s/02-service/
+kubectl apply -f ~/dev/fiap-tech-challenge-billing/k8s/02-service/
+kubectl apply -f ~/dev/fiap-tech-challenge-execution/k8s/02-service/
 ```
 
-O AWS Load Balancer Controller cria o NLB interno a partir das anotações do Service. **Espere ele
-ficar pronto** antes de seguir — a fase 2 procura o balanceador por tag e falha se ele ainda não
-existir:
+O AWS Load Balancer Controller cria um NLB interno para cada Service, a partir das anotações. **Espere
+os três ficarem prontos** antes de seguir — a fase 2 procura cada balanceador por tag e falha se algum
+ainda não existir:
 
 ```bash
 aws elbv2 describe-load-balancers \
@@ -137,7 +173,7 @@ aws elbv2 describe-load-balancers \
 > do `infra-k8s` precisa do NLB **antes** de o gateway ter rota para o cluster — e sem rota o
 > smoke check do CD falharia.
 
-### 7. `lambda` — functions e tópico (~2 min)
+### 8. `lambda` — functions e tópico (~2 min)
 
 ```bash
 cd ~/dev/fiap-tech-challenge-lambda
@@ -149,7 +185,31 @@ terraform -chdir=terraform init -input=false && terraform -chdir=terraform apply
 Gera `JWT_SECRET` e `INTERNAL_TOKEN` no SSM. A aplicação lê **os mesmos parâmetros** — não há duas
 cópias para divergir.
 
-### 8. `infra-k8s` — segunda fase, integração e rotas (~1 min)
+### 9. Credenciais do Mercado Pago no SSM
+
+O Billing lê `client_id`, `client_secret` e a assinatura secreta do webhook no SSM, cadastrados à mão
+para nunca passarem por `tfvars` nem pelo estado do Terraform. Sem os três, o CD do Billing para na
+leitura da configuração, com `required value missing or empty`.
+
+1. Pegue a URL do gateway, que existe desde a primeira fase:
+
+   ```bash
+   cd ~/dev/fiap-tech-challenge-infra-k8s && terraform output -raw api_gateway_url
+   ```
+
+2. No painel do Mercado Pago, na aplicação de teste, em **Webhooks > Configurar notificações**, preencha
+   a **URL modo teste** com `<url do gateway>/payments/notifications` e salve. **O endereço muda a cada
+   recriação do ambiente**, então este passo se repete a cada sessão.
+3. Cadastre os três valores. O passo a passo da aplicação de teste e das contas de teste está no README
+   do Billing:
+
+   ```bash
+   aws ssm put-parameter --overwrite --type SecureString --name /car-repair-shop/billing/mercado-pago-client-id --value '<client id>'
+   aws ssm put-parameter --overwrite --type SecureString --name /car-repair-shop/billing/mercado-pago-client-secret --value '<client secret>'
+   aws ssm put-parameter --overwrite --type SecureString --name /car-repair-shop/billing/mercado-pago-webhook-secret --value '<assinatura secreta>'
+   ```
+
+### 10. `infra-k8s` — segunda fase, integração e rotas (~1 min)
 
 Agora existem o NLB e os outputs do lambda:
 
@@ -158,8 +218,9 @@ cd ~/dev/fiap-tech-challenge-infra-k8s
 terraform apply -auto-approve
 ```
 
-Sem `-var`, a variável volta ao padrão `true` e o apply cria integração, rotas e permissão da
-function. É o mesmo apply que o CD executa num merge na `main`.
+Sem `-var`, a variável volta ao padrão `true` e o apply cria as integrações dos três serviços, as
+rotas e a permissão da function. As rotas do orçamento e do pagamento vão para o Billing, `/executions`
+vai para o Execution, e o resto continua no OS. É o mesmo apply que o CD executa num merge na `main`.
 
 Confirme que as rotas existem antes de seguir:
 
@@ -172,22 +233,28 @@ aws apigatewayv2 get-routes --api-id $(terraform output -raw api_gateway_id) \
 > destrói integração e rotas, e o gateway passa a responder 404 em tudo. A variável só existe para a
 > primeira fase de uma subida do zero.
 
-### 9. Aplicação (~3 min)
+### 11. Os três serviços
 
-Merge na `main` dispara o CD. Para forçar sem um commit novo, **reexecute o último CI da `main`** —
-o CD escuta o evento `workflow_run` do CI:
+Merge na `main` dispara o CD de cada repositório. Para forçar sem um commit novo, **reexecute o último
+CI da `main`** de cada um — o CD escuta o evento `workflow_run` do CI:
 
 ```bash
-cd ~/dev/fiap-tech-challenge
-gh run rerun $(gh run list --workflow CI --branch main --limit 1 --json databaseId \
-  --jq '.[0].databaseId')
+for r in fiap-tech-challenge fiap-tech-challenge-billing fiap-tech-challenge-execution; do
+  gh run rerun -R diandria/$r $(gh run list -R diandria/$r --workflow CI --branch main --limit 1 \
+    --json databaseId --jq '.[0].databaseId')
+done
 ```
 
 > `gh workflow run CI --ref main` **não funciona**: o CI só tem gatilho de `push` e `pull_request`,
 > e a chamada devolve `HTTP 422: Workflow does not have 'workflow_dispatch' trigger`.
 
-O CD constrói a imagem, publica no ECR, aplica `k8s/01-config/`, `k8s/02-service/` e `k8s/03-app/`,
-roda a migration como Job, faz `set image` e verifica o rollout — com rollback se falhar.
+Cada CD constrói a imagem, publica no ECR do serviço, lê a configuração no SSM e na AWS, aplica
+`k8s/01-config/`, `k8s/02-service/` e `k8s/03-app/`, roda a migration como Job (OS e Billing), faz `set
+image` e verifica o rollout — com rollback se falhar. O do OS confere `/health` pelo gateway; os do Billing
+e do Execution conferem `/ready` dentro do pod, porque no gateway o `/health` é do OS.
+
+Os três podem subir em qualquer ordem: uma ordem aberta antes de o Execution estar no ar fica em
+`RECEIVED`, com o `EnqueueDiagnosis` esperando na fila, e anda assim que ele sobe.
 
 ---
 
@@ -228,7 +295,8 @@ curl -s -X POST "$GW/auth/cpf" -H 'content-type: application/json' \
 
 ```bash
 # 4. O rastro atravessa a fronteira assíncrona
-#    Mude o status de uma OS e confirme o mesmo trace_id dos dois lados:
+#    Depois do passo 7, quando a saga muda o status da OS e o cliente é
+#    avisado, confirme o mesmo trace_id dos dois lados:
 kubectl logs -n car-repair-shop -l app=car-repair-shop-api --tail=100 | grep trace_id
 aws logs filter-log-events --log-group-name /aws/lambda/car-repair-shop-notifications \
   --start-time $(( ($(date +%s) - 600) * 1000 )) --filter-pattern '"notificacao entregue"'
@@ -257,6 +325,48 @@ No Grafana, confira as três fontes, e não só que a página abre:
 
 O contador de spans precisa estar **subindo** entre duas leituras. Um Tempo que responde `ready` mas
 não recebe span nenhum é o mesmo painel vazio, com aparência de saúde.
+
+### Billing, Execution e a saga
+
+```bash
+# 6. Billing e Execution respondem pelo gateway. O 401 vem do serviço; um 404
+#    seria o gateway sem a rota, ou seja, a segunda fase do infra-k8s faltando.
+curl -s -o /dev/null -w '%{http_code}\n' "$GW/executions"                        # 401
+curl -s -o /dev/null -w '%{http_code}\n' \
+  "$GW/service-orders/00000000-0000-0000-0000-000000000000/budget"               # 401
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "$GW/payments/notifications"    # 401, sem assinatura
+kubectl get pods -n car-repair-shop-billing      # 2/2 prontos
+kubectl get pods -n car-repair-shop-execution    # 2/2 prontos
+```
+
+```bash
+# 7. A saga anda: uma OS aberta no OS aparece na fila do mecânico no Execution.
+#    Usa o TOKEN do passo 2 e o cliente do passo 3.
+CUSTOMER=$(curl -s "$GW/customers/tax/52998224725" -H "authorization: Bearer $TOKEN" | jq -r .id)
+VEHICLE=$(curl -s -X POST "$GW/vehicles" -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' \
+  -d "{\"customerId\":\"$CUSTOMER\",\"plate\":\"ABC1D23\",\"brand\":\"Fiat\",\"model\":\"Uno\",\"year\":2018}" | jq -r .id)
+OS=$(curl -s -X POST "$GW/service-orders" -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' \
+  -d "{\"customerId\":\"$CUSTOMER\",\"vehicleId\":\"$VEHICLE\"}" | jq -r .id)
+sleep 5
+curl -s "$GW/executions/$OS" -H "authorization: Bearer $TOKEN"   # "stage":"DIAGNOSIS","status":"QUEUED"
+```
+
+Se a OS não aparecer no Execution, olhe nesta ordem: o log do OS (`outbox publishing failed` indica fila
+inacessível), a fila `car-repair-shop-execution-commands.fifo` no console do SQS e o log do Execution. O
+fluxo completo, com orçamento, pagamento e reparo, está nas pastas 03 a 05 da coleção do Postman.
+
+```bash
+# 8. O Prometheus coleta os três serviços, e o painel da saga tem dados
+kubectl port-forward -n observability svc/kube-prometheus-stack-prometheus 9090:9090 &
+curl -s 'localhost:9090/api/v1/query' --data-urlencode 'query=up{namespace=~"car-repair-shop.*"}' \
+  | jq -r '.data.result[] | "\(.metric.namespace) \(.value[1])"'   # três namespaces com 1
+```
+
+No Grafana, o painel **Oficina — Saga da ordem de serviço** precisa mostrar a resposta `DiagnosisStarted`
+depois do passo 7. A tabela de traces do painel, com o id da OS no campo **ID da OS**, mostra um trace com
+spans do OS e do Execution.
 
 ---
 
@@ -294,20 +404,29 @@ O `rollout status` **falhar por timeout, e não ficar pendurado**, é o que disp
 que continuam faturando.
 
 ```bash
-# 1. Aplicação, Service incluído. O Service tem de sair antes do cluster: é ele
-#    que possui o NLB, e o `terraform destroy` do infra-k8s não o conhece mais.
-kubectl delete -f ~/dev/fiap-tech-challenge/k8s/03-app/ \
-                -f ~/dev/fiap-tech-challenge/k8s/02-service/ --ignore-not-found
+# 1. Os três serviços, Services incluídos. Cada Service tem de sair antes do
+#    cluster: é ele que possui o NLB, e o `terraform destroy` do infra-k8s não o
+#    conhece mais.
+for r in fiap-tech-challenge fiap-tech-challenge-billing fiap-tech-challenge-execution; do
+  kubectl delete -f ~/dev/$r/k8s/03-app/ -f ~/dev/$r/k8s/02-service/ --ignore-not-found
+done
 
 # 2. Lambda
 cd ~/dev/fiap-tech-challenge-lambda && terraform -chdir=terraform destroy -auto-approve
 
-# 3. Cluster e gateway
+# 3. Cluster, gateway e filas
 cd ~/dev/fiap-tech-challenge-infra-k8s && terraform destroy -auto-approve
 
-# 4. Banco e VPC
+# 4. Banco do Billing e tabelas do Execution
+cd ~/dev/fiap-tech-challenge-billing && terraform -chdir=terraform destroy -auto-approve
+cd ~/dev/fiap-tech-challenge-execution && terraform -chdir=terraform destroy -auto-approve
+
+# 5. Banco e VPC
 cd ~/dev/fiap-tech-challenge-infra-db && terraform destroy -auto-approve
 ```
+
+Os workflows `Infra destroy` do Billing e do Execution fazem o passo 4 pelo GitHub, digitando
+`production` para confirmar.
 
 ### Confirmar que nada cobrável sobrou
 
@@ -325,6 +444,8 @@ aws elbv2 describe-load-balancers --query 'LoadBalancers[].LoadBalancerName'
 aws ec2 describe-volumes --filters Name=status,Values=available --query 'Volumes[].VolumeId'
 aws ec2 describe-addresses --query 'Addresses[].AllocationId'
 aws rds describe-db-instances --query 'DBInstances[].DBInstanceIdentifier'
+aws dynamodb list-tables --query 'TableNames'
+aws sqs list-queues --query 'QueueUrls'
 ```
 
 Todas devem voltar vazias.

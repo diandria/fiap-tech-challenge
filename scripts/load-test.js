@@ -1,12 +1,12 @@
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 
 /**
  * End-to-end validation load, so no dashboard is empty during the recording.
  *
  * Each scenario feeds a different panel:
  *
- *   serviceOrderCycle    -> service order volume and time per status
+ *   serviceOrderCycle    -> service order volume, time per status and the saga panel
  *   customerAuth         -> latency of the route that crosses the function
  *   burst                -> HPA adding replicas (the demonstration panel)
  *   deliberateErrors     -> error panels, which would sit at zero without this
@@ -31,7 +31,7 @@ const JSON_HEADERS = { 'content-type': 'application/json' };
 
 export const options = {
   scenarios: {
-    // Low, steady volume: each iteration walks the six statuses.
+    // Low, steady volume: each iteration walks an order through the saga up to the charge.
     serviceOrderCycle: {
       executor: 'constant-arrival-rate',
       rate: 6, timeUnit: '1m', duration: '5m',
@@ -135,22 +135,49 @@ export function setup() {
   return { token, customerId, vehicleId };
 }
 
+// A 404 while waiting means "not there yet", not a failure: without this the
+// polling would push the scenario over its error threshold.
+const WAITING = { responseCallback: http.expectedStatuses(200, 404) };
+
+/** Reads until the answer satisfies `until`, half a second apart. */
+function waitFor(read, until, attempts = 40) {
+  for (let i = 0; i < attempts; i++) {
+    const r = read();
+    if (r.status === 200 && until(r)) return r;
+    sleep(0.5);
+  }
+  return null;
+}
+
+/**
+ * Walks an order through the saga as the services would: the OS opens it, the
+ * mechanic diagnoses it at Execution, Billing generates the budget and the
+ * customer approves it at Billing. It stops at the charge: on AWS the payment
+ * is made in the browser, so the statuses after APPROVED come from the orders
+ * paid by hand during the recording.
+ */
 export function serviceOrderCycle(data) {
-  const auth = { headers: { ...JSON_HEADERS, authorization: `Bearer ${data.token}` } };
+  const params = { ...WAITING, headers: { ...JSON_HEADERS, authorization: `Bearer ${data.token}` } };
+  const auth = { headers: params.headers };
 
   const created = http.post(`${BASE_URL}/service-orders`, JSON.stringify({
     customerId: data.customerId, vehicleId: data.vehicleId,
   }), auth);
   if (!check(created, { 'service order created': (r) => r.status === 201 })) return;
-
   const osId = created.json('id');
-  const moveTo = (status) => http.patch(`${BASE_URL}/service-orders/${osId}`,
-    JSON.stringify({ status }), auth);
 
-  check(moveTo('DIAGNOSIS'), { 'DIAGNOSIS': (r) => r.status === 200 });
-  check(moveTo('WAITING_APPROVAL'), { 'WAITING_APPROVAL': (r) => r.status === 200 });
+  const queued = waitFor(() => http.get(`${BASE_URL}/executions/${osId}`, params),
+    (r) => r.json('stage') === 'DIAGNOSIS' && r.json('status') === 'QUEUED');
+  if (!check(queued, { 'order reached the mechanic queue': (r) => r !== null })) return;
 
-  // Approval belongs to the customer: separate route, token and code.
+  check(http.post(`${BASE_URL}/executions/${osId}/start`, null, auth), { 'diagnosis started': (r) => r.status === 200 });
+  check(http.post(`${BASE_URL}/executions/${osId}/finish`, null, auth), { 'diagnosis finished': (r) => r.status === 200 });
+
+  const budget = waitFor(() => http.get(`${BASE_URL}/service-orders/${osId}/budget`, params),
+    (r) => r.json('status') === 'PENDING_APPROVAL');
+  if (!check(budget, { 'billing produced the budget': (r) => r !== null })) return;
+
+  // Approval belongs to the customer: separate token and the confirmation code.
   const customerToken = authenticate(`${BASE_URL}/auth/cpf`, { cpf: TAX_ID });
   if (customerToken) {
     const r = http.patch(`${BASE_URL}/service-orders/${osId}/budget`,
@@ -158,10 +185,6 @@ export function serviceOrderCycle(data) {
       { headers: { ...JSON_HEADERS, authorization: `Bearer ${customerToken}` } });
     check(r, { 'budget approved': (x) => x.status === 200 });
   }
-
-  check(moveTo('EXECUTION'), { 'EXECUTION': (r) => r.status === 200 });
-  check(moveTo('FINISHED'), { 'FINISHED': (r) => r.status === 200 });
-  check(moveTo('DELIVERED'), { 'DELIVERED': (r) => r.status === 200 });
 }
 
 export function customerAuth() {
