@@ -69,7 +69,7 @@ erDiagram
         uuid customer_id FK
         uuid vehicle_id FK
         enum status
-        numeric budget_total "nulo até o diagnóstico"
+        numeric budget_total "nulo até o Billing gerar o orçamento"
         timestamp created_at
         timestamp started_at
         timestamp finished_at
