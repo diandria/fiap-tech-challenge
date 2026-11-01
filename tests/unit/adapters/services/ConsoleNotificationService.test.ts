@@ -54,14 +54,6 @@ describe('ConsoleNotificationService', () => {
     expect(failures.recorded).toEqual([{ integration: 'notification', operation: 'status_changed' }]);
   });
 
-  it('should count a failure GIVEN the dispatch throws WHEN notifying a ready budget', async () => {
-    const service = new ConsoleNotificationService(loggerThatFails(), failures);
-
-    await expect(service.notifyBudgetReady(customer, order)).rejects.toThrow();
-
-    expect(failures.recorded).toEqual([{ integration: 'notification', operation: 'budget_ready' }]);
-  });
-
   // The notification stays best-effort and the error still reaches the use
   // case's catch; the failure is now also counted in the metric.
   it('should rethrow the original error GIVEN the dispatch throws WHEN notifying', async () => {

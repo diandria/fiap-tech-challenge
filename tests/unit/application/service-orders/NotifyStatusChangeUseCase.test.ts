@@ -7,7 +7,6 @@ const fakeLogger = () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn() }
 
 const makeNotifier = (): INotificationService => ({
   notifyStatusChanged: jest.fn().mockResolvedValue(undefined),
-  notifyBudgetReady: jest.fn().mockResolvedValue(undefined),
 });
 
 describe('NotifyStatusChangeUseCase', () => {
@@ -56,8 +55,7 @@ describe('NotifyStatusChangeUseCase', () => {
     const customerRepo = makeCustomerRepo(cpfCustomer);
     const notifier: INotificationService = {
       notifyStatusChanged: jest.fn().mockRejectedValue(new Error('SMTP down')),
-      notifyBudgetReady: jest.fn().mockResolvedValue(undefined),
-    };
+        };
     const log = fakeLogger();
     const useCase = new NotifyStatusChangeUseCase(osRepo, customerRepo, notifier, log);
 

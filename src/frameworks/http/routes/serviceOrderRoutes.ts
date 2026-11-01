@@ -1,15 +1,7 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
 import { ServiceOrderController } from '../../../adapters/controllers/ServiceOrderController';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { requireRole, requireCustomer, requireStaff } from '../middlewares/roleMiddleware';
-
-const budgetLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  keyGenerator: (req) => `${req.ip}-${req.params.id}`,
-  message: { error: 'Too many attempts, please try again later' },
-});
 
 export function serviceOrderRoutes(controller: ServiceOrderController): Router {
   const router = Router();
@@ -34,48 +26,6 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *         description: Not found
    */
   router.get('/:id/status', authMiddleware, requireCustomer, (req, res, next) => controller.getStatus(req, res, next));
-
-  /**
-   * @openapi
-   * /service-orders/{id}/budget:
-   *   patch:
-   *     summary: Customer budget decision — approve or reject (customer only — own OS)
-   *     description: |
-   *       Requires the customer token issued at `POST /auth/cpf`, and the order must belong to that customer.
-   *       The 4-digit `code` (first 4 digits of CPF/CNPJ) confirms the customer intended this decision.
-   *       Rate-limited to 5 req/h per IP+OS combination.
-   *     tags: [Service Orders]
-   *     security:
-   *       - customerBearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: string }
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required: [status, code]
-   *             properties:
-   *               status:
-   *                 type: string
-   *                 enum: [APPROVED, REJECTED]
-   *               code:
-   *                 type: string
-   *                 description: First 4 digits of customer CPF or CNPJ.
-   *                 example: "5299"
-   *     responses:
-   *       200:
-   *         description: Updated service order
-   *       400:
-   *         description: Invalid status, transition, or code
-   *       429:
-   *         description: Too many attempts
-   */
-  router.patch('/:id/budget', budgetLimiter, authMiddleware, requireCustomer, (req, res, next) => controller.budgetDecision(req, res, next));
 
   /**
    * @openapi
@@ -146,30 +96,6 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *         description: Forbidden (wrong role)
    */
   router.patch('/:id', requireRole('mechanic', 'admin'), (req, res, next) => controller.updateStatus(req, res, next));
-
-  /**
-   * @openapi
-   * /service-orders/stats/avg-execution:
-   *   get:
-   *     summary: Average execution time per service (authenticated)
-   *     tags: [Service Orders]
-   *     security:
-   *       - bearerAuth: []
-   *     responses:
-   *       200:
-   *         description: Array of avg execution results
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: array
-   *               items:
-   *                 type: object
-   *                 properties:
-   *                   serviceId: { type: string }
-   *                   avgMinutes: { type: number }
-   *                   count: { type: integer }
-   */
-  router.get('/stats/avg-execution', requireRole('attendant', 'admin'), (req, res, next) => controller.getAvgExecutionTime(req, res, next));
 
   /**
    * @openapi
@@ -310,46 +236,6 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *         description: Wrong status or already added
    */
   router.post('/:id/services', requireRole('mechanic', 'admin'), (req, res, next) => controller.addServiceToOS(req, res, next));
-
-  /**
-   * @openapi
-   * /service-orders/{id}/services/{serviceId}:
-   *   patch:
-   *     summary: Update individual service status during EXECUTION
-   *     description: |
-   *       Body-driven update. `IN_PROGRESS` records `startedAt`; `COMPLETED` records `finishedAt`.
-   *     tags: [Service Orders]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: string }
-   *       - in: path
-   *         name: serviceId
-   *         required: true
-   *         schema: { type: string }
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required: [status]
-   *             properties:
-   *               status:
-   *                 type: string
-   *                 enum: [IN_PROGRESS, COMPLETED]
-   *     responses:
-   *       200:
-   *         description: Updated service order
-   *       400:
-   *         description: Wrong OS status, invalid transition, or unsupported status
-   *       404:
-   *         description: Service not in order
-   */
-  router.patch('/:id/services/:serviceId', requireRole('mechanic', 'admin'), (req, res, next) => controller.updateServiceStatus(req, res, next));
 
   /**
    * @openapi

@@ -30,9 +30,11 @@ Protected endpoints will then send the JWT automatically.
 Customers authenticate with their CPF at **POST /auth/cpf**, served by the authentication function behind the API Gateway (not by this API). The token it issues is accepted on the customer routes only, and only for the customer's own service order:
 
 - \`GET /service-orders/{id}/status\` — check OS status and budget total.
-- \`PATCH /service-orders/{id}/budget\` — budget approval or rejection. Rate-limited; the \`code\` field corresponds to the first 4 digits of the customer's CPF/CNPJ.
+- \`GET /service-orders/{id}/history\` — status changes of the order, oldest first.
 
-All other OS transitions go through \`PATCH /service-orders/{id}\` with the target \`status\` in the body and require a staff JWT with role \`mechanic\` or \`admin\`.
+The customer reads and decides the budget at \`/service-orders/{id}/budget\`, which the API Gateway routes to the Billing Service.
+
+Status changes come from the saga, as Billing and Execution reply. The one manual transition left is the car handover: \`PATCH /service-orders/{id}\` with \`DELIVERED\`, which requires a staff JWT with role \`mechanic\` or \`admin\`.
 
 Only \`POST /auth/login\`, \`GET /health\` and \`GET /ready\` need no token.`,
     },

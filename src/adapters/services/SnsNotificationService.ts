@@ -7,7 +7,7 @@ import { ITraceContext } from '../../use-cases/ports/ITraceContext';
 
 const INTEGRATION = 'sns';
 
-type EventType = 'SERVICE_ORDER_STATUS_CHANGED' | 'BUDGET_READY';
+type EventType = 'SERVICE_ORDER_STATUS_CHANGED';
 
 /**
  * Publishes service order events to an SNS topic. Selected in the composition
@@ -24,10 +24,6 @@ export class SnsNotificationService implements INotificationService {
 
   async notifyStatusChanged(customer: Customer, os: ServiceOrder): Promise<void> {
     await this.publish('SERVICE_ORDER_STATUS_CHANGED', 'status_changed', customer, os);
-  }
-
-  async notifyBudgetReady(customer: Customer, os: ServiceOrder): Promise<void> {
-    await this.publish('BUDGET_READY', 'budget_ready', customer, os);
   }
 
   private buildPayload(eventType: EventType, customer: Customer, os: ServiceOrder): string {

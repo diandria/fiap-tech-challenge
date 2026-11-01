@@ -59,17 +59,6 @@ describe('SnsNotificationService', () => {
     expect(sns.send.mock.calls[0][0].input.TopicArn).toBe(TOPIC);
   });
 
-  it('should emit BUDGET_READY with the amount GIVEN a budget notification', async () => {
-    const sns = makeSns();
-    const service = new SnsNotificationService(sns as never, TOPIC, failures, traceContext);
-
-    await service.notifyBudgetReady(cpfCustomer, { ...waitingApprovalOS, budgetTotal: 1234.56 });
-
-    const payload = publishedPayload(sns) as Record<string, never>;
-    expect(payload.eventType).toBe('BUDGET_READY');
-    expect((payload.serviceOrder as Record<string, number>).budgetTotal).toBe(1234.56);
-  });
-
   // No trace context outside an HTTP request: an invalid traceparent would
   // make Grafana stitch unrelated events together.
   it('should omit traceparent GIVEN no trace context WHEN publishing', async () => {
@@ -90,13 +79,4 @@ describe('SnsNotificationService', () => {
     expect(labels.operation).toBe('status_changed');
   });
 
-  it('should label the failure as budget_ready GIVEN the budget notification fails', async () => {
-    const sns = { send: jest.fn().mockRejectedValue(new Error('down')) };
-    const service = new SnsNotificationService(sns as never, TOPIC, failures, traceContext);
-
-    await expect(service.notifyBudgetReady(cpfCustomer, waitingApprovalOS)).rejects.toThrow();
-
-    const labels = failures.recorded[0];
-    expect(labels.operation).toBe('budget_ready');
-  });
 });

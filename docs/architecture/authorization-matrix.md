@@ -73,18 +73,27 @@ titularidade seria decorativa: bastaria informar o ID de quem se quisesse consul
 | Rota | Método | Fluxo | Perfis | Observação |
 |---|---|---|---|---|
 | `/service-orders/:id/status` | GET | **cliente** | dono da OS | **titularidade**. Era pública até a Fase 2 |
-| `/service-orders/:id/budget` | PATCH | **cliente** | dono da OS | **titularidade**. Exige `code` (4 primeiros dígitos do CPF/CNPJ). Rate limit: 5 / h por IP+OS |
 | `/service-orders/:id/history` | GET | staff ou **cliente** | qualquer perfil, ou o dono da OS | **titularidade** quando o token é de cliente. Histórico de status em ordem cronológica |
 | `/service-orders` | POST | staff | `attendant`, `admin` | Ver a nota sobre a abertura de OS |
 | `/service-orders` | GET | staff | qualquer perfil | Filtros por `status`, `customerId`, período |
 | `/service-orders/:id` | GET | staff | qualquer perfil | Detalhe completo |
 | `/service-orders/:id` | PATCH | staff | `mechanic`, `admin` | Só registra a entrega (`DELIVERED`). Os demais status vêm das respostas da saga, não de uma rota |
 | `/service-orders/:id/services` | POST | staff | `mechanic`, `admin` | |
-| `/service-orders/:id/services/:serviceId` | PATCH | staff | `mechanic`, `admin` | Início/fim de um serviço |
 | `/service-orders/:id/services/:serviceId` | DELETE | staff | `mechanic`, `admin` | |
 | `/service-orders/:id/items` | POST | staff | `mechanic`, `admin` | Reserva estoque |
 | `/service-orders/:id/items/:itemId` | DELETE | staff | `mechanic`, `admin` | Libera estoque |
-| `/service-orders/stats/avg-execution` | GET | staff | `attendant`, `admin` | |
+
+### Rotas que passaram para o Billing e o Execution
+
+Na Fase 4, o acompanhamento do reparo e o orçamento ganharam serviços próprios, e o código saiu do OS.
+O API Gateway leva cada rota ao serviço dono. Quem pode chamar cada uma está na matriz do serviço de
+destino, em `docs/authorization-matrix.md` de cada repositório.
+
+| Rota antiga no OS | Agora | Serviço |
+|---|---|---|
+| `PATCH /service-orders/:id/budget` | O mesmo caminho, atendido pelo Billing, que também responde `GET /service-orders/:id/budget` | Billing |
+| `PATCH /service-orders/:id/services/:serviceId` | `PATCH /executions/:serviceOrderId/tasks/:serviceId` | Execution |
+| `GET /service-orders/stats/avg-execution` | `GET /executions/stats/average-task-duration` | Execution |
 
 ## Clientes
 

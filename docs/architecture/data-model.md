@@ -80,8 +80,6 @@ erDiagram
         uuid id PK
         uuid service_order_id FK
         uuid service_id FK
-        timestamp started_at
-        timestamp finished_at
     }
     service_order_items {
         uuid id PK
@@ -225,13 +223,13 @@ caso de uso decide, só confere no momento de gravar.
 
 Sobre as tabelas associativas terem chave própria em vez de chave composta pelos dois identificadores: a
 chave composta seria mais enxuta, mas fecharia a porta para o domínio permitir que a mesma ordem registre
-o mesmo serviço em momentos distintos, cada linha com seu próprio início e fim. A chave própria mantém
-essa possibilidade aberta sem migração futura, e a restrição de unicidade preserva o comportamento
-atual.
+o mesmo serviço em momentos distintos. A chave própria mantém essa possibilidade aberta sem migração
+futura, e a restrição de unicidade preserva o comportamento atual. O início e o fim de cada serviço
+saíram desta tabela na Fase 4: são registrados pelo Execution Service, como tarefas do reparo.
 
 Sobre valores monetários usarem tipo decimal e não ponto flutuante: ponto flutuante acumula erro de
-arredondamento, e o cálculo do orçamento soma preços de serviços e peças. O erro é pequeno em cada
-operação e visível na fatura.
+arredondamento, e o total do orçamento, que o Billing calcula e o OS guarda, soma preços de serviços e
+peças. O erro é pequeno em cada operação e visível na fatura.
 
 Sobre a exclusão de cliente ser lógica e não física: o campo de data de exclusão preserva o histórico de
 ordens de serviço, que continuam válidas para consulta. Um cliente excluído deixa de aparecer nas

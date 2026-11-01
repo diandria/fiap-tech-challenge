@@ -9,12 +9,6 @@ export interface ListServiceOrdersFilter {
   excludeStatuses?: OSStatus[];
 }
 
-export interface AvgExecutionResult {
-  serviceId: string;
-  avgMinutes: number;
-  count: number;
-}
-
 export interface UpdateServiceOrderOptions {
   /**
    * The version the caller read. When another write got there first, the
@@ -32,7 +26,6 @@ export interface IServiceOrderRepository {
     data: Partial<Omit<ServiceOrder, 'id' | 'version'>>,
     options?: UpdateServiceOrderOptions,
   ): Promise<ServiceOrder | null>;
-  getAvgExecutionByService(): Promise<AvgExecutionResult[]>;
   /** Status changes of the order, oldest first. */
   findStatusHistory(serviceOrderId: string): Promise<ServiceOrderStatusChange[]>;
 }

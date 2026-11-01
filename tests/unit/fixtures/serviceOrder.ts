@@ -51,6 +51,5 @@ export const makeOSRepo = (
   update: jest.fn().mockImplementation((_id: string, data: Partial<ServiceOrder>) =>
     Promise.resolve(updateResult ?? (os ? { ...os, ...data } : null))
   ),
-  getAvgExecutionByService: jest.fn().mockResolvedValue([]),
   findStatusHistory: jest.fn().mockResolvedValue([]),
 });

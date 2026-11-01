@@ -52,13 +52,8 @@ import { RemoveServiceFromOSUseCase } from './use-cases/service-orders/RemoveSer
 import { AddItemToOSUseCase } from './use-cases/service-orders/AddItemToOSUseCase';
 import { RemoveItemFromOSUseCase } from './use-cases/service-orders/RemoveItemFromOSUseCase';
 import { NotifyStatusChangeUseCase } from './use-cases/service-orders/NotifyStatusChangeUseCase';
-import { ApproveBudgetUseCase } from './use-cases/service-orders/ApproveBudgetUseCase';
-import { RejectBudgetUseCase } from './use-cases/service-orders/RejectBudgetUseCase';
-import { StartServiceUseCase } from './use-cases/service-orders/StartServiceUseCase';
-import { FinishServiceUseCase } from './use-cases/service-orders/FinishServiceUseCase';
 import { DeliverOSUseCase } from './use-cases/service-orders/DeliverOSUseCase';
 import { GetServiceOrderHistoryUseCase } from './use-cases/service-orders/GetServiceOrderHistoryUseCase';
-import { GetAvgExecutionTimeUseCase } from './use-cases/service-orders/GetAvgExecutionTimeUseCase';
 
 import { AuthController } from './adapters/controllers/AuthController';
 import { CustomerController } from './adapters/controllers/CustomerController';
@@ -76,7 +71,6 @@ import { serviceOrderRoutes } from './frameworks/http/routes/serviceOrderRoutes'
 import { MeasuredCreateServiceOrder } from './adapters/decorators/MeasuredCreateServiceOrder';
 import { PrometheusBusinessMetrics } from './frameworks/metrics/PrometheusBusinessMetrics';
 import { MeasuredStatusTransition } from './adapters/decorators/MeasuredStatusTransition';
-import { MeasuredBudgetDecision } from './adapters/decorators/MeasuredBudgetDecision';
 import { MeasuredServiceOrderSaga } from './adapters/decorators/MeasuredServiceOrderSaga';
 import { PrometheusSagaMetrics } from './frameworks/metrics/PrometheusSagaMetrics';
 import { ServiceOrderSaga } from './use-cases/saga/ServiceOrderSaga';
@@ -133,14 +127,7 @@ async function main(): Promise<void> {
     new ListServiceOrdersUseCase(osRepo),
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
     new AddItemToOSUseCase(unitOfWork), new RemoveItemFromOSUseCase(unitOfWork),
-    new MeasuredBudgetDecision(new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange), businessMetrics),
-    new MeasuredBudgetDecision(
-      new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
-      businessMetrics,
-    ),
-    new StartServiceUseCase(osRepo), new FinishServiceUseCase(osRepo),
     new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange), businessMetrics),
-    new GetAvgExecutionTimeUseCase(osRepo),
     new GetServiceOrderHistoryUseCase(osRepo),
   );
 

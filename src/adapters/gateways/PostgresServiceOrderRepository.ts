@@ -4,7 +4,6 @@ import { PrismaExecutor, withTransaction } from './prismaExecutor';
 import {
   IServiceOrderRepository,
   ListServiceOrdersFilter,
-  AvgExecutionResult,
   UpdateServiceOrderOptions,
 } from '../../use-cases/ports/IServiceOrderRepository';
 import { ServiceOrder, OSStatus, OSService } from '../../entities/ServiceOrder';
@@ -12,14 +11,12 @@ import { ServiceOrderStatusChange } from '../../entities/ServiceOrderStatusChang
 import { ConflictError } from '../../entities/errors/AppError';
 
 const INCLUDE_RELATIONS = {
-  services: { select: { serviceId: true, startedAt: true, finishedAt: true } },
+  services: { select: { serviceId: true } },
   items: { select: { itemId: true, quantity: true } },
 } as const;
 
 interface ServiceLineRow {
   serviceId: string;
-  startedAt: Date | null;
-  finishedAt: Date | null;
 }
 
 interface ItemLineRow {
@@ -46,11 +43,7 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
   constructor(private readonly prisma: PrismaExecutor) {}
 
   private toService(row: ServiceLineRow): OSService {
-    return {
-      serviceId: row.serviceId,
-      ...(row.startedAt ? { startedAt: row.startedAt } : {}),
-      ...(row.finishedAt ? { finishedAt: row.finishedAt } : {}),
-    };
+    return { serviceId: row.serviceId };
   }
 
   private toEntity(row: ServiceOrderRow): ServiceOrder {
@@ -155,12 +148,7 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
       if (data.services) {
         await tx.serviceOrderService.deleteMany({ where: { serviceOrderId: id } });
         await tx.serviceOrderService.createMany({
-          data: data.services.map((s) => ({
-            serviceOrderId: id,
-            serviceId: s.serviceId,
-            startedAt: s.startedAt ?? null,
-            finishedAt: s.finishedAt ?? null,
-          })),
+          data: data.services.map((s) => ({ serviceOrderId: id, serviceId: s.serviceId })),
         });
       }
 
@@ -205,24 +193,5 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
       orderBy: { changedAt: 'asc' },
     });
     return rows.map((r) => ({ from: r.fromStatus, to: r.toStatus, changedAt: r.changedAt }));
-  }
-
-  async getAvgExecutionByService(): Promise<AvgExecutionResult[]> {
-    const rows = await this.prisma.$queryRaw<
-      { serviceId: string; avgMinutes: number; count: bigint }[]
-    >`
-      SELECT service_id AS "serviceId",
-             AVG(EXTRACT(EPOCH FROM (finished_at - started_at)) / 60)::float8 AS "avgMinutes",
-             COUNT(*) AS count
-      FROM service_order_services
-      WHERE started_at IS NOT NULL AND finished_at IS NOT NULL
-      GROUP BY service_id
-    `;
-
-    return rows.map((r) => ({
-      serviceId: r.serviceId,
-      avgMinutes: Number(r.avgMinutes),
-      count: Number(r.count),
-    }));
   }
 }

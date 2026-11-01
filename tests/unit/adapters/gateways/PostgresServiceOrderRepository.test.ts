@@ -32,7 +32,7 @@ const row = {
   finishedAt: null,
   deliveredAt: null,
   version: 4,
-  services: [{ serviceId: '44444444-4444-4444-8444-444444444444', startedAt: null, finishedAt: null }],
+  services: [{ serviceId: '44444444-4444-4444-8444-444444444444' }],
   items: [{ itemId: '66666666-6666-4666-8666-666666666666', quantity: 2 }],
 };
 
@@ -65,20 +65,6 @@ describe('PostgresServiceOrderRepository', () => {
     const os = await new PostgresServiceOrderRepository(prisma).findById('88888888-8888-4888-8888-888888888888');
 
     expect(os?.budgetTotal).toBeUndefined();
-  });
-
-  it('should carry started and finished timestamps GIVEN a service line WHEN mapping', async () => {
-    const prisma = makePrisma();
-    const started = new Date('2026-02-01');
-    const finished = new Date('2026-02-02');
-    prisma.serviceOrder.findUnique.mockResolvedValue({
-      ...row,
-      services: [{ serviceId: '44444444-4444-4444-8444-444444444444', startedAt: started, finishedAt: finished }],
-    });
-
-    const os = await new PostgresServiceOrderRepository(prisma).findById('88888888-8888-4888-8888-888888888888');
-
-    expect(os?.services[0]).toEqual({ serviceId: '44444444-4444-4444-8444-444444444444', startedAt: started, finishedAt: finished });
   });
 
   it('should translate excludeStatuses to notIn GIVEN the filter WHEN findAll is called', async () => {
@@ -296,16 +282,5 @@ describe('PostgresServiceOrderRepository', () => {
     ).rejects.toMatchObject({ statusCode: 409 });
     expect(prisma.serviceOrder.update).not.toHaveBeenCalled();
     expect(prisma.serviceOrderStatusHistory.create).not.toHaveBeenCalled();
-  });
-
-  it('should aggregate execution time per service GIVEN finished lines WHEN getAvgExecutionByService is called', async () => {
-    const prisma = makePrisma();
-    prisma.$queryRaw.mockResolvedValue([
-      { serviceId: '44444444-4444-4444-8444-444444444444', avgMinutes: 42.5, count: BigInt(3) },
-    ]);
-
-    const result = await new PostgresServiceOrderRepository(prisma).getAvgExecutionByService();
-
-    expect(result).toEqual([{ serviceId: '44444444-4444-4444-8444-444444444444', avgMinutes: 42.5, count: 3 }]);
   });
 });
