@@ -3,7 +3,9 @@
 ![CI](https://github.com/diandria/fiap-tech-challenge/actions/workflows/ci.yml/badge.svg)
 ![CD](https://github.com/diandria/fiap-tech-challenge/actions/workflows/cd.yml/badge.svg)
 
-REST API para gerenciar ordens de serviço de uma oficina mecânica — FIAP Tech Challenge Fase 3.
+**OS Service** da oficina mecânica — FIAP Tech Challenge Fase 4. Este repositório é o serviço de ordens de
+serviço, cadastros e estoque, e o **orquestrador da saga** que leva cada ordem pelo Billing Service
+(orçamento e pagamento) e pelo Execution Service (diagnóstico e reparo).
 
 **Vídeo demonstrativo:** _a publicar_ — a preparação e o roteiro do que demonstrar estão no
 [checklist de gravação](docs/checklist-gravacao.md).
@@ -11,25 +13,53 @@ REST API para gerenciar ordens de serviço de uma oficina mecânica — FIAP Tec
 > **Ambiente efêmero.** O sistema é provisionado do zero a cada sessão do Learner Lab e derrubado
 > depois, para não consumir orçamento. A URL do API Gateway **muda a cada recriação** — a que
 > aparece no vídeo não responde mais. Para subir tudo de novo, siga o
-> [runbook do ambiente](docs/runbook-ambiente.md) (~38 min).
+> [runbook do ambiente](docs/runbook-ambiente.md).
 
 ---
 
 ## Sumário
 
-1. [Sobre a Fase 3](#sobre-a-fase-3)
-2. [Documentação arquitetural](#documentação-arquitetural)
-3. [Os quatro repositórios](#os-quatro-repositórios)
-4. [Arquitetura](#arquitetura)
-5. [Stack](#stack)
-6. [Papéis de usuário](#papéis-de-usuário)
-7. [Execução local — Docker Compose](#execução-local--docker-compose)
-8. [Implantação na AWS](#implantação-na-aws)
-9. [Observabilidade](#observabilidade)
-10. [CI/CD](#cicd)
-11. [Testes](#testes)
-12. [Postman](#postman)
-13. [API Reference (Swagger)](#api-reference-swagger)
+1. [Sobre a Fase 4](#sobre-a-fase-4)
+2. [Sobre a Fase 3](#sobre-a-fase-3)
+3. [Documentação arquitetural](#documentação-arquitetural)
+4. [Os seis repositórios](#os-seis-repositórios)
+5. [Arquitetura](#arquitetura)
+6. [Saga da ordem de serviço](#saga-da-ordem-de-serviço)
+7. [Stack](#stack)
+8. [Papéis de usuário](#papéis-de-usuário)
+9. [Execução local — Docker Compose](#execução-local--docker-compose)
+10. [Implantação na AWS](#implantação-na-aws)
+11. [Observabilidade](#observabilidade)
+12. [CI/CD](#cicd)
+13. [Testes](#testes)
+14. [Postman](#postman)
+15. [API Reference (Swagger)](#api-reference-swagger)
+
+---
+
+## Sobre a Fase 4
+
+A Fase 4 dividiu a aplicação em três microsserviços, cada um com repositório, banco, pipeline e
+namespace próprios, e trocou a sequência de chamadas manuais por uma saga:
+
+- **OS Service** (este repositório): ordens de serviço, clientes, veículos, catálogo e estoque, em
+  PostgreSQL. Orquestra a saga.
+- **[Billing Service](https://github.com/diandria/fiap-tech-challenge-billing)**: orçamento, decisão do
+  cliente e pagamento pelo Mercado Pago, em PostgreSQL próprio.
+- **[Execution Service](https://github.com/diandria/fiap-tech-challenge-execution)**: fila do mecânico,
+  diagnóstico, reparo e andamento de cada serviço, em DynamoDB.
+
+Os serviços não compartilham banco e não chamam uns aos outros por HTTP: conversam por filas SQS FIFO,
+com outbox transacional de um lado e consumidor idempotente do outro. A
+[decisão](docs/architecture/adr/ADR-013-decomposicao-em-microsservicos.md), a
+[saga](docs/architecture/adr/ADR-014-saga-orquestrada.md), o
+[contrato das mensagens](docs/architecture/adr/ADR-015-comunicacao-e-contrato-de-mensagens.md) e o
+[banco por serviço](docs/architecture/adr/ADR-016-banco-por-servico.md) estão nos ADRs 013 a 016, e o
+pagamento na [RFC-006](docs/architecture/rfc/RFC-006-integracao-mercado-pago.md).
+
+Cada serviço tem CI com testes, cobertura mínima de 80% e validação dos manifestos, e CD próprio até o
+EKS. A jornada principal roda de ponta a ponta em Gherkin contra os três serviços, no compose e no CI
+(veja [Testes](#testes)).
 
 ---
 
@@ -57,13 +87,15 @@ CI/CD no GitHub Actions e HPA por CPU.
 
 | Documento | Conteúdo |
 |---|---|
+| [Arquitetura alvo](docs/architecture/target-architecture.md) | Os três serviços, os bancos e as filas da saga |
+| [Sequência — saga da ordem de serviço](docs/architecture/sequence-service-order-saga.md) | Caminho feliz, orçamento rejeitado, pagamento recusado e etapa que esgota as tentativas |
 | [Diagrama de componentes](docs/architecture/components.md) | Visão dos componentes e das fronteiras |
 | [Sequência — autenticação por CPF](docs/architecture/sequence-auth-cpf.md) | Gateway, function e lookup |
 | [Sequência — ordem de serviço](docs/architecture/sequence-service-order.md) | Ciclo de vida da OS |
 | [Modelo ER](docs/architecture/data-model.md) | Esquema relacional e restrições |
-| [Matriz de autorização](docs/architecture/authorization-matrix.md) | As 40 rotas, quem acessa cada uma |
-| [Índice de ADRs](docs/architecture/adr/README.md) | 11 decisões de arquitetura |
-| [Índice de RFCs](docs/architecture/rfc/README.md) | 5 propostas técnicas |
+| [Matriz de autorização](docs/architecture/authorization-matrix.md) | As rotas do OS, quem acessa cada uma, e as que passaram para Billing e Execution |
+| [Índice de ADRs](docs/architecture/adr/README.md) | 16 decisões de arquitetura |
+| [Índice de RFCs](docs/architecture/rfc/README.md) | 6 propostas técnicas |
 
 Operacional: [runbook do ambiente](docs/runbook-ambiente.md),
 [checklist de gravação](docs/checklist-gravacao.md),
@@ -71,13 +103,15 @@ Operacional: [runbook do ambiente](docs/runbook-ambiente.md),
 
 ---
 
-## Os quatro repositórios
+## Os seis repositórios
 
 | Repositório | Responsabilidade |
 |---|---|
-| [`fiap-tech-challenge`](https://github.com/diandria/fiap-tech-challenge) | Aplicação (este) |
+| [`fiap-tech-challenge`](https://github.com/diandria/fiap-tech-challenge) | OS Service e orquestrador da saga (este) |
+| [`fiap-tech-challenge-billing`](https://github.com/diandria/fiap-tech-challenge-billing) | Billing Service: orçamento e pagamento, com o próprio RDS em `terraform/` |
+| [`fiap-tech-challenge-execution`](https://github.com/diandria/fiap-tech-challenge-execution) | Execution Service: diagnóstico e reparo, com as tabelas do DynamoDB em `terraform/` |
 | [`fiap-tech-challenge-infra-db`](https://github.com/diandria/fiap-tech-challenge-infra-db) | VPC, RDS, segredos no SSM |
-| [`fiap-tech-challenge-infra-k8s`](https://github.com/diandria/fiap-tech-challenge-infra-k8s) | EKS, API Gateway, ECR, observabilidade |
+| [`fiap-tech-challenge-infra-k8s`](https://github.com/diandria/fiap-tech-challenge-infra-k8s) | EKS, API Gateway, filas da saga, ECR e namespaces dos três serviços, observabilidade |
 | [`fiap-tech-challenge-lambda`](https://github.com/diandria/fiap-tech-challenge-lambda) | Functions de autenticação e notificação, tópico SNS |
 
 ---
@@ -89,48 +123,76 @@ Operacional: [runbook do ambiente](docs/runbook-ambiente.md),
 ```mermaid
 flowchart TB
     user(["Cliente / Funcionário"])
+    mp(["Mercado Pago"])
 
     subgraph aws["AWS"]
-        gw["API Gateway\nponto único de entrada\nthrottling 100 req/s"]
+        gw["API Gateway\nponto único de entrada\numa integração por serviço"]
 
         subgraph serverless["Lambdas"]
             authfn["auth\nPOST /auth/cpf"]
             notifyfn["notifications\nenvia o e-mail"]
         end
 
-        subgraph k8s["EKS — namespace car-repair-shop"]
-            svc["Service\nNLB interno"]
-            app["car-repair-shop-api\n2–10 réplicas\nHPA (CPU 70%)"]
-            svc --> app
+        subgraph k8s["EKS — um namespace por serviço"]
+            os["OS Service\nordens, cadastros, estoque\norquestrador da saga"]
+            billing["Billing Service\norçamento e pagamento"]
+            execution["Execution Service\ndiagnóstico e reparo"]
         end
 
-        rds[("RDS PostgreSQL")]
+        subgraph queues["SQS FIFO, cada uma com fila de descarte"]
+            qb[/"billing-commands"/]
+            qe[/"execution-commands"/]
+            qr[/"saga-replies"/]
+        end
+
+        rdsos[("RDS PostgreSQL\nOS")]
+        rdsbill[("RDS PostgreSQL\nBilling")]
+        ddb[("DynamoDB\nExecution")]
         sns(["Tópico SNS"])
 
-        gw -->|"VPC Link"| svc
+        gw -->|"ordens e cadastros"| os
+        gw -->|"orçamento e notificação\nde pagamento"| billing
+        gw -->|"/executions"| execution
         gw --> authfn
         authfn -->|"lookup interno"| gw
-        app --> rds
-        app -->|"publica evento"| sns
+
+        os -->|"comandos"| qb --> billing
+        os -->|"comandos"| qe --> execution
+        billing -->|"respostas"| qr
+        execution -->|"respostas"| qr
+        qr --> os
+
+        os --- rdsos
+        billing --- rdsbill
+        execution --- ddb
+        os -->|"mudança de status"| sns
+        billing -->|"orçamento e link de pagamento"| sns
         sns --> notifyfn
+        billing -->|"cobrança"| mp
     end
 
-    subgraph gha["GitHub Actions"]
-        ci["CI\nbuild → lint → test → kubeconform"]
-        cd["CD\nimagem no ECR → Job de migration\nset image → rollout → rollback"]
+    subgraph gha["GitHub Actions, em cada repositório de serviço"]
+        ci["CI\nbuild → lint → testes → cobertura → manifestos"]
+        cd["CD\nimagem no ECR → migration → rollout → rollback"]
         ci --> cd
     end
 
     user --> gw
+    mp -->|"POST /payments/notifications"| gw
     cd --> k8s
 ```
 
-A autenticação por CPF **não passa pela aplicação**: o gateway roteia `POST /auth/cpf` direto para a
-Lambda, que consulta o cliente por um endpoint interno e emite o token
-([ADR-002](docs/architecture/adr/ADR-002-function-emissora-de-token.md)).
+Cada serviço tem o próprio banco, e nenhum lê o banco de outro. Entre eles, só mensagens: o OS manda
+comandos para a fila de cada participante e recebe todas as respostas numa fila única
+([arquitetura alvo](docs/architecture/target-architecture.md)).
 
-A notificação é **assíncrona**: a aplicação publica no tópico e segue. A transição de status não
-espera o e-mail ([ADR-003](docs/architecture/adr/ADR-003-padrao-de-comunicacao.md)).
+A autenticação por CPF **não passa pelos serviços**: o gateway roteia `POST /auth/cpf` direto para a
+Lambda, que consulta o cliente por um endpoint interno do OS e emite o token
+([ADR-002](docs/architecture/adr/ADR-002-function-emissora-de-token.md)). Os três serviços validam o
+token com o mesmo segredo.
+
+A notificação ao cliente é **assíncrona**: o serviço publica no tópico e segue. A transição de status
+não espera o e-mail ([ADR-003](docs/architecture/adr/ADR-003-padrao-de-comunicacao.md)).
 
 ### Clean Architecture — camadas
 
@@ -145,20 +207,104 @@ src/
 
 ---
 
+## Saga da ordem de serviço
+
+Abrir, orçar, aprovar, cobrar e reparar uma ordem passa por três serviços, cada um com o próprio banco.
+Não existe mais a transação única do monolito: o OS garante a abertura e a reserva de estoque numa
+transação local, mas não consegue garantir na mesma transação que o Billing gerou o orçamento ou que o
+pagamento foi aprovado. Parte das falhas também é de negócio, e não se resolve tentando de novo: o cliente
+rejeita o orçamento, o cartão é recusado. A saga resolve isso como uma sequência de transações locais
+coordenadas por mensagens, em que cada etapa que pode precisar ser desfeita tem uma compensação.
+
+### Por que orquestrada, e por que no OS
+
+A transação distribuída (two-phase commit) foi descartada logo: PostgreSQL, DynamoDB e SQS não participam
+do mesmo protocolo, e o fluxo espera decisões humanas, como a aprovação do cliente e o pagamento, que
+podem levar dias com recursos bloqueados.
+
+Entre coreografia e orquestração, a escolha foi **orquestração, com o orquestrador dentro do OS**
+([ADR-014](docs/architecture/adr/ADR-014-saga-orquestrada.md)):
+
+- **O fluxo fica escrito num lugar só.** A sequência e todas as compensações estão em
+  `src/use-cases/saga/ServiceOrderSaga.ts`, legíveis e testáveis. Na coreografia, entender o caminho de
+  uma ordem exigiria ler os três serviços.
+- **Sem dependência cíclica.** As mensagens vão num sentido (comando do orquestrador para o participante,
+  resposta de volta). Na coreografia, OS e Execution assinariam os eventos um do outro.
+- **Os participantes não sabem que fazem parte de uma saga.** Billing e Execution recebem comandos e
+  respondem. Nenhum deles decide quando a ordem avança ou compensa.
+- **O estado da saga é o status da ordem**, que o OS já guarda. Um serviço só de coordenação teria de
+  duplicar esse estado ou consultar o OS a cada passo.
+
+O custo é conhecido: o orquestrador concentra regra, e com o OS fora do ar nenhuma saga avança, embora
+nenhuma se perca, porque as respostas esperam na fila.
+
+### Etapas e compensações
+
+| # | Serviço | O que acontece | Mensagens | Se recusar ou falhar |
+|---|---|---|---|---|
+| 1 | OS | Abre a ordem em `RECEIVED` e reserva o estoque | emite `EnqueueDiagnosis` | Libera a reserva, `CANCELLED` |
+| 2 | Execution | O mecânico inicia e conclui o diagnóstico | `DiagnosisStarted`, `DiagnosisCompleted` | `CancelExecution` |
+| 3 | Billing | Gera o orçamento e avisa o cliente | `GenerateBudget` → `BudgetGenerated` | `CancelBudget` |
+| 4 | Billing | O cliente decide | `BudgetApproved` ou `BudgetRejected` | Rejeição: libera a reserva, `REJECTED`, `CancelExecution` |
+| 5 | Billing | Cobra pelo Mercado Pago | `RequestPayment` → `PaymentConfirmed` ou `PaymentFailed` | Recusa: libera a reserva, `CANCELLED`, `CancelExecution` e `CancelBudget` |
+| 6 | OS | Baixa o estoque e marca `PAID` | emite `EnqueueRepair` | — |
+| 7 | Execution | O mecânico faz o reparo e marca cada serviço | `RepairStarted`, `RepairCompleted` | — |
+| 8 | OS | Marca `FINISHED`; a entrega continua sendo registrada pelo mecânico | — | — |
+
+O **pagamento confirmado é o ponto de não retorno**. Antes dele, toda etapa tem compensação. Depois dele,
+não há o que desfazer, só o que terminar, e as etapas são tentadas de novo até concluir.
+
+Cada resposta é aplicada numa única transação local no OS: o status, o histórico, o estoque, o registro
+da mensagem já processada e os comandos de saída no outbox, juntos. Antes de aplicar, o orquestrador relê
+a ordem e confere se ela está no status que a resposta espera. A gravação usa controle otimista de versão.
+
+### Quando algo sai do ar
+
+| Situação | O que acontece |
+|---|---|
+| Execution fora do ar | Os comandos esperam em `execution-commands`. As ordens novas ficam em `RECEIVED` e seguem quando ele volta |
+| Billing fora do ar | `GenerateBudget` e `RequestPayment` esperam em `billing-commands`. A ordem fica em `WAITING_APPROVAL` ou `APPROVED` até ele voltar |
+| OS fora do ar | Nenhuma saga avança, e nenhuma se perde: as respostas esperam em `saga-replies` |
+| Fila inacessível | As mensagens ficam no outbox de quem as gravou, e o relay tenta de novo. O alerta `OutboxBacklog` dispara se nada sai por 5 minutos |
+| Mensagem que falha sempre | Volta para a fila a cada 30 segundos. Na quinta falha vai para a fila de descarte, e o OS trata como falha da etapa: compensa até o pagamento, e depois disso registra a etapa como travada e alerta (`SagaStepStuck`) |
+
+Nenhuma dessas situações exige intervenção manual para não perder dados. Só a etapa travada precisa de
+alguém: o log de erro do OS traz o id da ordem e a mensagem inteira.
+
+### Como acompanhar uma saga
+
+- **Histórico da ordem:** `GET /service-orders/{id}/history` mostra cada mudança de status, em ordem.
+- **Painel "Oficina — Saga da ordem de serviço"** no Grafana: respostas por tipo e resultado,
+  compensações por motivo, backlog do outbox e falhas de consumo por serviço.
+- **Trace:** no mesmo painel, o campo **ID da OS** busca no Tempo os traces com o atributo
+  `service_order.id`, que os três serviços gravam nos spans de mensageria. O trace mostra OS, fila e
+  participante juntos.
+- **Logs:** no Loki, `{namespace=~"car-repair-shop.*"} |= "<id da OS>"` traz os logs dos três serviços
+  sobre a ordem.
+- **Alertas:** `SagaMessageFailing`, `OutboxBacklog`, `SagaCompensationsSpike` e `SagaStepStuck`,
+  descritos no README do `infra-k8s`.
+
+As compensações têm cenários BDD no nível de componente (`tests/bdd/service-order-saga.feature`), e a
+jornada principal e a recusa de pagamento rodam de ponta a ponta contra os três serviços
+(`tests/e2e/service-order-journey.feature`).
+
+---
+
 ## Stack
 
 | Tema | Escolha |
 |---|---|
 | Runtime | Node.js 22 LTS + TypeScript |
 | HTTP | Express |
-| Banco | PostgreSQL 16 + Prisma |
+| Banco | PostgreSQL 16 + Prisma (OS e Billing); DynamoDB (Execution) |
+| Mensageria | SQS FIFO com outbox transacional e consumidor idempotente ([ADR-015](docs/architecture/adr/ADR-015-comunicacao-e-contrato-de-mensagens.md)) |
 | Auth | JWT (jsonwebtoken) + bcryptjs |
 | Log | pino — JSON estruturado ([ADR-010](docs/architecture/adr/ADR-010-biblioteca-de-log.md)) |
 | Métricas | prom-client — HTTP, negócio e falhas de integração |
 | Tracing | OpenTelemetry, propagação W3C `traceparent` |
 | Notificações | AWS SDK v3 (SNS) em produção; console em desenvolvimento |
 | Docs API | swagger-ui-express + swagger-jsdoc |
-| Testes | Jest + ts-jest + Supertest + Testcontainers |
+| Testes | Jest + ts-jest + Supertest + Testcontainers (Postgres e LocalStack) + jest-cucumber |
 | Container | Docker + docker-compose |
 | Orquestração | Kubernetes (Amazon EKS) |
 | IaC | Terraform — nos três repositórios de infraestrutura |
@@ -177,8 +323,8 @@ O sistema tem **dois fluxos de autenticação**, com emissores diferentes.
 
 | Role | Permissões |
 |---|---|
-| `attendant` | Abre OS; cadastra clientes e veículos; registra entrega |
-| `mechanic` | Executa diagnóstico; refina serviços e itens; executa e finaliza a OS |
+| `attendant` | Abre OS; cadastra clientes e veículos |
+| `mechanic` | Inicia e conclui diagnóstico e reparo no Execution; refina serviços e itens da OS; registra a entrega |
 | `admin` | Acesso total — inclui gestão de catálogo, estoque e usuários |
 
 **Cliente** — `POST /auth/cpf` no API Gateway, emitido pela function serverless. O cliente consulta o
@@ -269,6 +415,7 @@ documentação está errada, e vai estar certo.
 | Componente | Local | Observação |
 |---|---|---|
 | API + Postgres | sim | `docker-compose up -d` |
+| Os três serviços e a saga | sim | `e2e/docker-compose.yml` sobe OS, Billing e Execution com LocalStack (veja [Testes](#testes)) |
 | Notificações | sim, no console | `NOTIFICATION_CHANNEL=console` imprime a mensagem em vez de publicar no SNS |
 | **Autenticação por CPF** | **não** | `POST /auth/cpf` é servida pela Lambda, atrás do API Gateway — nenhum dos dois existe localmente |
 | Observabilidade | não | Loki, Tempo, Prometheus e Grafana vivem no cluster; localmente os logs saem em JSON no stdout e as métricas ficam em `/metrics` |
@@ -427,6 +574,10 @@ Dispara em push e pull request para `main`. Roda em `ubuntu-latest`.
 | `coverage` | build, test | `npm run test:coverage` — faz upload do relatório como artefato |
 | `sonar` | coverage | Análise no [SonarQube Cloud](https://sonarcloud.io/project/overview?id=diandria_fiap-tech-challenge) com o relatório de cobertura do job anterior; reprova quando o quality gate reprova |
 
+O job `BDD end-to-end` (`.github/workflows/e2e.yml`) roda à parte, em todo PR e em todo push na `main`:
+sobe os três serviços no compose de `e2e/` e executa os cenários de ponta a ponta. Ele não é checagem
+obrigatória da `main`, porque depende da `main` do Billing e do Execution.
+
 ### CD (`.github/workflows/cd.yml`)
 
 Dispara via `workflow_run` quando o CI conclui com sucesso em `main`. Roda em runner hospedado do GitHub.
@@ -465,9 +616,27 @@ Cada deploy fica registrado em **Deployments → production**.
 ## Testes
 
 ```bash
-npm test                  # unitários e integração (Testcontainers sobe um Postgres real)
+npm test                  # unitários e integração (Testcontainers sobe Postgres e LocalStack)
 npm run test:coverage     # com relatório de cobertura (threshold ≥ 80%)
 ```
+
+Os testes de integração seguem GIVEN / WHEN / THEN, no título e no corpo. As compensações da saga têm
+cenários em Gherkin no nível de componente, em `tests/bdd/`: o orquestrador real, com Billing e
+Execution simulados.
+
+### Cobertura
+
+O mínimo de 80% vale para linhas, branches, funções e statements, e o `npm run test:coverage` falha
+abaixo dele. O job `Coverage` do [CI](https://github.com/diandria/fiap-tech-challenge/actions/workflows/ci.yml)
+roda em todo PR e guarda o relatório HTML como artefato do run. O mesmo relatório alimenta a análise no
+[SonarQube Cloud](https://sonarcloud.io/project/overview?id=diandria_fiap-tech-challenge), onde a
+cobertura aparece junto com os demais indicadores de qualidade.
+
+| Linhas | Statements | Funções | Branches |
+|---|---|---|---|
+| 96,37% | 94,92% | 96,08% | 89% |
+
+![Relatório de cobertura do OS Service](docs/evidencias/cobertura-os-service.png)
 
 ### Ponta a ponta com os três serviços
 

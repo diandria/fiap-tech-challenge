@@ -86,7 +86,10 @@ flowchart TB
 - **Notificações.** Mudança de status, orçamento pronto e link de pagamento saem pelo tópico de eventos da
   Fase 3, e a função de notificações entrega ao cliente.
 - **Observabilidade.** Os três serviços enviam métricas, registros e rastros para a mesma stack da Fase 3.
-  O rastro atravessa as filas, porque toda mensagem carrega o contexto de quem a publicou.
+  O rastro atravessa as filas, porque toda mensagem carrega o contexto de quem a publicou, e o span de
+  cada mensagem leva o id da ordem (`service_order.id`), o que permite buscar no Tempo todos os rastros de
+  uma ordem. O painel da saga e os alertas de mensageria (mensagem falhando, outbox parado, compensações
+  acima do normal e etapa travada) ficam no `infra-k8s`.
 
 ## Quem provisiona o quê
 
