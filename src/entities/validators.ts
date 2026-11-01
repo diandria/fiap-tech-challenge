@@ -6,15 +6,15 @@ export function validateCPF(cpf: string): boolean {
   const calcDigit = (slice: string, factor: number): number => {
     let sum = 0;
     for (let i = 0; i < slice.length; i++) {
-      sum += parseInt(slice[i]) * (factor - i);
+      sum += Number.parseInt(slice[i]) * (factor - i);
     }
     const rem = (sum * 10) % 11;
     return rem >= 10 ? 0 : rem;
   };
 
   return (
-    calcDigit(digits.slice(0, 9), 10) === parseInt(digits[9]) &&
-    calcDigit(digits.slice(0, 10), 11) === parseInt(digits[10])
+    calcDigit(digits.slice(0, 9), 10) === Number.parseInt(digits[9]) &&
+    calcDigit(digits.slice(0, 10), 11) === Number.parseInt(digits[10])
   );
 }
 
@@ -26,7 +26,7 @@ export function validateCNPJ(cnpj: string): boolean {
   const calcDigit = (slice: string, weights: number[]): number => {
     let sum = 0;
     for (let i = 0; i < weights.length; i++) {
-      sum += parseInt(slice[i]) * weights[i];
+      sum += Number.parseInt(slice[i]) * weights[i];
     }
     const rem = sum % 11;
     return rem < 2 ? 0 : 11 - rem;
@@ -36,8 +36,8 @@ export function validateCNPJ(cnpj: string): boolean {
   const w2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
 
   return (
-    calcDigit(digits.slice(0, 12), w1) === parseInt(digits[12]) &&
-    calcDigit(digits.slice(0, 13), w2) === parseInt(digits[13])
+    calcDigit(digits.slice(0, 12), w1) === Number.parseInt(digits[12]) &&
+    calcDigit(digits.slice(0, 13), w2) === Number.parseInt(digits[13])
   );
 }
 
