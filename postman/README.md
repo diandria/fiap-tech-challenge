@@ -50,7 +50,19 @@ Gateway (ADR-001). Descubra a URL e preencha `baseUrl`, `billingBaseUrl`, `execu
 cd ~/dev/fiap-tech-challenge-infra-k8s && terraform output api_gateway_url
 ```
 
-`adminPassword` precisa ser o valor do parâmetro `/car-repair-shop/app/admin-password` no SSM.
+`adminPassword` e `jwtSecret` vêm do SSM:
+
+```bash
+aws ssm get-parameter --name /car-repair-shop/app/admin-password --with-decryption \
+  --query Parameter.Value --output text
+aws ssm get-parameter --name /car-repair-shop/auth/jwt-secret --with-decryption \
+  --query Parameter.Value --output text
+```
+
+O `jwtSecret` é necessário mesmo com a função no ar. A pasta 03 age como cliente (consulta o status e aprova
+o orçamento) antes de a pasta 11 buscar o token real em `/auth/cpf`, e até lá vale o token emitido pelo
+script de pré-requisição. O token do "outro cliente", usado nos 403 da pasta 11, também sai desse script.
+Assinados com outro segredo, os dois viram 401.
 
 ## Importação
 
@@ -68,7 +80,7 @@ seguintes precisam (tokens, ids).
 | 01 | Catalog (admin) | Um serviço (Troca de Óleo, R$ 120) e uma peça (Óleo 5W30, R$ 40, estoque 10) |
 | 02 | Customer and Vehicle (attendant) | Cliente com CPF `96627075300` (código de aprovação `9662`) e veículo `ABC-1234` |
 | 03 | Fluxo da saga (até o pagamento) | O atendente abre a OS; o mecânico inicia o diagnóstico no Execution; a OS vai a `DIAGNOSIS`; o mecânico inclui serviço e peça e conclui o diagnóstico; o Billing gera o orçamento; o cliente consulta o status e aprova no Billing; o Billing cria a cobrança e o `checkoutUrl` aparece no console |
-| 04 | Pagamento simulado (só local) | Aprova o pagamento no provedor simulado do Billing. Na AWS, este passo é o pagamento no navegador |
+| 04 | Pagamento simulado | Aprova o pagamento no provedor simulado do Billing, localmente ou na AWS. Com o Mercado Pago, este passo é o pagamento no navegador |
 | 05 | Fluxo da saga (depois do pagamento) | A OS vai a `PAID`; o mecânico inicia o reparo, marca o serviço e conclui; a OS vai a `FINISHED`; o mecânico registra a entrega; o histórico confirma todas as etapas; a média por serviço vem do Execution |
 | 06 | Orçamento rejeitado | Segunda OS até o orçamento, rejeitado pelo cliente no Billing; a saga leva a OS a `REJECTED` e devolve a peça ao estoque |
 | 07 | Stats and Listings | Tempo médio do catálogo, filtros por `status` e `customerId`, detalhe por id |
@@ -88,13 +100,22 @@ até 30 tentativas, e só então registram o teste. A nova tentativa usa
 
 ### Pagamento na AWS
 
-Na AWS, o Billing usa o Mercado Pago, e o Runner não consegue pagar sozinho:
+Depende do provedor configurado no Billing:
+
+```bash
+kubectl get cm billing-config -n car-repair-shop-billing -o jsonpath='{.data.PAYMENT_PROVIDER}'
+```
+
+**Provedor simulado (`mock`).** A pasta 04 paga pelo gateway (`POST /payments/mock/{id}`, com o token de
+admin), e a coleção roda de ponta a ponta sem intervenção, como no compose.
+
+**Mercado Pago.** O Runner não consegue pagar sozinho:
 
 1. Rode as pastas 00 a 03. A última requisição da 03 imprime o `checkoutUrl` no console e o guarda no
    environment.
 2. Abra o link no navegador, entre com a conta de teste de comprador e pague com um cartão de teste do
    Mercado Pago, com o titular `APRO`. O passo a passo das contas de teste está no README do Billing.
-3. Pule a pasta 04 e rode a 05.
+3. Pule a pasta 04, que com o Mercado Pago responde 404, e rode a 05.
 
 ## Variáveis guardadas pelos scripts
 
@@ -118,7 +139,8 @@ e o cliente só enxerga e decide sobre a própria OS.
 ### Como o `customerToken` é obtido
 
 **Contra o ambiente implantado:** com `authBaseUrl` preenchido, a pasta 11 chama `/auth/cpf`, servida pela
-função, e grava o token real.
+função, e grava o token real. Antes dela, a pasta 03 usa o token emitido pelo script descrito abaixo, e por
+isso o `jwtSecret` também é preenchido na AWS.
 
 **Localmente não existe função.** O script de pré-requisição da coleção emite um token com o **mesmo
 formato e o mesmo segredo** (`jwtSecret`) quando `customerToken` está vazio. É uma conveniência de
@@ -127,7 +149,8 @@ Por isso a chamada a `/auth/cpf` da pasta 11 dá erro de URL quando roda localme
 vazio, e o resto da coleção segue.
 
 > `jwtSecret` precisa bater com o `JWT_SECRET` dos serviços. No compose de ponta a ponta é
-> `dev-secret-change-in-prod`. Se divergir, o sintoma é um 401 sem mensagem útil.
+> `dev-secret-change-in-prod`; na AWS, é o parâmetro `/car-repair-shop/auth/jwt-secret` do SSM. Se
+> divergir, o sintoma é um 401 sem mensagem útil.
 
 ## Regras de negócio cobertas pelo fluxo
 
@@ -155,13 +178,23 @@ npx newman run postman/car-repair-shop.postman_collection.json \
   -e postman/car-repair-shop.postman_environment.json
 ```
 
-AWS, pelo API Gateway (para no pagamento; ver "Pagamento na AWS"):
+AWS, pelo API Gateway, com o provedor simulado no Billing:
 
 ```bash
+API=$(cd ~/dev/fiap-tech-challenge-infra-k8s && terraform output -raw api_gateway_url)
+ADMIN_PASSWORD=$(aws ssm get-parameter --name /car-repair-shop/app/admin-password \
+  --with-decryption --query Parameter.Value --output text)
+JWT_SECRET=$(aws ssm get-parameter --name /car-repair-shop/auth/jwt-secret \
+  --with-decryption --query Parameter.Value --output text)
+
 npx newman run postman/car-repair-shop.postman_collection.json \
   -e postman/car-repair-shop-k8s.postman_environment.json \
-  --folder "00 - Setup" --folder "01 - Catalog (admin)" \
-  --folder "02 - Customer and Vehicle (attendant)" --folder "03 - Fluxo da saga (ate o pagamento)"
+  --env-var "baseUrl=$API" --env-var "billingBaseUrl=$API" \
+  --env-var "executionBaseUrl=$API" --env-var "authBaseUrl=$API" \
+  --env-var "adminPassword=$ADMIN_PASSWORD" --env-var "jwtSecret=$JWT_SECRET"
 ```
+
+Com o Mercado Pago, rode só as pastas 00 a 03 (`--folder` para cada uma), pague no navegador e continue a
+partir da 05 (ver "Pagamento na AWS").
 
 > Alteração para demonstração
