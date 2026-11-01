@@ -423,6 +423,7 @@ Dispara em push e pull request para `main`. Roda em `ubuntu-latest`.
 | `lint` | build | `npm run lint` |
 | `test` | build | `npm test` |
 | `coverage` | build, test | `npm run test:coverage` — faz upload do relatório como artefato |
+| `sonar` | coverage | Análise no [SonarQube Cloud](https://sonarcloud.io/project/overview?id=diandria_fiap-tech-challenge) com o relatório de cobertura do job anterior; reprova quando o quality gate reprova |
 
 ### CD (`.github/workflows/cd.yml`)
 
@@ -466,7 +467,20 @@ npm test                  # unitários e integração (Testcontainers sobe um Po
 npm run test:coverage     # com relatório de cobertura (threshold ≥ 80%)
 ```
 
-### SonarQube (opcional)
+### SonarQube Cloud
+
+A análise de qualidade roda no CI de todo PR e de todo push na `main`, no
+[projeto do OS no SonarQube Cloud](https://sonarcloud.io/project/overview?id=diandria_fiap-tech-challenge),
+da organização `diandria`. O scanner espera o quality gate (`sonar.qualitygate.wait`) e o job `SonarQube`
+falha quando ele reprova, ou quando o segredo `SONAR_TOKEN` não está configurado: uma checagem que passa
+sem analisar nada seria pior que nenhuma. O quality gate é o padrão do SonarQube Cloud (Sonar way), que
+avalia o código novo de cada PR.
+
+`sonar.coverage.exclusions` repete os arquivos que o jest deixa fora da cobertura de propósito (montagem
+da aplicação, Swagger, clientes que só existem contra infraestrutura real). Sem isso, um PR que mexesse
+neles reprovaria na cobertura do código novo.
+
+Para analisar localmente, com um SonarQube na própria máquina:
 
 ```bash
 docker-compose --profile sonar up -d sonarqube sonar-db
