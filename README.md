@@ -628,7 +628,9 @@ Execution simulados.
 
 O mínimo de 80% vale para linhas, branches, funções e statements, e o `npm run test:coverage` falha
 abaixo dele. O job `Coverage` do [CI](https://github.com/diandria/fiap-tech-challenge/actions/workflows/ci.yml)
-roda em todo PR e guarda o relatório HTML como artefato do run.
+roda em todo PR e guarda o relatório HTML como artefato do run. O mesmo relatório alimenta a análise no
+[SonarQube Cloud](https://sonarcloud.io/project/overview?id=diandria_fiap-tech-challenge), onde a
+cobertura aparece junto com os demais indicadores de qualidade.
 
 | Linhas | Statements | Funções | Branches |
 |---|---|---|---|
