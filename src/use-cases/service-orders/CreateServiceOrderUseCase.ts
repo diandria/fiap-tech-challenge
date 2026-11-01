@@ -13,9 +13,10 @@ export class CreateServiceOrderUseCase implements ICreateServiceOrder {
   async execute(input: CreateServiceOrderInput): Promise<ServiceOrder> {
     const services = await this.resolveServices(input.services ?? []);
 
-    // Reserving stock and inserting the order are one local transaction: if
-    // the insert fails, the reservations are rolled back with it.
-    return this.unitOfWork.run(async ({ serviceOrders, items }) => {
+    // The first step of the saga, in one local transaction: the order, its
+    // stock reservations and the request for a diagnosis commit together. If
+    // the insert fails, the reservations are rolled back and nothing is sent.
+    return this.unitOfWork.run(async ({ serviceOrders, items, outbox }) => {
       const reservedItems: OSItem[] = [];
 
       for (const { itemId, quantity } of input.items ?? []) {
@@ -27,13 +28,16 @@ export class CreateServiceOrderUseCase implements ICreateServiceOrder {
         reservedItems.push({ itemId, quantity });
       }
 
-      return serviceOrders.create({
+      const order = await serviceOrders.create({
         customerId: input.customerId,
         vehicleId: input.vehicleId,
         status: 'RECEIVED',
         services,
         items: reservedItems,
       });
+
+      await outbox.add({ destination: 'execution-commands', type: 'EnqueueDiagnosis', serviceOrderId: order.id, payload: {} });
+      return order;
     });
   }
 

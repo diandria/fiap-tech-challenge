@@ -3,6 +3,8 @@ import { logger } from '../../src/frameworks/logging/logger';
 import { Application } from 'express';
 
 import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } from '../helpers/testSetup';
+import { driveOrderTo, sagaOnTheTestDatabase } from '../helpers/sagaDriver';
+import { randomUUID } from 'node:crypto';
 import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
 import { serviceOrdersCreated } from '../../src/frameworks/metrics/businessMetrics';
@@ -78,102 +80,58 @@ afterEach(async () => { await clearTestDB(); });
 beforeEach(async () => { await seedDomainData(); });
 
 describe('Full OS lifecycle', () => {
-  it('GIVEN a full set of prerequisites WHEN the OS walks from RECEIVED to DELIVERED THEN every transition returns the expected status', async () => {
+  it('GIVEN a full set of prerequisites WHEN every saga reply arrives in order THEN the order walks from RECEIVED to FINISHED', async () => {
+    // GIVEN
     const auth = { Authorization: `Bearer ${adminToken}` };
     const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
-
-    // 1. Create OS → RECEIVED (attendant/admin)
-    const created = await request(app).post('/service-orders').set(auth)
-      .send({ customerId, vehicleId });
-    expect(created.status).toBe(201);
+    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     expect(created.body.status).toBe('RECEIVED');
     const osId = created.body.id;
 
-    // 2. Mechanic starts diagnosis → DIAGNOSIS
-    const diag = await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
-    expect(diag.status).toBe(200);
-    expect(diag.body.status).toBe('DIAGNOSIS');
+    await driveOrderTo(osId, 'DIAGNOSIS');
+    await request(app).post(`/service-orders/${osId}/services`).set(mechAuth).send({ serviceId });
+    await request(app).post(`/service-orders/${osId}/items`).set(mechAuth).send({ itemId, quantity: 2 });
+    expect((await request(app).get(`/items/${itemId}`).set(auth)).body.reservedQuantity).toBe(2);
 
-    // 3. Add service
-    const addSvc = await request(app).post(`/service-orders/${osId}/services`).set(mechAuth)
-      .send({ serviceId });
-    expect(addSvc.status).toBe(200);
-    expect(addSvc.body.services).toHaveLength(1);
-
-    // 4. Add item (reserves 2 units)
-    const addItm = await request(app).post(`/service-orders/${osId}/items`).set(mechAuth)
-      .send({ itemId, quantity: 2 });
-    expect(addItm.status).toBe(200);
-    expect(addItm.body.items).toHaveLength(1);
-
-    // Stock reserved: 8 available (10 total - 2 reserved)
-    const itemAfterReserve = await request(app).get(`/items/${itemId}`).set(auth);
-    expect(itemAfterReserve.body.reservedQuantity).toBe(2);
-    expect(itemAfterReserve.body.availableQuantity).toBe(8);
-
-    // 5. Mechanic finishes diagnosis → WAITING_APPROVAL with budgetTotal = 80 + (25*2) = 130
-    const finish = await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
-    expect(finish.status).toBe(200);
-    expect(finish.body.status).toBe('WAITING_APPROVAL');
-    expect(finish.body.budgetTotal).toBe(130);
-
-    // 6. Public status check (no auth)
+    // The budget total now comes from the Billing Service: 80 + 25 x 2.
+    await driveOrderTo(osId, 'WAITING_APPROVAL');
     const statusCheck = await request(app).get(`/service-orders/${osId}/status`)
       .set('Authorization', `Bearer ${customerToken(customerId)}`);
-    expect(statusCheck.status).toBe(200);
-    expect(statusCheck.body.status).toBe('WAITING_APPROVAL');
-    expect(statusCheck.body.budgetTotal).toBe(130);
+    expect(statusCheck.body).toMatchObject({ status: 'WAITING_APPROVAL', budgetTotal: 130 });
 
-    // 7. Approve budget — customer PATCH /budget with first 4 digits of CPF (52998224725 → "5299") → APPROVED
-    const approve = await request(app).patch(`/service-orders/${osId}/budget`)
-      .set('Authorization', `Bearer ${customerToken(customerId)}`)
-      .send({ status: 'APPROVED', code: '5299' });
-    expect(approve.status).toBe(200);
-    expect(approve.body.status).toBe('APPROVED');
+    await driveOrderTo(osId, 'APPROVED');
+    expect((await request(app).get(`/items/${itemId}`).set(auth)).body).toMatchObject({ stockQuantity: 10, reservedQuantity: 2 });
 
-    // Stock still reserved at this point — not yet consumed
-    const itemAfterApprove = await request(app).get(`/items/${itemId}`).set(auth);
-    expect(itemAfterApprove.body.stockQuantity).toBe(10);
-    expect(itemAfterApprove.body.reservedQuantity).toBe(2);
+    // Payment confirmed: the reserved parts leave the stock.
+    await driveOrderTo(osId, 'PAID');
+    expect((await request(app).get(`/items/${itemId}`).set(auth)).body).toMatchObject({ stockQuantity: 8, reservedQuantity: 0 });
 
-    // 8. Mechanic starts execution → EXECUTION, stock consumed
-    const startExec = await request(app).patch(`/service-orders/${osId}`)
-      .set(mechAuth).send({ status: 'EXECUTION' });
-    expect(startExec.status).toBe(200);
-    expect(startExec.body.status).toBe('EXECUTION');
-    expect(startExec.body.startedAt).toBeDefined();
+    await driveOrderTo(osId, 'EXECUTION');
 
-    // Stock consumed: stockQuantity 10-2=8, reservedQuantity 2-2=0
-    const itemAfterExec = await request(app).get(`/items/${itemId}`).set(auth);
-    expect(itemAfterExec.body.stockQuantity).toBe(8);
-    expect(itemAfterExec.body.reservedQuantity).toBe(0);
-    expect(itemAfterExec.body.availableQuantity).toBe(8);
+    // WHEN
+    const result = await sagaOnTheTestDatabase().handle({ messageId: randomUUID(), type: 'RepairCompleted', serviceOrderId: osId, payload: {} });
 
-    // 9. Start service (per-service tracking) — body-driven IN_PROGRESS
-    const startSvc = await request(app)
-      .patch(`/service-orders/${osId}/services/${serviceId}`)
-      .set(mechAuth).send({ status: 'IN_PROGRESS' });
-    expect(startSvc.status).toBe(200);
-    expect(startSvc.body.services[0].startedAt).toBeDefined();
+    // THEN
+    expect(result.outcome).toBe('applied');
+    const order = await request(app).get(`/service-orders/${osId}`).set(auth);
+    expect(order.body.status).toBe('FINISHED');
+    expect(order.body.startedAt).toBeDefined();
+    expect(order.body.finishedAt).toBeDefined();
+  });
 
-    // 10. Finish service — body-driven COMPLETED
-    const finishSvc = await request(app)
-      .patch(`/service-orders/${osId}/services/${serviceId}`)
-      .set(mechAuth).send({ status: 'COMPLETED' });
-    expect(finishSvc.status).toBe(200);
-    expect(finishSvc.body.services[0].finishedAt).toBeDefined();
+  it('GIVEN a FINISHED order WHEN a mechanic PATCHes DELIVERED THEN returns 200 and deliveredAt is set', async () => {
+    // GIVEN
+    const created = await request(app).post('/service-orders').set({ Authorization: `Bearer ${adminToken}` }).send({ customerId, vehicleId });
+    await driveOrderTo(created.body.id, 'FINISHED');
 
-    // 11. Finish OS → FINISHED
-    const finishOS = await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'FINISHED' });
-    expect(finishOS.status).toBe(200);
-    expect(finishOS.body.status).toBe('FINISHED');
-    expect(finishOS.body.finishedAt).toBeDefined();
+    // WHEN
+    const res = await request(app).patch(`/service-orders/${created.body.id}`)
+      .set({ Authorization: `Bearer ${mechanicToken}` }).send({ status: 'DELIVERED' });
 
-    // 12. Deliver OS → DELIVERED
-    const deliver = await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DELIVERED' });
-    expect(deliver.status).toBe(200);
-    expect(deliver.body.status).toBe('DELIVERED');
-    expect(deliver.body.deliveredAt).toBeDefined();
+    // THEN
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('DELIVERED');
+    expect(res.body.deliveredAt).toBeDefined();
   });
 
   it('GIVEN an OS in WAITING_APPROVAL with reserved stock WHEN PATCH status=REJECTED is called THEN status becomes REJECTED AND item reservations are released', async () => {
@@ -183,9 +141,9 @@ describe('Full OS lifecycle', () => {
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     const osId = created.body.id;
 
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
+    await driveOrderTo(osId, 'DIAGNOSIS');
     await request(app).post(`/service-orders/${osId}/items`).set(mechAuth).send({ itemId, quantity: 3 });
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
+    await driveOrderTo(osId, 'WAITING_APPROVAL');
 
     const beforeReject = await request(app).get(`/items/${itemId}`).set(auth);
     expect(beforeReject.body.reservedQuantity).toBe(3);
@@ -209,10 +167,7 @@ describe('Full OS lifecycle', () => {
       const os = await request(app).post('/service-orders').set(auth)
         .send({ customerId, vehicleId, serviceIds: [serviceId], items: [{ itemId, quantity: 1 }] });
       const osId = os.body.id;
-      await request(app).patch(`/service-orders/${osId}`).set({ Authorization: `Bearer ${mechanicToken}` })
-        .send({ status: 'DIAGNOSIS' });
-      await request(app).patch(`/service-orders/${osId}`).set({ Authorization: `Bearer ${mechanicToken}` })
-        .send({ status: 'WAITING_APPROVAL' });
+      await driveOrderTo(osId, 'WAITING_APPROVAL');
       return osId;
     }
 
@@ -271,11 +226,10 @@ describe('Full OS lifecycle', () => {
 
   it('GIVEN an OS in WAITING_APPROVAL WHEN PATCH /budget with status=APPROVED is called with a wrong code THEN returns 400', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
-    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     const osId = created.body.id;
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
+    await driveOrderTo(osId, 'DIAGNOSIS');
+    await driveOrderTo(osId, 'WAITING_APPROVAL');
 
     const res = await request(app).patch(`/service-orders/${osId}/budget`).set('Authorization', `Bearer ${customerToken(customerId)}`).send({ status: 'APPROVED', code: '0000' });
     expect(res.status).toBe(400);
@@ -286,8 +240,8 @@ describe('Full OS lifecycle', () => {
     const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     const osId = created.body.id;
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
+    await driveOrderTo(osId, 'DIAGNOSIS');
+    await driveOrderTo(osId, 'WAITING_APPROVAL');
 
     const res = await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'APPROVED', code: '5299' });
     expect(res.status).toBe(400);
@@ -295,11 +249,10 @@ describe('Full OS lifecycle', () => {
 
   it('GIVEN PATCH /budget with unsupported status THEN returns 400', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
-    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     const osId = created.body.id;
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
+    await driveOrderTo(osId, 'DIAGNOSIS');
+    await driveOrderTo(osId, 'WAITING_APPROVAL');
 
     const res = await request(app).patch(`/service-orders/${osId}/budget`).set('Authorization', `Bearer ${customerToken(customerId)}`).send({ status: 'EXECUTION', code: '5299' });
     expect(res.status).toBe(400);
@@ -313,13 +266,18 @@ describe('Full OS lifecycle', () => {
     expect(res.status).toBe(400);
   });
 
-  it('GIVEN an OS in RECEIVED status WHEN PATCH status=WAITING_APPROVAL is called directly THEN returns 400 for invalid transition', async () => {
-    const auth = { Authorization: `Bearer ${adminToken}` };
-    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
-    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
-    const osId = created.body.id;
-    const res = await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
+  it('GIVEN an order in RECEIVED WHEN PATCH /service-orders/:id with DIAGNOSIS THEN returns 400', async () => {
+    // GIVEN
+    const created = await request(app).post('/service-orders').set({ Authorization: `Bearer ${adminToken}` }).send({ customerId, vehicleId });
+
+    // WHEN
+    const res = await request(app).patch(`/service-orders/${created.body.id}`)
+      .set({ Authorization: `Bearer ${mechanicToken}` }).send({ status: 'DIAGNOSIS' });
+
+    // THEN
     expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Unknown status transition: DIAGNOSIS');
+    expect((await prisma.serviceOrder.findUniqueOrThrow({ where: { id: created.body.id } })).status).toBe('RECEIVED');
   });
 
   it('GIVEN a mechanic token WHEN POST /service-orders THEN returns 403', async () => {
@@ -330,22 +288,22 @@ describe('Full OS lifecycle', () => {
     expect(res.status).toBe(403);
   });
 
-  it('GIVEN an attendant token WHEN PATCH status=DIAGNOSIS THEN returns 403 (only mechanic+admin)', async () => {
+  it('GIVEN an attendant token WHEN PATCH status=DELIVERED THEN returns 403 (only mechanic+admin)', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     const osId = created.body.id;
     const res = await request(app)
       .patch(`/service-orders/${osId}`)
       .set('Authorization', `Bearer ${attendantToken}`)
-      .send({ status: 'DIAGNOSIS' });
+      .send({ status: 'DELIVERED' });
     expect(res.status).toBe(403);
   });
 
-  it('GIVEN no token WHEN PATCH status=DIAGNOSIS THEN returns 401', async () => {
+  it('GIVEN no token WHEN PATCH status=DELIVERED THEN returns 401', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     const osId = created.body.id;
-    const res = await request(app).patch(`/service-orders/${osId}`).send({ status: 'DIAGNOSIS' });
+    const res = await request(app).patch(`/service-orders/${osId}`).send({ status: 'DELIVERED' });
     expect(res.status).toBe(401);
   });
 
@@ -370,7 +328,7 @@ describe('Full OS lifecycle', () => {
     const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     const osId = created.body.id;
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
+    await driveOrderTo(osId, 'DIAGNOSIS');
     await request(app).post(`/service-orders/${osId}/services`).set(mechAuth).send({ serviceId });
     const res = await request(app).patch(`/service-orders/${osId}/services/${serviceId}`).set(mechAuth).send({});
     expect(res.status).toBe(400);
@@ -381,7 +339,7 @@ describe('Full OS lifecycle', () => {
     const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     const osId = created.body.id;
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
+    await driveOrderTo(osId, 'DIAGNOSIS');
     await request(app).post(`/service-orders/${osId}/services`).set(mechAuth).send({ serviceId });
     const res = await request(app)
       .patch(`/service-orders/${osId}/services/${serviceId}`)
@@ -390,14 +348,12 @@ describe('Full OS lifecycle', () => {
     expect(res.status).toBe(400);
   });
 
-  it('GIVEN an OS in DIAGNOSIS WHEN PATCH status=WAITING_APPROVAL is called THEN the customer notification mock is logged with email and OS id', async () => {
+  it('GIVEN an OS in DIAGNOSIS WHEN DiagnosisCompleted arrives THEN the customer status notification is logged with email and OS id', async () => {
+    // GIVEN
     const auth = { Authorization: `Bearer ${adminToken}` };
-    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
-
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     const osId = created.body.id;
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
-    await request(app).post(`/service-orders/${osId}/services`).set(mechAuth).send({ serviceId });
+    await driveOrderTo(osId, 'DIAGNOSIS');
 
     // The notification emits a structured event, so this checks fields.
     const emitted: Record<string, unknown>[] = [];
@@ -409,14 +365,12 @@ describe('Full OS lifecycle', () => {
       }) as never);
 
     try {
-      const res = await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'WAITING_APPROVAL' });
-      expect(res.status).toBe(200);
+      // WHEN
+      await sagaOnTheTestDatabase().handle({ messageId: randomUUID(), type: 'DiagnosisCompleted', serviceOrderId: osId, payload: {} });
 
-      const budgetEvent = emitted.find((e) => e.event === 'budget_ready');
-      expect(budgetEvent).toBeDefined();
-      expect(budgetEvent?.osId).toBe(osId);
-      expect(budgetEvent?.budgetTotal).toBe(80);
-      expect(budgetEvent?.customerEmail).toBe('j@t.com');
+      // THEN
+      const statusEvent = emitted.find((e) => e.event === 'status_changed');
+      expect(statusEvent).toMatchObject({ osId, status: 'WAITING_APPROVAL', customerEmail: 'j@t.com' });
     } finally {
       infoSpy.mockRestore();
     }
@@ -424,10 +378,9 @@ describe('Full OS lifecycle', () => {
 
   it('GIVEN two OS created WHEN one is moved to DIAGNOSIS THEN GET ?status=DIAGNOSIS returns only that one', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
-    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
     const os1 = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
-    await request(app).patch(`/service-orders/${os1.body.id}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
+    await driveOrderTo(os1.body.id, 'DIAGNOSIS');
 
     const res = await request(app).get('/service-orders?status=DIAGNOSIS').set(auth);
     expect(res.status).toBe(200);
@@ -437,6 +390,35 @@ describe('Full OS lifecycle', () => {
 });
 
 describe('POST /service-orders — creation with services and items', () => {
+  it('GIVEN valid customer, vehicle and stock WHEN POST /service-orders THEN returns 201 and EnqueueDiagnosis is in the outbox', async () => {
+    // GIVEN
+    const auth = { Authorization: `Bearer ${adminToken}` };
+
+    // WHEN
+    const res = await request(app).post('/service-orders').set(auth)
+      .send({ customerId, vehicleId, services: [serviceId], items: [{ itemId, quantity: 1 }] });
+
+    // THEN
+    expect(res.status).toBe(201);
+    const outbox = await prisma.outboxMessage.findMany({ where: { serviceOrderId: res.body.id } });
+    expect(outbox).toEqual([
+      expect.objectContaining({ destination: 'execution-commands', type: 'EnqueueDiagnosis', payload: {} }),
+    ]);
+  });
+
+  it('GIVEN a requested quantity greater than available stock WHEN POST /service-orders THEN nothing is sent to the outbox', async () => {
+    // GIVEN
+    const auth = { Authorization: `Bearer ${adminToken}` };
+
+    // WHEN
+    const res = await request(app).post('/service-orders').set(auth)
+      .send({ customerId, vehicleId, items: [{ itemId, quantity: 999 }] });
+
+    // THEN
+    expect(res.status).toBe(400);
+    expect(await prisma.outboxMessage.count()).toBe(0);
+  });
+
   it('GIVEN no services or items WHEN creating an OS THEN returns 201 with RECEIVED status and empty arrays', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
 
@@ -583,7 +565,7 @@ describe('DELETE /service-orders/:id/services/:serviceId — diagnosis refinemen
     const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     const osId = created.body.id;
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
+    await driveOrderTo(osId, 'DIAGNOSIS');
     await request(app).post(`/service-orders/${osId}/services`).set(mechAuth).send({ serviceId });
     return { osId };
   }
@@ -625,7 +607,7 @@ describe('DELETE /service-orders/:id/items/:itemId — diagnosis refinement', ()
     const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
     const osId = created.body.id;
-    await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'DIAGNOSIS' });
+    await driveOrderTo(osId, 'DIAGNOSIS');
     await request(app).post(`/service-orders/${osId}/items`).set(mechAuth).send({ itemId, quantity: 2 });
     return { osId };
   }
@@ -686,20 +668,11 @@ describe('GET /service-orders — active listing and priority sort', () => {
     osId: string,
     targetStatus: 'DIAGNOSIS' | 'WAITING_APPROVAL' | 'EXECUTION' | 'FINISHED' | 'DELIVERED',
   ): Promise<void> {
-    expect((await request(app).patch(`/service-orders/${osId}`).set(mechAuth()).send({ status: 'DIAGNOSIS' })).status).toBe(200);
-    if (targetStatus === 'DIAGNOSIS') return;
-
-    expect((await request(app).patch(`/service-orders/${osId}`).set(mechAuth()).send({ status: 'WAITING_APPROVAL' })).status).toBe(200);
-    if (targetStatus === 'WAITING_APPROVAL') return;
-
-    expect((await request(app).patch(`/service-orders/${osId}/budget`).set('Authorization', `Bearer ${customerToken(customerId)}`).send({ status: 'APPROVED', code: '5299' })).status).toBe(200);
-
-    expect((await request(app).patch(`/service-orders/${osId}`).set(mechAuth()).send({ status: 'EXECUTION' })).status).toBe(200);
-    if (targetStatus === 'EXECUTION') return;
-
-    expect((await request(app).patch(`/service-orders/${osId}`).set(mechAuth()).send({ status: 'FINISHED' })).status).toBe(200);
-    if (targetStatus === 'FINISHED') return;
-
+    if (targetStatus !== 'DELIVERED') {
+      await driveOrderTo(osId, targetStatus);
+      return;
+    }
+    await driveOrderTo(osId, 'FINISHED');
     expect((await request(app).patch(`/service-orders/${osId}`).set(mechAuth()).send({ status: 'DELIVERED' })).status).toBe(200);
   }
 
@@ -833,8 +806,7 @@ describe('GET /service-orders/:id/history', () => {
   async function orderInDiagnosis(): Promise<string> {
     const created = await request(app).post('/service-orders').set('Authorization', `Bearer ${attendantToken}`)
       .send({ customerId, vehicleId });
-    await request(app).patch(`/service-orders/${created.body.id}`).set('Authorization', `Bearer ${mechanicToken}`)
-      .send({ status: 'DIAGNOSIS' });
+    await driveOrderTo(created.body.id, 'DIAGNOSIS');
     return created.body.id;
   }
 

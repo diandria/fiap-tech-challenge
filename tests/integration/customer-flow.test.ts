@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { Application } from 'express';
 
 import { connectTestDB, disconnectTestDB, clearTestDB, createTestApp, prisma } from '../helpers/testSetup';
+import { driveOrderTo } from '../helpers/sagaDriver';
 import { PostgresUserRepository } from '../../src/adapters/gateways/PostgresUserRepository';
 import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
 
@@ -13,7 +14,6 @@ const CODE = '5299';
 
 let app: Application;
 let adminToken: string;
-let mechanicToken: string;
 
 /**
  * Reproduces what the function does after the lookup: signs the customer JWT
@@ -33,9 +33,7 @@ function signCustomerToken(customerId: string, name: string): string {
 async function seedStaffTokens(): Promise<void> {
   const register = new RegisterUseCase(new PostgresUserRepository(prisma));
   await register.execute({ email: 'admin@flow.com', password: 'adminpass', role: 'admin' });
-  await register.execute({ email: 'mech@flow.com', password: 'mechpass', role: 'mechanic' });
   adminToken = (await request(app).post('/auth/login').send({ email: 'admin@flow.com', password: 'adminpass' })).body.token;
-  mechanicToken = (await request(app).post('/auth/login').send({ email: 'mech@flow.com', password: 'mechpass' })).body.token;
 }
 
 /** Opens an order and drives it to WAITING_APPROVAL, where the customer comes in. */
@@ -53,9 +51,7 @@ async function osWaitingApproval(customerId: string): Promise<string> {
     serviceIds: [svc.body.id], items: [{ itemId: itm.body.id, quantity: 1 }],
   });
 
-  const mech = { Authorization: `Bearer ${mechanicToken}` };
-  await request(app).patch(`/service-orders/${os.body.id}`).set(mech).send({ status: 'DIAGNOSIS' });
-  await request(app).patch(`/service-orders/${os.body.id}`).set(mech).send({ status: 'WAITING_APPROVAL' });
+  await driveOrderTo(os.body.id, 'WAITING_APPROVAL');
   return os.body.id;
 }
 

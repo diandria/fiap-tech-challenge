@@ -20,6 +20,32 @@ describe('CreateServiceOrderUseCase', () => {
     });
   });
 
+  describe('saga', () => {
+    it('adds EnqueueDiagnosis to the outbox in the same unit of work', async () => {
+      const osRepo = makeOSRepo(receivedOS);
+      const outbox = { add: jest.fn() };
+      const unitOfWork = makeUnitOfWork(osRepo, makeItemRepo(), outbox);
+
+      await new CreateServiceOrderUseCase(unitOfWork, makeServiceRepo()).execute({ customerId: 'c-1', vehicleId: 'v-1' });
+
+      expect(unitOfWork.run).toHaveBeenCalledTimes(1);
+      expect(outbox.add).toHaveBeenCalledWith({
+        destination: 'execution-commands',
+        type: 'EnqueueDiagnosis',
+        serviceOrderId: receivedOS.id,
+        payload: {},
+      });
+    });
+
+    it('sends nothing when the order cannot be opened', async () => {
+      const outbox = { add: jest.fn() };
+      const useCase = new CreateServiceOrderUseCase(makeUnitOfWork(makeOSRepo(receivedOS), makeItemRepo(null), outbox), makeServiceRepo());
+
+      await expect(useCase.execute({ customerId: 'c-1', vehicleId: 'v-1', items: [{ itemId: 'i-x', quantity: 1 }] })).rejects.toThrow('Item i-x');
+      expect(outbox.add).not.toHaveBeenCalled();
+    });
+  });
+
   describe('services on creation', () => {
     it('GIVEN valid serviceId WHEN execute called with services array THEN validates existence and includes service in OS', async () => {
       const osRepo = makeOSRepo({ ...receivedOS, services: [{ serviceId: 's-1' }] });

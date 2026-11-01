@@ -32,23 +32,18 @@ export class ServiceOrderController {
     private readonly removeService: RemoveServiceFromOSUseCase,
     private readonly addItem: AddItemToOSUseCase,
     private readonly removeItem: RemoveItemFromOSUseCase,
-    private readonly startDiagnosis: IChangeServiceOrderStatus,
-    private readonly finishDiagnosis: IChangeServiceOrderStatus,
     private readonly approveBudget: IDecideBudget,
     private readonly rejectBudget: IDecideBudget,
-    private readonly startExecution: IChangeServiceOrderStatus,
     private readonly startService: StartServiceUseCase,
     private readonly finishService: FinishServiceUseCase,
-    private readonly finishOS: IChangeServiceOrderStatus,
     private readonly deliverOS: IChangeServiceOrderStatus,
     private readonly getAvgExecution: GetAvgExecutionTimeUseCase,
     private readonly getOSHistory: GetServiceOrderHistoryUseCase,
   ) {
+    // Every other status is decided by the saga, from the replies of the
+    // Billing and Execution services. Handing the car back is the one step a
+    // person still records by hand.
     this.statusHandlers = {
-      DIAGNOSIS: (id) => this.startDiagnosis.execute(id),
-      WAITING_APPROVAL: (id) => this.finishDiagnosis.execute(id),
-      EXECUTION: (id) => this.startExecution.execute(id),
-      FINISHED: (id) => this.finishOS.execute(id),
       DELIVERED: (id) => this.deliverOS.execute(id),
     };
   }

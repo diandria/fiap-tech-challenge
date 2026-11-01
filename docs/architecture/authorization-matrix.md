@@ -78,7 +78,7 @@ titularidade seria decorativa: bastaria informar o ID de quem se quisesse consul
 | `/service-orders` | POST | staff | `attendant`, `admin` | Ver a nota sobre a abertura de OS |
 | `/service-orders` | GET | staff | qualquer perfil | Filtros por `status`, `customerId`, período |
 | `/service-orders/:id` | GET | staff | qualquer perfil | Detalhe completo |
-| `/service-orders/:id` | PATCH | staff | `mechanic`, `admin` | Transições internas de status |
+| `/service-orders/:id` | PATCH | staff | `mechanic`, `admin` | Só registra a entrega (`DELIVERED`). Os demais status vêm das respostas da saga, não de uma rota |
 | `/service-orders/:id/services` | POST | staff | `mechanic`, `admin` | |
 | `/service-orders/:id/services/:serviceId` | PATCH | staff | `mechanic`, `admin` | Início/fim de um serviço |
 | `/service-orders/:id/services/:serviceId` | DELETE | staff | `mechanic`, `admin` | |
