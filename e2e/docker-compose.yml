@@ -1,0 +1,182 @@
+# The three services together, for the end-to-end scenarios in tests/e2e.
+#
+# Expects the repositories side by side, as in ~/dev and in the CI checkout:
+#   fiap-tech-challenge/            (this one)
+#   fiap-tech-challenge-billing/
+#   fiap-tech-challenge-execution/
+#
+# Run from this repository:
+#   docker compose -f e2e/docker-compose.yml up --build -d --wait
+#   npm run test:e2e
+#   docker compose -f e2e/docker-compose.yml down -v
+#
+# Same images as production, configured for a laptop: the simulated payment
+# provider instead of Mercado Pago, customer notices on the console instead of
+# SNS, and LocalStack for both SQS and DynamoDB. One LocalStack for both, not
+# DynamoDB local beside it, because the services find AWS through a single
+# AWS_ENDPOINT_URL, which the SDK applies to every client.
+name: car-repair-shop-e2e
+
+x-aws: &aws
+  AWS_ENDPOINT_URL: http://localstack:4566
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: e2e
+  AWS_SECRET_ACCESS_KEY: e2e
+
+x-queues: &queues
+  QUEUE_URL_BILLING_COMMANDS: http://localstack:4566/000000000000/car-repair-shop-billing-commands.fifo
+  QUEUE_URL_EXECUTION_COMMANDS: http://localstack:4566/000000000000/car-repair-shop-execution-commands.fifo
+  QUEUE_URL_SAGA_REPLIES: http://localstack:4566/000000000000/car-repair-shop-saga-replies.fifo
+  DLQ_URL_BILLING_COMMANDS: http://localstack:4566/000000000000/car-repair-shop-billing-commands-dlq.fifo
+  DLQ_URL_EXECUTION_COMMANDS: http://localstack:4566/000000000000/car-repair-shop-execution-commands-dlq.fifo
+
+# The same secret in the three services, as on AWS, where all of them read
+# /car-repair-shop/auth/jwt-secret. The tests sign customer tokens with it.
+# Secret and admin login are the values of the local Postman environment,
+# so the collection also runs against this stack.
+x-jwt: &jwt
+  JWT_SECRET: dev-secret-change-in-prod
+
+services:
+  os-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: oficina
+      POSTGRES_PASSWORD: oficina
+      POSTGRES_DB: car_repair_shop
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oficina -d car_repair_shop"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  billing-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: billing
+      POSTGRES_PASSWORD: billing
+      POSTGRES_DB: billing
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billing -d billing"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Pinned to the last community release: newer images refuse to start
+  # without a license token. The queues come from the same script the local
+  # compose uses, with the AWS names and redrive settings.
+  localstack:
+    image: localstack/localstack:4.9.2
+    environment:
+      SERVICES: sqs,dynamodb
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - ../scripts/localstack:/etc/localstack/init/ready.d:ro
+    healthcheck:
+      # Ready only after the init scripts ran, so no service starts before
+      # its queues exist.
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/init/ready | grep -q '\"completed\": true'"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  # The Execution Service's own script, from its build stage, which has
+  # ts-node: the tables match its Terraform without a copy here.
+  execution-tables:
+    build:
+      context: ../../fiap-tech-challenge-execution
+      target: builder
+    command: ["npx", "ts-node", "--transpile-only", "scripts/dynamodb/create-tables.ts"]
+    environment:
+      <<: *aws
+    volumes:
+      - ../../fiap-tech-challenge-execution/scripts:/app/scripts:ro
+    depends_on:
+      localstack:
+        condition: service_healthy
+
+  # Migrations run once, before the API, with the command of the Kubernetes Job.
+  os-migrate:
+    build: ..
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://oficina:oficina@os-db:5432/car_repair_shop?schema=public
+    depends_on:
+      os-db:
+        condition: service_healthy
+
+  billing-migrate:
+    build: ../../fiap-tech-challenge-billing
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://billing:billing@billing-db:5432/billing?schema=public
+    depends_on:
+      billing-db:
+        condition: service_healthy
+
+  os:
+    build: ..
+    ports:
+      - "3000:3000"
+    environment:
+      <<: [*aws, *queues, *jwt]
+      PORT: "3000"
+      DATABASE_URL: postgresql://oficina:oficina@os-db:5432/car_repair_shop?schema=public
+      ADMIN_EMAIL: admin@master.com
+      ADMIN_PASSWORD: change-me-in-production
+      INTERNAL_TOKEN: e2e-internal-token
+      NOTIFICATION_CHANNEL: console
+      OTEL_SERVICE_NAME: car-repair-shop-api
+    depends_on:
+      os-migrate:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  billing:
+    build: ../../fiap-tech-challenge-billing
+    ports:
+      - "3001:3000"
+    environment:
+      <<: [*aws, *jwt]
+      PORT: "3000"
+      DATABASE_URL: postgresql://billing:billing@billing-db:5432/billing?schema=public
+      QUEUE_URL_BILLING_COMMANDS: http://localstack:4566/000000000000/car-repair-shop-billing-commands.fifo
+      QUEUE_URL_SAGA_REPLIES: http://localstack:4566/000000000000/car-repair-shop-saga-replies.fifo
+      PAYMENT_PROVIDER: mock
+      NOTIFICATION_CHANNEL: console
+      OTEL_SERVICE_NAME: billing-service
+    depends_on:
+      billing-migrate:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  execution:
+    build: ../../fiap-tech-challenge-execution
+    ports:
+      - "3002:3000"
+    environment:
+      <<: [*aws, *jwt]
+      PORT: "3000"
+      QUEUE_URL_EXECUTION_COMMANDS: http://localstack:4566/000000000000/car-repair-shop-execution-commands.fifo
+      QUEUE_URL_SAGA_REPLIES: http://localstack:4566/000000000000/car-repair-shop-saga-replies.fifo
+      OTEL_SERVICE_NAME: execution-service
+    depends_on:
+      execution-tables:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 40

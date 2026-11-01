@@ -12,6 +12,7 @@
     "seed:dev": "ts-node scripts/seed-dev.ts",
     "test": "jest",
     "test:coverage": "jest --coverage",
+    "test:e2e": "jest --config jest.e2e.config.ts",
     "sonar": "docker run --rm --network host -v \"$PWD\":/usr/src --env-file .env sonarsource/sonar-scanner-cli",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",

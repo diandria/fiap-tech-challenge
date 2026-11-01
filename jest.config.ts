@@ -7,6 +7,8 @@ const config: Config = {
   roots: ['<rootDir>/tests'],
   // The default patterns, plus the step files of the Gherkin scenarios.
   testMatch: ['**/?(*.)+(spec|test).[jt]s?(x)', '**/*.steps.ts'],
+  // The end-to-end scenarios need the compose stack; they run with jest.e2e.config.ts.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/tests/e2e/'],
   maxWorkers: 4,
   collectCoverageFrom: [
     'src/**/*.ts',

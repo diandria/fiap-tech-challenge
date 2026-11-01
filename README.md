@@ -469,6 +469,30 @@ npm test                  # unitários e integração (Testcontainers sobe um Po
 npm run test:coverage     # com relatório de cobertura (threshold ≥ 80%)
 ```
 
+### Ponta a ponta com os três serviços
+
+`tests/e2e/service-order-journey.feature` descreve, em Gherkin, a jornada principal da OS e a recusa de
+pagamento contra o OS, o Billing e o Execution de verdade. Os três conversam só pelas filas da saga. O
+`e2e/docker-compose.yml` sobe as mesmas imagens de produção, com dois Postgres, LocalStack para SQS e
+DynamoDB, pagamento simulado e avisos ao cliente no console. Os três repositórios precisam estar lado a
+lado, como em `~/dev`:
+
+```bash
+docker compose -f e2e/docker-compose.yml up --build -d --wait
+npm run test:e2e
+docker compose -f e2e/docker-compose.yml down -v
+```
+
+Como a saga é assíncrona, cada passo espera o estado com prazo de 30 segundos em vez de conferir na hora.
+Quando o prazo estoura, a mensagem diz o que estava lá. O token de cliente é assinado no teste com o
+segredo compartilhado do compose, porque a função de autenticação não roda localmente. O admin entra pelo
+login real do OS.
+
+No CI, o job `BDD end-to-end` (`.github/workflows/e2e.yml`) faz o mesmo em todo PR e em todo push na
+`main`, com o Billing e o Execution tirados da `main` deles. Ele não é checagem obrigatória: uma quebra
+num dos outros repositórios não pode travar um PR aqui. Em falha, os logs dos serviços ficam como artefato
+do run.
+
 ### SonarQube Cloud
 
 A análise de qualidade roda no CI de todo PR e de todo push na `main`, no
