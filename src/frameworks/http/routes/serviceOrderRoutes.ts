@@ -149,30 +149,6 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
 
   /**
    * @openapi
-   * /service-orders/stats/avg-execution:
-   *   get:
-   *     summary: Average execution time per service (authenticated)
-   *     tags: [Service Orders]
-   *     security:
-   *       - bearerAuth: []
-   *     responses:
-   *       200:
-   *         description: Array of avg execution results
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: array
-   *               items:
-   *                 type: object
-   *                 properties:
-   *                   serviceId: { type: string }
-   *                   avgMinutes: { type: number }
-   *                   count: { type: integer }
-   */
-  router.get('/stats/avg-execution', requireRole('attendant', 'admin'), (req, res, next) => controller.getAvgExecutionTime(req, res, next));
-
-  /**
-   * @openapi
    * /service-orders:
    *   get:
    *     summary: List service orders
@@ -310,46 +286,6 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *         description: Wrong status or already added
    */
   router.post('/:id/services', requireRole('mechanic', 'admin'), (req, res, next) => controller.addServiceToOS(req, res, next));
-
-  /**
-   * @openapi
-   * /service-orders/{id}/services/{serviceId}:
-   *   patch:
-   *     summary: Update individual service status during EXECUTION
-   *     description: |
-   *       Body-driven update. `IN_PROGRESS` records `startedAt`; `COMPLETED` records `finishedAt`.
-   *     tags: [Service Orders]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: string }
-   *       - in: path
-   *         name: serviceId
-   *         required: true
-   *         schema: { type: string }
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required: [status]
-   *             properties:
-   *               status:
-   *                 type: string
-   *                 enum: [IN_PROGRESS, COMPLETED]
-   *     responses:
-   *       200:
-   *         description: Updated service order
-   *       400:
-   *         description: Wrong OS status, invalid transition, or unsupported status
-   *       404:
-   *         description: Service not in order
-   */
-  router.patch('/:id/services/:serviceId', requireRole('mechanic', 'admin'), (req, res, next) => controller.updateServiceStatus(req, res, next));
 
   /**
    * @openapi

@@ -5,9 +5,6 @@ import { AddServiceToOSUseCase } from '../../use-cases/service-orders/AddService
 import { RemoveServiceFromOSUseCase } from '../../use-cases/service-orders/RemoveServiceFromOSUseCase';
 import { AddItemToOSUseCase } from '../../use-cases/service-orders/AddItemToOSUseCase';
 import { RemoveItemFromOSUseCase } from '../../use-cases/service-orders/RemoveItemFromOSUseCase';
-import { StartServiceUseCase } from '../../use-cases/service-orders/StartServiceUseCase';
-import { FinishServiceUseCase } from '../../use-cases/service-orders/FinishServiceUseCase';
-import { GetAvgExecutionTimeUseCase } from '../../use-cases/service-orders/GetAvgExecutionTimeUseCase';
 import { GetServiceOrderHistoryUseCase } from '../../use-cases/service-orders/GetServiceOrderHistoryUseCase';
 import { ICreateServiceOrder } from '../../use-cases/ports/input/ICreateServiceOrder';
 import { IChangeServiceOrderStatus } from '../../use-cases/ports/input/IChangeServiceOrderStatus';
@@ -34,10 +31,7 @@ export class ServiceOrderController {
     private readonly removeItem: RemoveItemFromOSUseCase,
     private readonly approveBudget: IDecideBudget,
     private readonly rejectBudget: IDecideBudget,
-    private readonly startService: StartServiceUseCase,
-    private readonly finishService: FinishServiceUseCase,
     private readonly deliverOS: IChangeServiceOrderStatus,
-    private readonly getAvgExecution: GetAvgExecutionTimeUseCase,
     private readonly getOSHistory: GetServiceOrderHistoryUseCase,
   ) {
     // Every other status is decided by the saga, from the replies of the
@@ -163,28 +157,6 @@ export class ServiceOrderController {
       const data = await this.removeItem.execute(req.params.id, req.params.itemId);
       const { status, body } = ServiceOrderPresenter.ok(data);
       res.status(status).json(body);
-    } catch (err) { next(err); }
-  }
-
-  async updateServiceStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const s = req.body?.status as 'IN_PROGRESS' | 'COMPLETED' | undefined;
-      if (!s) throw new ValidationError('status is required');
-      let data;
-      switch (s) {
-        case 'IN_PROGRESS': data = await this.startService.execute(req.params.id, req.params.serviceId); break;
-        case 'COMPLETED': data = await this.finishService.execute(req.params.id, req.params.serviceId); break;
-        default: throw new ValidationError(`Unsupported service status: ${s}`);
-      }
-      const { status, body } = ServiceOrderPresenter.ok(data);
-      res.status(status).json(body);
-    } catch (err) { next(err); }
-  }
-
-  async getAvgExecutionTime(_req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const data = await this.getAvgExecution.execute();
-      res.status(200).json(data);
     } catch (err) { next(err); }
   }
 }

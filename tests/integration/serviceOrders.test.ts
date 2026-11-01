@@ -323,31 +323,6 @@ describe('Full OS lifecycle', () => {
     expect(res.status).toBe(400);
   });
 
-  it('GIVEN PATCH service status without status in body THEN returns 400', async () => {
-    const auth = { Authorization: `Bearer ${adminToken}` };
-    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
-    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
-    const osId = created.body.id;
-    await driveOrderTo(osId, 'DIAGNOSIS');
-    await request(app).post(`/service-orders/${osId}/services`).set(mechAuth).send({ serviceId });
-    const res = await request(app).patch(`/service-orders/${osId}/services/${serviceId}`).set(mechAuth).send({});
-    expect(res.status).toBe(400);
-  });
-
-  it('GIVEN PATCH service status with unsupported value THEN returns 400', async () => {
-    const auth = { Authorization: `Bearer ${adminToken}` };
-    const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
-    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
-    const osId = created.body.id;
-    await driveOrderTo(osId, 'DIAGNOSIS');
-    await request(app).post(`/service-orders/${osId}/services`).set(mechAuth).send({ serviceId });
-    const res = await request(app)
-      .patch(`/service-orders/${osId}/services/${serviceId}`)
-      .set(mechAuth)
-      .send({ status: 'WHATEVER' });
-    expect(res.status).toBe(400);
-  });
-
   it('GIVEN an OS in DIAGNOSIS WHEN DiagnosisCompleted arrives THEN the customer status notification is logged with email and OS id', async () => {
     // GIVEN
     const auth = { Authorization: `Bearer ${adminToken}` };

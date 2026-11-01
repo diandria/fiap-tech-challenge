@@ -54,11 +54,8 @@ import { RemoveItemFromOSUseCase } from './use-cases/service-orders/RemoveItemFr
 import { NotifyStatusChangeUseCase } from './use-cases/service-orders/NotifyStatusChangeUseCase';
 import { ApproveBudgetUseCase } from './use-cases/service-orders/ApproveBudgetUseCase';
 import { RejectBudgetUseCase } from './use-cases/service-orders/RejectBudgetUseCase';
-import { StartServiceUseCase } from './use-cases/service-orders/StartServiceUseCase';
-import { FinishServiceUseCase } from './use-cases/service-orders/FinishServiceUseCase';
 import { DeliverOSUseCase } from './use-cases/service-orders/DeliverOSUseCase';
 import { GetServiceOrderHistoryUseCase } from './use-cases/service-orders/GetServiceOrderHistoryUseCase';
-import { GetAvgExecutionTimeUseCase } from './use-cases/service-orders/GetAvgExecutionTimeUseCase';
 
 import { AuthController } from './adapters/controllers/AuthController';
 import { CustomerController } from './adapters/controllers/CustomerController';
@@ -138,9 +135,7 @@ async function main(): Promise<void> {
       new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
       businessMetrics,
     ),
-    new StartServiceUseCase(osRepo), new FinishServiceUseCase(osRepo),
     new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange), businessMetrics),
-    new GetAvgExecutionTimeUseCase(osRepo),
     new GetServiceOrderHistoryUseCase(osRepo),
   );
 

@@ -4,7 +4,6 @@ import { PrismaExecutor, withTransaction } from './prismaExecutor';
 import {
   IServiceOrderRepository,
   ListServiceOrdersFilter,
-  AvgExecutionResult,
   UpdateServiceOrderOptions,
 } from '../../use-cases/ports/IServiceOrderRepository';
 import { ServiceOrder, OSStatus, OSService } from '../../entities/ServiceOrder';
@@ -205,24 +204,5 @@ export class PostgresServiceOrderRepository implements IServiceOrderRepository {
       orderBy: { changedAt: 'asc' },
     });
     return rows.map((r) => ({ from: r.fromStatus, to: r.toStatus, changedAt: r.changedAt }));
-  }
-
-  async getAvgExecutionByService(): Promise<AvgExecutionResult[]> {
-    const rows = await this.prisma.$queryRaw<
-      { serviceId: string; avgMinutes: number; count: bigint }[]
-    >`
-      SELECT service_id AS "serviceId",
-             AVG(EXTRACT(EPOCH FROM (finished_at - started_at)) / 60)::float8 AS "avgMinutes",
-             COUNT(*) AS count
-      FROM service_order_services
-      WHERE started_at IS NOT NULL AND finished_at IS NOT NULL
-      GROUP BY service_id
-    `;
-
-    return rows.map((r) => ({
-      serviceId: r.serviceId,
-      avgMinutes: Number(r.avgMinutes),
-      count: Number(r.count),
-    }));
   }
 }

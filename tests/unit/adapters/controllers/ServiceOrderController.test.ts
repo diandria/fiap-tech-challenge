@@ -19,10 +19,7 @@ function makeUseCases() {
     removeItem: jest.fn().mockResolvedValue(os),
     approveBudget: jest.fn().mockResolvedValue(os),
     rejectBudget: jest.fn().mockResolvedValue(os),
-    startService: jest.fn().mockResolvedValue(os),
-    finishService: jest.fn().mockResolvedValue(os),
     deliverOS: jest.fn().mockResolvedValue(os),
-    getAvgExecution: jest.fn().mockResolvedValue([]),
     getOSHistory: jest.fn().mockResolvedValue({ serviceOrderId: os.id, history: [] }),
   };
 }
@@ -33,8 +30,7 @@ function makeController(fns = makeUseCases()) {
     { execute: fns.addService } as any, { execute: fns.removeService } as any,
     { execute: fns.addItem } as any, { execute: fns.removeItem } as any,
     { execute: fns.approveBudget } as any, { execute: fns.rejectBudget } as any,
-    { execute: fns.startService } as any, { execute: fns.finishService } as any,
-    { execute: fns.deliverOS } as any, { execute: fns.getAvgExecution } as any,
+    { execute: fns.deliverOS } as any,
     { execute: fns.getOSHistory } as any,
   );
 }

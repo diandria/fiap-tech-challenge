@@ -297,15 +297,4 @@ describe('PostgresServiceOrderRepository', () => {
     expect(prisma.serviceOrder.update).not.toHaveBeenCalled();
     expect(prisma.serviceOrderStatusHistory.create).not.toHaveBeenCalled();
   });
-
-  it('should aggregate execution time per service GIVEN finished lines WHEN getAvgExecutionByService is called', async () => {
-    const prisma = makePrisma();
-    prisma.$queryRaw.mockResolvedValue([
-      { serviceId: '44444444-4444-4444-8444-444444444444', avgMinutes: 42.5, count: BigInt(3) },
-    ]);
-
-    const result = await new PostgresServiceOrderRepository(prisma).getAvgExecutionByService();
-
-    expect(result).toEqual([{ serviceId: '44444444-4444-4444-8444-444444444444', avgMinutes: 42.5, count: 3 }]);
-  });
 });

@@ -53,11 +53,8 @@ import { RemoveItemFromOSUseCase } from '../../src/use-cases/service-orders/Remo
 import { NotifyStatusChangeUseCase } from '../../src/use-cases/service-orders/NotifyStatusChangeUseCase';
 import { ApproveBudgetUseCase } from '../../src/use-cases/service-orders/ApproveBudgetUseCase';
 import { RejectBudgetUseCase } from '../../src/use-cases/service-orders/RejectBudgetUseCase';
-import { StartServiceUseCase } from '../../src/use-cases/service-orders/StartServiceUseCase';
-import { FinishServiceUseCase } from '../../src/use-cases/service-orders/FinishServiceUseCase';
 import { DeliverOSUseCase } from '../../src/use-cases/service-orders/DeliverOSUseCase';
 import { GetServiceOrderHistoryUseCase } from '../../src/use-cases/service-orders/GetServiceOrderHistoryUseCase';
-import { GetAvgExecutionTimeUseCase } from '../../src/use-cases/service-orders/GetAvgExecutionTimeUseCase';
 
 import { AuthController } from '../../src/adapters/controllers/AuthController';
 import { CustomerController } from '../../src/adapters/controllers/CustomerController';
@@ -161,9 +158,7 @@ export function createTestApp(): Application {
       new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
       businessMetrics,
     ),
-    new StartServiceUseCase(osRepo), new FinishServiceUseCase(osRepo),
     new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange), businessMetrics),
-    new GetAvgExecutionTimeUseCase(osRepo),
     new GetServiceOrderHistoryUseCase(osRepo),
   );
 
