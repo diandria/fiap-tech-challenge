@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "ed9f6acf-89f2-4aef-8a95-6993786781c4",
     "name": "Car Repair Shop API",
-    "description": "End-to-end flow for the Car Repair Shop API (FIAP Tech Challenge - Phase 1).\n\nOrganized into folders that represent the full flow:\n\n1. **00 - Setup** - admin login, attendant and mechanic registration, login per role.\n2. **01 - Catalog (admin)** - register a service and a stock item.\n3. **02 - Customer and Vehicle (attendant)** - register a customer (CPF) and vehicle.\n4. **03 - OS Happy Path** - complete OS lifecycle through DELIVERED.\n5. **04 - Rejection Flow** - OS created, budget rejected, reservations released.\n6. **05 - Stats and Listings** - avg-execution and listings with filters.\n7. **06 - Error Scenarios** - 400, 401, 403, 404.\n\n## How to use\n\n1. Import `car-repair-shop.postman_environment.json` and select it as the active environment.\n2. Adjust `baseUrl` and `adminPassword` (must match the `ADMIN_PASSWORD` env var of your deployment).\n3. Run the full collection (Collection Runner) or run folder by folder in order.\n\nTokens and IDs are captured automatically by the test scripts and reused via environment variables.\n\n## Notes\n\n- Internal OS transitions go through `PATCH /service-orders/:id` with `{ status }` in the body and require a JWT (mechanic or admin).\n- Customer budget decisions (approve/reject) go through `PATCH /service-orders/:id/budget` with `{ status: \"APPROVED\" | \"REJECTED\", code }`. Public, rate-limited 5 req/hour per IP+OS.\n- Per-service transitions go through `PATCH /service-orders/:id/services/:serviceId` with `{ status: \"IN_PROGRESS\" | \"COMPLETED\" }`.\n- `POST /auth/login` is rate-limited to 10 req / 15 min per IP.",
+    "description": "Fluxo de ponta a ponta da oficina pelos três serviços da Fase 4: OS, Billing e Execution.\n\nPastas, em ordem:\n\n1. **00 - Setup**: login do admin, cadastro e login de atendente e mecânico.\n2. **01 - Catalog (admin)**: um serviço e uma peça no estoque.\n3. **02 - Customer and Vehicle (attendant)**: cliente (CPF) e veículo.\n4. **03 - Fluxo da saga (ate o pagamento)**: o atendente abre a OS, o mecânico faz o diagnóstico no Execution, o Billing gera o orçamento, o cliente aprova no Billing e o Billing cria a cobrança.\n5. **04 - Pagamento simulado (so local)**: substitui o pagamento no navegador quando o Billing roda com o provedor simulado.\n6. **05 - Fluxo da saga (depois do pagamento)**: reparo no Execution, entrega no OS e histórico de status.\n7. **06 - Orcamento rejeitado**: o cliente rejeita o orçamento e a saga devolve a peça reservada.\n8. **07 - Stats and Listings**, **08 - Error Scenarios**, **09 - OS Item/Service Removal**, **10 - Maintenance**, **11 - Cliente (CPF)** e **12 - Health e Observabilidade**.\n\n## Como usar\n\n1. Importe um environment e selecione. Localmente, `car-repair-shop.postman_environment.json` aponta para o compose de `e2e/` (OS na 3000, Billing na 3001, Execution na 3002). Na AWS, preencha `baseUrl`, `billingBaseUrl`, `executionBaseUrl` e `authBaseUrl` com a URL do API Gateway em `car-repair-shop-k8s.postman_environment.json`: o gateway leva cada caminho ao serviço dono.\n2. Rode no Collection Runner (ou no newman). A saga é assíncrona, e os passos que esperam outro serviço perguntam de novo a cada segundo; isso só funciona no Runner.\n3. Na AWS, o Runner para no pagamento: abra no navegador o `checkoutUrl` que a pasta 03 imprime, pague com a conta de teste de comprador e o cartão `APRO`, e depois rode a pasta 05.\n\nTokens e ids são guardados pelos scripts de teste em variáveis do environment.\n\n## Observações\n\n- Os status mudam pela saga. A única transição manual que sobrou é a entrega: `PATCH /service-orders/:id` com `{ \"status\": \"DELIVERED\" }`.\n- O cliente decide o orçamento no Billing: `PATCH /service-orders/:id/budget` com `{ status: \"APPROVED\" | \"REJECTED\", code }`, em que `code` são os 4 primeiros dígitos do CPF.\n- `POST /auth/login` tem limite de 10 requisições a cada 15 minutos por IP.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "53906914",
     "_collection_link": "https://go.postman.co/collection/53906914-ed9f6acf-89f2-4aef-8a95-6993786781c4?source=collection_link"
@@ -717,10 +717,11 @@
       "description": "Customer (CPF) and vehicle registration. Requires attendant or admin role."
     },
     {
-      "name": "03 - OS Happy Path",
+      "name": "03 - Fluxo da saga (ate o pagamento)",
+      "description": "Abertura da OS pelo atendente ate a cobranca criada no Billing. Cada passo que depende da resposta de outro servico pergunta de novo, a cada segundo, ate o estado chegar: rode no Collection Runner.",
       "item": [
         {
-          "name": "Create OS (attendant)",
+          "name": "[OS] Abrir a OS (atendente)",
           "event": [
             {
               "listen": "test",
@@ -747,10 +748,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"vehicleId\": \"{{vehicleId}}\"\n}"
-            },
             "url": {
               "raw": "{{baseUrl}}/service-orders",
               "host": [
@@ -759,12 +756,71 @@
               "path": [
                 "service-orders"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"vehicleId\": \"{{vehicleId}}\"\n}"
             }
           },
           "response": []
         },
         {
-          "name": "Start Diagnosis (mechanic)",
+          "name": "[Execution] Aguardar a OS na fila (DIAGNOSIS)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.stage === 'DIAGNOSIS' && body.status === 'QUEUED';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('a OS esta na fila do mecanico, etapa DIAGNOSIS', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osId}}",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[Execution] Iniciar o diagnostico (mecanico)",
           "event": [
             {
               "listen": "test",
@@ -772,27 +828,75 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('status DIAGNOSIS', () => pm.expect(pm.response.json().status).to.eql('DIAGNOSIS'));"
+                  "pm.test('DIAGNOSIS IN_PROGRESS', () => pm.expect(pm.response.json()).to.include({ stage: 'DIAGNOSIS', status: 'IN_PROGRESS' }));"
                 ]
               }
             }
           ],
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{mechanicToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"DIAGNOSIS\"\n}"
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osId}}/start",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osId}}",
+                "start"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[OS] Aguardar a OS em DIAGNOSIS",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
             },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.status === 'DIAGNOSIS';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('a OS chegou a DIAGNOSIS', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}",
               "host": [
@@ -807,16 +911,14 @@
           "response": []
         },
         {
-          "name": "Add Service to OS (mechanic)",
+          "name": "[OS] Incluir servico na OS (mecanico)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('service added', () => pm.expect(body.services.map(s => s.serviceId)).to.include(pm.environment.get('serviceId')));"
+                  "pm.test('status 200 or 201', () => pm.expect([200, 201]).to.include(pm.response.code));"
                 ]
               }
             }
@@ -833,10 +935,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"serviceId\": \"{{serviceId}}\"\n}"
-            },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}/services",
               "host": [
@@ -847,25 +945,23 @@
                 "{{osId}}",
                 "services"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serviceId\": \"{{serviceId}}\"\n}"
             }
           },
           "response": []
         },
         {
-          "name": "Add Item to OS (qty 2, mechanic)",
+          "name": "[OS] Incluir peca na OS (qtd 2, mecanico)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('item added qty 2', () => {",
-                  "  const item = body.items.find(i => i.itemId === pm.environment.get('itemId'));",
-                  "  pm.expect(item).to.be.an('object');",
-                  "  pm.expect(item.quantity).to.eql(2);",
-                  "});"
+                  "pm.test('status 200 or 201', () => pm.expect([200, 201]).to.include(pm.response.code));"
                 ]
               }
             }
@@ -882,10 +978,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"itemId\": \"{{itemId}}\",\n  \"quantity\": 2\n}"
-            },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}/items",
               "host": [
@@ -896,12 +988,16 @@
                 "{{osId}}",
                 "items"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": \"{{itemId}}\",\n  \"quantity\": 2\n}"
             }
           },
           "response": []
         },
         {
-          "name": "Finish Diagnosis (mechanic)",
+          "name": "[Execution] Concluir o diagnostico (mecanico)",
           "event": [
             {
               "listen": "test",
@@ -909,29 +1005,132 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('status WAITING_APPROVAL', () => pm.expect(body.status).to.eql('WAITING_APPROVAL'));",
-                  "pm.test('budgetTotal computed (120 + 40*2 = 200)', () => pm.expect(body.budgetTotal).to.eql(200));"
+                  "pm.test('DIAGNOSIS DONE', () => pm.expect(pm.response.json()).to.include({ stage: 'DIAGNOSIS', status: 'DONE' }));"
                 ]
               }
             }
           ],
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{mechanicToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"WAITING_APPROVAL\"\n}"
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osId}}/finish",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osId}}",
+                "finish"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[Billing] Aguardar o orcamento da OS",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
             },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.status === 'PENDING_APPROVAL';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('o Billing gerou o orcamento', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "    if (ready) pm.test('total e linhas', () => { pm.expect(body.total).to.be.above(0); pm.expect(body.lines).to.not.be.empty; });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{billingBaseUrl}}/service-orders/{{osId}}/budget",
+              "host": [
+                "{{billingBaseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "budget"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[OS] Aguardar a OS em WAITING_APPROVAL",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.status === 'WAITING_APPROVAL';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('a OS chegou a WAITING_APPROVAL', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}",
               "host": [
@@ -946,7 +1145,7 @@
           "response": []
         },
         {
-          "name": "[Cliente] Read Status (own OS)",
+          "name": "[Cliente] Consultar o status da propria OS",
           "event": [
             {
               "listen": "test",
@@ -954,11 +1153,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('returns status and budgetTotal', () => {",
-                  "  pm.expect(body.status).to.eql('WAITING_APPROVAL');",
-                  "  pm.expect(body.budgetTotal).to.be.a('number');",
-                  "});"
+                  "pm.test('WAITING_APPROVAL', () => pm.expect(pm.response.json().status).to.eql('WAITING_APPROVAL'));"
                 ]
               }
             }
@@ -986,7 +1181,7 @@
           "response": []
         },
         {
-          "name": "[Cliente] Approve Budget (code 5299)",
+          "name": "[Cliente] Aprovar o orcamento da OS (Billing)",
           "event": [
             {
               "listen": "test",
@@ -994,7 +1189,7 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('status APPROVED', () => pm.expect(pm.response.json().status).to.eql('APPROVED'));"
+                  "pm.test('orcamento APPROVED', () => pm.expect(pm.response.json().status).to.eql('APPROVED'));"
                 ]
               }
             }
@@ -1011,14 +1206,74 @@
                 "value": "application/json"
               }
             ],
+            "url": {
+              "raw": "{{billingBaseUrl}}/service-orders/{{osId}}/budget",
+              "host": [
+                "{{billingBaseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "budget"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"APPROVED\",\n  \"code\": \"{{customerCode}}\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[Billing] Aguardar a cobranca",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
             },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.payment !== null && body.payment !== undefined && body.payment.status === 'PENDING';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('o Billing criou a cobranca', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "    if (ready) {",
+                  "        pm.environment.set('checkoutUrl', body.payment.checkoutUrl);",
+                  "        console.log('Pague no navegador, com a conta de teste de comprador: ' + body.payment.checkoutUrl);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
-              "raw": "{{baseUrl}}/service-orders/{{osId}}/budget",
+              "raw": "{{billingBaseUrl}}/service-orders/{{osId}}/budget",
               "host": [
-                "{{baseUrl}}"
+                "{{billingBaseUrl}}"
               ],
               "path": [
                 "service-orders",
@@ -1028,37 +1283,104 @@
             }
           },
           "response": []
-        },
+        }
+      ]
+    },
+    {
+      "name": "04 - Pagamento simulado (so local)",
+      "description": "Na AWS, o pagamento e o passo manual: abrir o checkoutUrl no navegador e pagar com o cartao de teste APRO. Esta pasta substitui esse passo quando o Billing roda com PAYMENT_PROVIDER=mock, como no compose de ponta a ponta. A rota simulada nao passa pelo gateway.",
+      "item": [
         {
-          "name": "Start Execution (mechanic)",
+          "name": "[Billing] Aprovar o pagamento simulado (admin)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('status EXECUTION', () => pm.expect(pm.response.json().status).to.eql('EXECUTION'));"
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
           ],
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{mechanicToken}}"
+                "value": "Bearer {{adminToken}}"
               },
               {
                 "key": "Content-Type",
                 "value": "application/json"
               }
             ],
+            "url": {
+              "raw": "{{billingBaseUrl}}/payments/mock/{{osId}}",
+              "host": [
+                "{{billingBaseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "mock",
+                "{{osId}}"
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"status\": \"EXECUTION\"\n}"
+              "raw": "{\n  \"status\": \"approved\"\n}"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Fluxo da saga (depois do pagamento)",
+      "description": "Do pagamento confirmado ate a entrega do carro. Rode depois de pagar no navegador (AWS) ou depois da pasta 04 (local).",
+      "item": [
+        {
+          "name": "[OS] Aguardar a OS em PAID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
             },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.status === 'PAID';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('a OS chegou a PAID', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}",
               "host": [
@@ -1073,7 +1395,62 @@
           "response": []
         },
         {
-          "name": "Start Service (mechanic)",
+          "name": "[Execution] Aguardar a OS na fila (REPAIR)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.stage === 'REPAIR' && body.status === 'QUEUED';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('a OS esta na fila do mecanico, etapa REPAIR', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osId}}",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[Execution] Iniciar o reparo (mecanico)",
           "event": [
             {
               "listen": "test",
@@ -1081,9 +1458,42 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "const svc = body.services.find(s => s.serviceId === pm.environment.get('serviceId'));",
-                  "pm.test('startedAt recorded', () => pm.expect(svc.startedAt).to.not.be.undefined);"
+                  "pm.test('REPAIR IN_PROGRESS', () => pm.expect(pm.response.json()).to.include({ stage: 'REPAIR', status: 'IN_PROGRESS' }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osId}}/start",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osId}}",
+                "start"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[Execution] Iniciar o servico (mecanico)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -1100,37 +1510,34 @@
                 "value": "application/json"
               }
             ],
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osId}}/tasks/{{serviceId}}",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osId}}",
+                "tasks",
+                "{{serviceId}}"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"IN_PROGRESS\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/service-orders/{{osId}}/services/{{serviceId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "service-orders",
-                "{{osId}}",
-                "services",
-                "{{serviceId}}"
-              ]
             }
           },
           "response": []
         },
         {
-          "name": "Finish Service (mechanic)",
+          "name": "[Execution] Concluir o servico (mecanico)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "const svc = body.services.find(s => s.serviceId === pm.environment.get('serviceId'));",
-                  "pm.test('finishedAt recorded', () => pm.expect(svc.finishedAt).to.not.be.undefined);"
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -1147,27 +1554,27 @@
                 "value": "application/json"
               }
             ],
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osId}}/tasks/{{serviceId}}",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osId}}",
+                "tasks",
+                "{{serviceId}}"
+              ]
+            },
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"COMPLETED\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/service-orders/{{osId}}/services/{{serviceId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "service-orders",
-                "{{osId}}",
-                "services",
-                "{{serviceId}}"
-              ]
             }
           },
           "response": []
         },
         {
-          "name": "Finish OS (mechanic)",
+          "name": "[Execution] Concluir o reparo (mecanico)",
           "event": [
             {
               "listen": "test",
@@ -1175,27 +1582,75 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('status FINISHED', () => pm.expect(pm.response.json().status).to.eql('FINISHED'));"
+                  "pm.test('REPAIR DONE', () => pm.expect(pm.response.json()).to.include({ stage: 'REPAIR', status: 'DONE' }));"
                 ]
               }
             }
           ],
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{mechanicToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"FINISHED\"\n}"
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osId}}/finish",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osId}}",
+                "finish"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[OS] Aguardar a OS em FINISHED",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
             },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.status === 'FINISHED';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('a OS chegou a FINISHED', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}",
               "host": [
@@ -1210,7 +1665,7 @@
           "response": []
         },
         {
-          "name": "Deliver OS (mechanic)",
+          "name": "[OS] Registrar a entrega (mecanico)",
           "event": [
             {
               "listen": "test",
@@ -1235,10 +1690,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"DELIVERED\"\n}"
-            },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osId}}",
               "host": [
@@ -1248,18 +1699,94 @@
                 "service-orders",
                 "{{osId}}"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"DELIVERED\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[OS] Historico de status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const statuses = pm.response.json().history.map((change) => change.to);",
+                  "pm.test('passou por todas as etapas da saga', () => pm.expect(statuses).to.include.members(['DIAGNOSIS', 'WAITING_APPROVAL', 'APPROVED', 'PAID', 'EXECUTION', 'FINISHED', 'DELIVERED']));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders/{{osId}}/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osId}}",
+                "history"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[Execution] Media de duracao por servico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/stats/average-task-duration",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "stats",
+                "average-task-duration"
+              ]
             }
           },
           "response": []
         }
-      ],
-      "description": "Full lifecycle: RECEIVED -> DIAGNOSIS -> WAITING_APPROVAL -> APPROVED -> EXECUTION -> FINISHED -> DELIVERED. Internal transitions go through PATCH /service-orders/:id; the customer budget decision goes through PATCH /service-orders/:id/budget."
+      ]
     },
     {
-      "name": "04 - Rejection Flow",
+      "name": "06 - Orcamento rejeitado",
+      "description": "O cliente rejeita o orcamento no Billing, a saga compensa e o OS devolve a peca reservada ao estoque.",
       "item": [
         {
-          "name": "Create OS 2 (attendant)",
+          "name": "[OS] Abrir a OS 2 (atendente)",
           "event": [
             {
               "listen": "test",
@@ -1284,10 +1811,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"vehicleId\": \"{{vehicleId}}\"\n}"
-            },
             "url": {
               "raw": "{{baseUrl}}/service-orders",
               "host": [
@@ -1296,28 +1819,147 @@
               "path": [
                 "service-orders"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"vehicleId\": \"{{vehicleId}}\"\n}"
             }
           },
           "response": []
         },
         {
-          "name": "Start Diagnosis (OS 2)",
+          "name": "[Execution] Aguardar a OS 2 na fila (DIAGNOSIS)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.stage === 'DIAGNOSIS' && body.status === 'QUEUED';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('a OS esta na fila do mecanico, etapa DIAGNOSIS', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
-            "method": "PATCH",
+            "method": "GET",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{mechanicToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"DIAGNOSIS\"\n}"
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osRejectId}}",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osRejectId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[Execution] Iniciar o diagnostico da OS 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('DIAGNOSIS IN_PROGRESS', () => pm.expect(pm.response.json()).to.include({ stage: 'DIAGNOSIS', status: 'IN_PROGRESS' }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osRejectId}}/start",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osRejectId}}",
+                "start"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[OS] Aguardar a OS 2 em DIAGNOSIS",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
             },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.status === 'DIAGNOSIS';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('a OS chegou a DIAGNOSIS', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osRejectId}}",
               "host": [
@@ -1332,7 +1974,18 @@
           "response": []
         },
         {
-          "name": "Add Item to OS 2 (qty 1, mechanic)",
+          "name": "[OS] Incluir peca na OS 2 (qtd 1, mecanico)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200 or 201', () => pm.expect([200, 201]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -1345,10 +1998,6 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"itemId\": \"{{itemId}}\",\n  \"quantity\": 1\n}"
-            },
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osRejectId}}/items",
               "host": [
@@ -1359,43 +2008,16 @@
                 "{{osRejectId}}",
                 "items"
               ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Finish Diagnosis (OS 2)",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{mechanicToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"status\": \"WAITING_APPROVAL\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/service-orders/{{osRejectId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "service-orders",
-                "{{osRejectId}}"
-              ]
+              "raw": "{\n  \"itemId\": \"{{itemId}}\",\n  \"quantity\": 1\n}"
             }
           },
           "response": []
         },
         {
-          "name": "[Cliente] Reject Budget (code 5299)",
+          "name": "[Execution] Concluir o diagnostico da OS 2",
           "event": [
             {
               "listen": "test",
@@ -1403,7 +2025,100 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "pm.test('status REJECTED', () => pm.expect(pm.response.json().status).to.eql('REJECTED'));"
+                  "pm.test('DIAGNOSIS DONE', () => pm.expect(pm.response.json()).to.include({ stage: 'DIAGNOSIS', status: 'DONE' }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osRejectId}}/finish",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osRejectId}}",
+                "finish"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[Billing] Aguardar o orcamento da OS 2",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.status === 'PENDING_APPROVAL';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('o Billing gerou o orcamento', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "    if (ready) pm.test('total e linhas', () => { pm.expect(body.total).to.be.above(0); pm.expect(body.lines).to.not.be.empty; });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{billingBaseUrl}}/service-orders/{{osRejectId}}/budget",
+              "host": [
+                "{{billingBaseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osRejectId}}",
+                "budget"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[Cliente] Rejeitar o orcamento da OS 2 (Billing)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('orcamento REJECTED', () => pm.expect(pm.response.json().status).to.eql('REJECTED'));"
                 ]
               }
             }
@@ -1420,37 +2135,54 @@
                 "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"REJECTED\",\n  \"code\": \"{{customerCode}}\"\n}"
-            },
             "url": {
-              "raw": "{{baseUrl}}/service-orders/{{osRejectId}}/budget",
+              "raw": "{{billingBaseUrl}}/service-orders/{{osRejectId}}/budget",
               "host": [
-                "{{baseUrl}}"
+                "{{billingBaseUrl}}"
               ],
               "path": [
                 "service-orders",
                 "{{osRejectId}}",
                 "budget"
               ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"REJECTED\",\n  \"code\": \"{{customerCode}}\"\n}"
             }
           },
           "response": []
         },
         {
-          "name": "Verify Item Released",
+          "name": "[OS] Aguardar a OS 2 em REJECTED",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));",
-                  "const body = pm.response.json();",
-                  "pm.test('reservedQuantity does not count the rejected OS', () => {",
-                  "  pm.expect(body.reservedQuantity).to.be.a('number');",
-                  "});"
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.status === 'REJECTED';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('a OS chegou a REJECTED', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "}"
                 ]
               }
             }
@@ -1460,7 +2192,42 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{adminToken}}"
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/service-orders/{{osRejectId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "service-orders",
+                "{{osRejectId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[OS] Conferir a peca devolvida ao estoque",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('reservedQuantity e um numero', () => pm.expect(pm.response.json().reservedQuantity).to.be.a('number'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
               }
             ],
             "url": {
@@ -1476,36 +2243,11 @@
           },
           "response": []
         }
-      ],
-      "description": "Second OS that gets rejected after the budget is generated - verifies the item returns to stock."
+      ]
     },
     {
-      "name": "05 - Stats and Listings",
+      "name": "07 - Stats and Listings",
       "item": [
-        {
-          "name": "Average Execution Time per Service",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{attendantToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/service-orders/stats/avg-execution",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "service-orders",
-                "stats",
-                "avg-execution"
-              ]
-            }
-          },
-          "response": []
-        },
         {
           "name": "List Services with Average Time",
           "request": {
@@ -1633,7 +2375,7 @@
       ]
     },
     {
-      "name": "06 - Error Scenarios",
+      "name": "08 - Error Scenarios",
       "item": [
         {
           "name": "401 - Login with wrong password",
@@ -1897,9 +2639,9 @@
               "raw": "{\n  \"status\": \"APPROVED\",\n  \"code\": \"0000\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/service-orders/{{osId}}/budget",
+              "raw": "{{billingBaseUrl}}/service-orders/{{osId}}/budget",
               "host": [
-                "{{baseUrl}}"
+                "{{billingBaseUrl}}"
               ],
               "path": [
                 "service-orders",
@@ -1990,7 +2732,7 @@
       "description": "Tests 401 (no token), 403 (wrong role), 400 (validation), 404 (not found) and 400 (invalid transition)."
     },
     {
-      "name": "07 - OS Item/Service Removal (mechanic)",
+      "name": "09 - OS Item/Service Removal (mechanic)",
       "item": [
         {
           "name": "Create OS for Removal Demo (attendant)",
@@ -2035,34 +2777,138 @@
           "response": []
         },
         {
-          "name": "Start Diagnosis (Removal Demo)",
+          "name": "[Execution] Aguardar a OS do Removal Demo na fila (DIAGNOSIS)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.stage === 'DIAGNOSIS' && body.status === 'QUEUED';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('a OS esta na fila do mecanico, etapa DIAGNOSIS', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osRemovalId}}",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osRemovalId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[Execution] Iniciar o diagnostico (Removal Demo)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('status 200', () => pm.response.to.have.status(200));"
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('DIAGNOSIS IN_PROGRESS', () => pm.expect(pm.response.json()).to.include({ stage: 'DIAGNOSIS', status: 'IN_PROGRESS' }));"
                 ]
               }
             }
           ],
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "header": [
               {
                 "key": "Authorization",
                 "value": "Bearer {{mechanicToken}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
               }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"DIAGNOSIS\"\n}"
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions/{{osRemovalId}}/start",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions",
+                "{{osRemovalId}}",
+                "start"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[OS] Aguardar a OS do Removal Demo em DIAGNOSIS",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Waits a second before each new attempt (see the test script).",
+                  "if (Number(pm.environment.get('pollAttempts') || 0) > 0) {",
+                  "    setTimeout(() => {}, 1000);",
+                  "}"
+                ]
+              }
             },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const attempts = Number(pm.environment.get('pollAttempts') || 0);",
+                  "const body = pm.response.code === 200 ? pm.response.json() : {};",
+                  "const ready = body.status === 'DIAGNOSIS';",
+                  "if (!ready && attempts < 30) {",
+                  "    pm.environment.set('pollAttempts', attempts + 1);",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "} else {",
+                  "    pm.environment.unset('pollAttempts');",
+                  "    pm.test('a OS chegou a DIAGNOSIS', () => pm.expect(ready, JSON.stringify(body)).to.be.true);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{attendantToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/service-orders/{{osRemovalId}}",
               "host": [
@@ -2241,7 +3087,7 @@
       ]
     },
     {
-      "name": "08 - Maintenance (PUT/DELETE entities)",
+      "name": "10 - Maintenance (PUT/DELETE entities)",
       "item": [
         {
           "name": "Create Temp Customer (admin)",
@@ -2783,7 +3629,7 @@
       ]
     },
     {
-      "name": "09 - Cliente (CPF)",
+      "name": "11 - Cliente (CPF)",
       "description": "Fluxo de autenticacao de cliente. O cliente autentica por CPF na function, recebe um JWT com type=customer, e so enxerga e decide sobre a PROPRIA ordem de servico.\n\nA primeira requisicao so funciona contra o ambiente implantado, onde authBaseUrl aponta para o API Gateway: /auth/cpf e servida pela function, nao pela aplicacao. Nos ambientes locais o token e emitido pelo script de pre-requisicao da colecao, com o mesmo formato e o mesmo segredo.\n\nRequer que as pastas 00-03 tenham rodado (osId e customerId preenchidos).",
       "item": [
         {
@@ -3019,9 +3865,9 @@
               "raw": "{\n  \"status\": \"REJECTED\",\n  \"code\": \"{{customerCode}}\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/service-orders/{{osId}}/budget",
+              "raw": "{{billingBaseUrl}}/service-orders/{{osId}}/budget",
               "host": [
-                "{{baseUrl}}"
+                "{{billingBaseUrl}}"
               ],
               "path": [
                 "service-orders",
@@ -3035,7 +3881,7 @@
       ]
     },
     {
-      "name": "10 - Health e Observabilidade",
+      "name": "12 - Health e Observabilidade",
       "description": "Sondas usadas pelo Kubernetes e endpoint de metricas.\n\n/health e /ready sao roteadas pelo API Gateway e funcionam nos dois ambientes.\n\n/metrics NAO e exposta no gateway: o Prometheus faz scrape de dentro do cluster, sem credencial. Contra o ambiente implantado ela responde 404 no gateway -- use baseUrl local ou um port-forward para o pod.",
       "item": [
         {
