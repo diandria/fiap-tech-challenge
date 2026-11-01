@@ -1,15 +1,23 @@
-# Checklist de gravação
+# Checklist de gravação — Fase 4
 
 Documento operacional do dia da gravação. Assume o ambiente **derrubado** e o relógio correndo.
 
-> A subida leva ~38 min e está no [runbook do ambiente](runbook-ambiente.md). Este checklist começa
-> depois dela, e é o que se segue com a câmera prestes a ligar.
+> A subida está no [runbook do ambiente](runbook-ambiente.md). Este checklist começa depois dela, e é o
+> que se segue com a câmera prestes a ligar. O vídeo tem **no máximo 15 minutos**: ensaie o roteiro
+> inteiro antes e anote os tempos reais na tabela do fim.
 
 ## Antes de tudo
 
-- [ ] Ambiente de pé pelo runbook, com a verificação de fumaça inteira passando
+- [ ] Ambiente de pé pelo runbook, com a verificação de fumaça inteira passando, inclusive os passos 6 a 8
+      (Billing e Execution pelo gateway, a saga andando e o Prometheus coletando os três serviços)
 - [ ] Credencial do Learner Lab **renovada há menos de 3 horas** — ela dura ~4h, e expirar no meio
       da gravação quebra tudo que toca a AWS
+- [ ] Mercado Pago: a **URL modo teste** do webhook atualizada com o gateway desta sessão (passo 9 do
+      runbook), e a conta de teste de comprador já logada numa janela anônima do navegador
+- [ ] Postman com o environment da AWS: `baseUrl`, `billingBaseUrl`, `executionBaseUrl` e
+      `authBaseUrl` com a URL do gateway, e as pastas 00 a 02 já rodadas
+- [ ] Um PR de demonstração preparado em um dos serviços, com uma mudança trivial e visível (um campo
+      novo em `/health`, por exemplo), ainda sem merge
 - [ ] `BASE_URL` em mãos:
 
 ```bash
@@ -18,8 +26,8 @@ cd ~/dev/fiap-tech-challenge-infra-k8s && terraform output -raw api_gateway_url
 
 ## 1. Popular os painéis — ~6 min
 
-**Não pule.** Dashboard vazio na gravação é indistinguível de dashboard quebrado, e não dá para
-descobrir isso com a câmera ligada.
+**Não pule.** Painel vazio na gravação é indistinguível de painel quebrado, e não dá para descobrir isso
+com a câmera ligada.
 
 ```bash
 cd ~/dev/fiap-tech-challenge
@@ -29,13 +37,16 @@ export ADMIN_PASSWORD=$(aws ssm get-parameter --name /car-repair-shop/app/admin-
 k6 run scripts/load-test.js
 ```
 
-Cinco minutos de carga. Os quatro cenários alimentam painéis diferentes: ciclo de OS, autenticação
-de cliente, rajada para o HPA e erros deliberados.
+Cinco minutos de carga. O cenário de ciclo de OS leva cada ordem pela saga até a cobrança: abertura no
+OS, diagnóstico no Execution, orçamento no Billing e aprovação do cliente. Os status depois de
+`APPROVED` dependem do pagamento no navegador, então aparecem nos painéis pelas ordens pagas à mão no
+ensaio. Os outros cenários alimentam a autenticação de cliente, a rajada para o HPA e os erros
+deliberados.
 
 **Espere terminar antes de abrir o Grafana.** O HPA leva ~45s para escalar e ~5 min para voltar ao
 mínimo depois que a carga cessa — se quiser mostrar as réplicas altas, grave logo após a carga.
 
-## 2. Conferir os cinco dashboards — ~4 min
+## 2. Conferir os painéis — ~4 min
 
 ```bash
 kubectl port-forward -n observability svc/kube-prometheus-stack-grafana 3000:80
@@ -44,74 +55,115 @@ kubectl get secret grafana-admin -n observability -o jsonpath='{.data.admin-user
 kubectl get secret grafana-admin -n observability -o jsonpath='{.data.admin-password}' | base64 -d
 ```
 
-| Dashboard | O que precisa estar visível | Valor medido em 31/08 |
-|---|---|---|
-| Volume de ordens de serviço | contador subindo | ~155 OS em 15 min |
-| Tempo até cada status | ponto em **todos** os status | 6 status, ~30 cada |
-| Latência, healthchecks e uptime | p95, uptime 100%, taxa de erro | p95 49 ms, uptime 100% |
-| Recursos do Kubernetes | CPU/memória por pod, réplicas | pico de 10 réplicas, CPU 79% |
-| Alertas | ao menos um disparável | ver passo 3 |
-
-> Se a **taxa de erro** aparecer como `No data` em vez de `0%`, o dashboard está desatualizado —
-> foi corrigido no infra-k8s#23.
+| Painel | O que precisa estar visível |
+|---|---|
+| Saga da ordem de serviço | respostas aplicadas subindo, backlog do outbox em zero, ao menos uma compensação depois do ensaio |
+| Volume de ordens de serviço | contador subindo |
+| Tempo até cada status | pontos até `APPROVED` pela carga, e os demais pelas ordens pagas no ensaio |
+| Latência, healthchecks e uptime | com o seletor **Serviço** em cada um dos três namespaces |
+| Recursos do Kubernetes | CPU e memória por pod, réplicas contra o HPA |
 
 > **Ao mostrar "Tempo até cada status", diga o que ele mede.** A métrica é o tempo desde a abertura
 > da OS até cada status, e não o tempo gasto dentro de cada etapa. O tempo de uma etapa é a
-> diferença entre as médias de dois status vizinhos (por exemplo, `EXECUTION` menos `APPROVED`).
-> Explicar isso em uma frase evita que o avaliador leia o painel como "tempo médio de execução" e
-> estranhe os valores.
+> diferença entre as médias de dois status vizinhos.
 
-## 3. Disparar um alerta ao vivo — ~3 min
+## 3. Ensaio das falhas — antes de gravar
 
-O alerta com disparo mais confiável é o `ServiceOrderProcessingFailures`, porque a falha é forçada
-sem derrubar nada:
+Rode cada falha uma vez fora da câmera. A primeira execução é a que revela o passo esquecido.
+
+### Pagamento recusado
+
+1. Pasta 03 da coleção até `[Billing] Aguardar a cobranca`.
+2. Abra o `checkoutUrl` na janela anônima e pague com um cartão de teste com o titular **`OTHE`**.
+3. Confira: a OS em `CANCELLED` (`GET /service-orders/{id}/history` mostra a passagem por `APPROVED`),
+   a peça de volta ao estoque (`GET /items/{id}`, `reservedQuantity`), o orçamento `CANCELLED` no
+   Billing e a compensação `PAYMENT_FAILED` no painel da saga.
+
+### Execution fora do ar
 
 ```bash
-# 1. aponta o tópico SNS para um ARN inexistente
-ARN=$(kubectl get cm car-repair-shop-runtime -n car-repair-shop -o jsonpath='{.data.SNS_TOPIC_ARN}')
-echo "$ARN"   # ANOTE, é o que você vai restaurar
-kubectl patch cm car-repair-shop-runtime -n car-repair-shop --type merge \
-  -p '{"data":{"SNS_TOPIC_ARN":"arn:aws:sns:us-east-1:000000000000:nao-existe"}}'
-kubectl rollout restart deployment/car-repair-shop-api -n car-repair-shop
-kubectl rollout status deployment/car-repair-shop-api -n car-repair-shop --timeout=240s
+kubectl scale deployment/execution-api -n car-repair-shop-execution --replicas=0
 ```
 
-**Espere o rollout terminar de verdade antes de gerar as falhas.** Um contador com labels não emite
-série até a primeira incrementação — se os pods forem substituídos depois de falharem, a série
-desaparece e o alerta volta a `inactive`. Foi o que aconteceu na primeira tentativa deste ensaio.
+Abra uma OS pelo Postman. Ela fica em `RECEIVED`, e o `EnqueueDiagnosis` espera na fila:
 
 ```bash
-# 2. gera transições de status; cada uma tenta notificar e falha
-#    (10 a 14 chamadas, para cair nos dois pods)
+Q=$(aws sqs get-queue-url --queue-name car-repair-shop-execution-commands.fifo --query QueueUrl --output text)
+aws sqs get-queue-attributes --queue-url "$Q" --attribute-names ApproximateNumberOfMessages
+```
 
-# 3. o alerta sobe: pending -> firing em ~63s
+```bash
+kubectl scale deployment/execution-api -n car-repair-shop-execution --replicas=2
+```
+
+Com o Execution de volta, a mensagem é consumida e a OS aparece na fila do mecânico
+(`GET /executions/{id}`). Nenhum alerta dispara: mensagem esperando não é falha. O HPA devolve as
+réplicas ao mínimo dele sozinho.
+
+### Alerta `SagaMessageFailing`
+
+Uma resposta com tipo desconhecido falha toda vez que o OS a recebe, e o alerta dispara antes de ela ir
+para a fila de descarte:
+
+```bash
+Q=$(aws sqs get-queue-url --queue-name car-repair-shop-saga-replies.fifo --query QueueUrl --output text)
+ID=$(uuidgen | tr 'A-Z' 'a-z')
+aws sqs send-message --queue-url "$Q" --message-group-id "ensaio-$ID" --message-deduplication-id "$ID" \
+  --message-body "{\"messageId\":\"$ID\",\"type\":\"ShipParts\",\"serviceOrderId\":\"$ID\",\"occurredAt\":\"$(date -u +%FT%TZ)\",\"payload\":{}}"
+
 kubectl port-forward -n observability svc/kube-prometheus-stack-alertmanager 9093:9093
-# http://localhost:9093
+# http://localhost:9093 — SagaMessageFailing com type=ShipParts em ~2 min
 ```
 
-```bash
-# 4. RESTAURE — não esqueça
-kubectl patch cm car-repair-shop-runtime -n car-repair-shop --type merge \
-  -p "{\"data\":{\"SNS_TOPIC_ARN\":\"$ARN\"}}"
-kubectl rollout restart deployment/car-repair-shop-api -n car-repair-shop
+A mensagem termina na fila de descarte das respostas, que ninguém consome, e não afeta nenhuma ordem.
+
+## 4. Roteiro de 15 minutos
+
+| Tempo | Conteúdo | Requisito |
+|---|---|---|
+| 0:00–1:30 | Arquitetura pelo diagrama geral: três serviços, três bancos, filas, gateway | R35 |
+| 1:30–5:30 | Fluxo completo de uma OS pelo Postman | R39 |
+| 5:30–8:30 | Falhas: pagamento recusado e Execution fora do ar | R40 |
+| 8:30–11:30 | Deploy de um serviço, do PR ao rollout | R41 |
+| 11:30–15:00 | Logs, painel e trace de uma OS pelos três serviços | R42 |
+
+### 0:00–1:30 — Arquitetura
+
+- [ ] `docs/architecture/target-architecture.md`: OS, Billing e Execution, cada um com o próprio banco
+      (PostgreSQL, PostgreSQL e DynamoDB), as filas da saga e o gateway como entrada única
+- [ ] Uma frase sobre a saga orquestrada pelo OS e por quê (ADR-014)
+
+### 1:30–5:30 — Fluxo completo (R39)
+
+- [ ] Pasta 03: abertura no OS → a ordem aparece na fila do mecânico no **Execution** → diagnóstico →
+      orçamento gerado no **Billing** → o cliente aprova com o código
+- [ ] Pagamento aprovado no sandbox: `checkoutUrl` na janela anônima, cartão com o titular **`APRO`**
+- [ ] Pasta 05: `PAID` → reparo no Execution → `FINISHED` → entrega
+- [ ] `GET /service-orders/{id}/history` no **OS**, com todas as etapas
+
+### 5:30–8:30 — Falhas e compensação (R40)
+
+- [ ] Pagamento recusado com **`OTHE`**: a compensação aparece no histórico, no estoque e no painel da saga
+- [ ] Execution fora do ar: a mensagem esperando na fila e a saga retomando quando ele volta
+
+### 8:30–11:30 — Deploy de um serviço (R41)
+
+- [ ] O PR preparado: CI com build, lint, testes, cobertura, o job `BDD end-to-end` e, se o SonarQube Cloud
+      estiver configurado, a análise
+- [ ] Merge na `main` e o CD do serviço: imagem com o SHA, rollout e a verificação depois do deploy
+- [ ] A nova versão no ar (o campo novo em `/health`)
+
+### 11:30–15:00 — Rastreamento (R42)
+
+- [ ] Loki: os logs dos três serviços filtrados pelo id da OS, que é o que a coordenação pede para o
+      rastreamento:
+
+```logql
+{namespace=~"car-repair-shop.*"} |= "<id da OS>"
 ```
 
-## 4. Roteiro do que mostrar
-
-- [ ] **Fluxo de entrega** — abrir um PR preparado de antemão (mudança trivial e visível, como um
-      campo novo em `/health`), mostrar o CI verde, mergear na `main`, acompanhar o CD e conferir a
-      nova versão no ar pelo gateway. É o que a coordenação pediu para o vídeo: PR, merge, pipeline
-      e deploy da nova versão no ambiente único
-- [ ] **Entrada única** — `/health` pelo API Gateway; o NLB é interno e não tem caminho público
-- [ ] **Autenticação por CPF** — `POST /auth/cpf` atravessa gateway, function e lookup na aplicação
-- [ ] **Ciclo de OS** — do `RECEIVED` ao `DELIVERED`; a aprovação é do **cliente**, com código de
-      confirmação (os 4 primeiros dígitos do CPF)
-- [ ] **Notificação assíncrona** — mudança de status publica no SNS e a Lambda entrega
-- [ ] **Rastro cruzando a fronteira** — o mesmo `trace_id` nos logs da aplicação e da function
-- [ ] **Escalabilidade** — o painel de réplicas subindo sob carga
-- [ ] **Alerta** — `firing` no Alertmanager
-- [ ] **Rollback** — ver "Provar o rollback" no runbook; o deploy falha **sem indisponibilidade**
-- [ ] **Status por e-mail** — ator externo chama o `PATCH` e o e-mail sai pela function
+- [ ] O painel da saga: respostas, compensações e backlog
+- [ ] O campo **ID da OS** do painel da saga e o trace no Tempo, com spans do OS, da fila e do participante
 
 ## 5. Depois de gravar
 
@@ -120,11 +172,11 @@ kubectl rollout restart deployment/car-repair-shop-api -n car-repair-shop
 
 ## Tempos
 
-| Etapa | Tempo |
-|---|---|
-| Carga | ~5 min |
-| Conferir dashboards | ~4 min |
-| Disparar alerta e restaurar | ~4 min |
-| **Preparação total, com o ambiente já de pé** | **~13 min** |
+Preencher no ensaio. Os da Fase 3, com um serviço só, foram ~13 min de preparação com o ambiente de pé.
 
-Somando a subida do runbook: **~51 minutos** do zero até poder gravar.
+| Etapa | Tempo no ensaio |
+|---|---|
+| Carga | |
+| Conferir painéis | |
+| Ensaio das falhas | |
+| Roteiro gravado | |
