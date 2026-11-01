@@ -133,3 +133,7 @@ sequenceDiagram
 
 Um participante fora do ar não aparece aqui: nesse caso, os comandos só esperam na fila e a saga continua
 quando ele volta, sem compensação.
+
+Depois do pagamento confirmado não há o que compensar. Se o `EnqueueRepair`, ou um comando de
+compensação, esgota as tentativas, o OS não muda a ordem: registra o erro com a mensagem inteira, conta
+em `saga_stuck_total` e o alerta `SagaStepStuck` chama alguém.
