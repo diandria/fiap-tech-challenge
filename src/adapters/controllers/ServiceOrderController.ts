@@ -8,7 +8,6 @@ import { RemoveItemFromOSUseCase } from '../../use-cases/service-orders/RemoveIt
 import { GetServiceOrderHistoryUseCase } from '../../use-cases/service-orders/GetServiceOrderHistoryUseCase';
 import { ICreateServiceOrder } from '../../use-cases/ports/input/ICreateServiceOrder';
 import { IChangeServiceOrderStatus } from '../../use-cases/ports/input/IChangeServiceOrderStatus';
-import { IDecideBudget } from '../../use-cases/ports/input/IDecideBudget';
 import { ServiceOrderPresenter } from '../presenters/ServiceOrderPresenter';
 import { ValidationError } from '../../entities/errors/AppError';
 import { ServiceOrder, OSStatus } from '../../entities/ServiceOrder';
@@ -29,8 +28,6 @@ export class ServiceOrderController {
     private readonly removeService: RemoveServiceFromOSUseCase,
     private readonly addItem: AddItemToOSUseCase,
     private readonly removeItem: RemoveItemFromOSUseCase,
-    private readonly approveBudget: IDecideBudget,
-    private readonly rejectBudget: IDecideBudget,
     private readonly deliverOS: IChangeServiceOrderStatus,
     private readonly getOSHistory: GetServiceOrderHistoryUseCase,
   ) {
@@ -107,22 +104,6 @@ export class ServiceOrderController {
       const handler = this.statusHandlers[newStatus];
       if (!handler) throw new ValidationError(`Unknown status transition: ${newStatus}`);
       const data = await handler(id);
-      const { status, body } = ServiceOrderPresenter.ok(data);
-      res.status(status).json(body);
-    } catch (err) { next(err); }
-  }
-
-  async budgetDecision(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { id } = req.params;
-      const { status: decision, code } = req.body;
-      if (!decision) throw new ValidationError('status is required');
-      let data;
-      switch (decision) {
-        case 'APPROVED': data = await this.approveBudget.execute({ osId: id, code, requesterCustomerId: requesterCustomerId(req) }); break;
-        case 'REJECTED': data = await this.rejectBudget.execute({ osId: id, code, requesterCustomerId: requesterCustomerId(req) }); break;
-        default: throw new ValidationError(`Unsupported budget status: ${decision}`);
-      }
       const { status, body } = ServiceOrderPresenter.ok(data);
       res.status(status).json(body);
     } catch (err) { next(err); }

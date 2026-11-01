@@ -30,15 +30,6 @@ export class ConsoleNotificationService implements INotificationService {
     });
   }
 
-  async notifyBudgetReady(customer: Customer, os: ServiceOrder): Promise<void> {
-    await this.dispatch('budget_ready', () => {
-      this.logger.info(
-        { event: 'budget_ready', osId: os.id, budgetTotal: os.budgetTotal, customerEmail: customer.email },
-        'notification dispatched',
-      );
-    });
-  }
-
   /** Counts the failure and rethrows, so the use case still decides what to do. */
   private async dispatch(operation: string, send: () => void): Promise<void> {
     try {

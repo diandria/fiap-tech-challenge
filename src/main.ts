@@ -52,8 +52,6 @@ import { RemoveServiceFromOSUseCase } from './use-cases/service-orders/RemoveSer
 import { AddItemToOSUseCase } from './use-cases/service-orders/AddItemToOSUseCase';
 import { RemoveItemFromOSUseCase } from './use-cases/service-orders/RemoveItemFromOSUseCase';
 import { NotifyStatusChangeUseCase } from './use-cases/service-orders/NotifyStatusChangeUseCase';
-import { ApproveBudgetUseCase } from './use-cases/service-orders/ApproveBudgetUseCase';
-import { RejectBudgetUseCase } from './use-cases/service-orders/RejectBudgetUseCase';
 import { DeliverOSUseCase } from './use-cases/service-orders/DeliverOSUseCase';
 import { GetServiceOrderHistoryUseCase } from './use-cases/service-orders/GetServiceOrderHistoryUseCase';
 
@@ -73,7 +71,6 @@ import { serviceOrderRoutes } from './frameworks/http/routes/serviceOrderRoutes'
 import { MeasuredCreateServiceOrder } from './adapters/decorators/MeasuredCreateServiceOrder';
 import { PrometheusBusinessMetrics } from './frameworks/metrics/PrometheusBusinessMetrics';
 import { MeasuredStatusTransition } from './adapters/decorators/MeasuredStatusTransition';
-import { MeasuredBudgetDecision } from './adapters/decorators/MeasuredBudgetDecision';
 import { MeasuredServiceOrderSaga } from './adapters/decorators/MeasuredServiceOrderSaga';
 import { PrometheusSagaMetrics } from './frameworks/metrics/PrometheusSagaMetrics';
 import { ServiceOrderSaga } from './use-cases/saga/ServiceOrderSaga';
@@ -130,11 +127,6 @@ async function main(): Promise<void> {
     new ListServiceOrdersUseCase(osRepo),
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
     new AddItemToOSUseCase(unitOfWork), new RemoveItemFromOSUseCase(unitOfWork),
-    new MeasuredBudgetDecision(new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange), businessMetrics),
-    new MeasuredBudgetDecision(
-      new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
-      businessMetrics,
-    ),
     new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange), businessMetrics),
     new GetServiceOrderHistoryUseCase(osRepo),
   );

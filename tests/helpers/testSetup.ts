@@ -51,8 +51,6 @@ import { RemoveServiceFromOSUseCase } from '../../src/use-cases/service-orders/R
 import { AddItemToOSUseCase } from '../../src/use-cases/service-orders/AddItemToOSUseCase';
 import { RemoveItemFromOSUseCase } from '../../src/use-cases/service-orders/RemoveItemFromOSUseCase';
 import { NotifyStatusChangeUseCase } from '../../src/use-cases/service-orders/NotifyStatusChangeUseCase';
-import { ApproveBudgetUseCase } from '../../src/use-cases/service-orders/ApproveBudgetUseCase';
-import { RejectBudgetUseCase } from '../../src/use-cases/service-orders/RejectBudgetUseCase';
 import { DeliverOSUseCase } from '../../src/use-cases/service-orders/DeliverOSUseCase';
 import { GetServiceOrderHistoryUseCase } from '../../src/use-cases/service-orders/GetServiceOrderHistoryUseCase';
 
@@ -71,7 +69,6 @@ import { itemRoutes } from '../../src/frameworks/http/routes/itemRoutes';
 import { serviceOrderRoutes } from '../../src/frameworks/http/routes/serviceOrderRoutes';
 import { MeasuredCreateServiceOrder } from '../../src/adapters/decorators/MeasuredCreateServiceOrder';
 import { MeasuredStatusTransition } from '../../src/adapters/decorators/MeasuredStatusTransition';
-import { MeasuredBudgetDecision } from '../../src/adapters/decorators/MeasuredBudgetDecision';
 import { databaseReadiness } from '../../src/frameworks/database/readinessProbe';
 
 let container: StartedPostgreSqlContainer;
@@ -153,11 +150,6 @@ export function createTestApp(): Application {
     new ListServiceOrdersUseCase(osRepo),
     new AddServiceToOSUseCase(osRepo, serviceRepo), new RemoveServiceFromOSUseCase(osRepo),
     new AddItemToOSUseCase(unitOfWork), new RemoveItemFromOSUseCase(unitOfWork),
-    new MeasuredBudgetDecision(new ApproveBudgetUseCase(osRepo, customerRepo, notifyStatusChange), businessMetrics),
-    new MeasuredBudgetDecision(
-      new RejectBudgetUseCase(osRepo, customerRepo, itemRepo, notifyStatusChange),
-      businessMetrics,
-    ),
     new MeasuredStatusTransition(new DeliverOSUseCase(osRepo, notifyStatusChange), businessMetrics),
     new GetServiceOrderHistoryUseCase(osRepo),
   );

@@ -10,7 +10,6 @@ import { RegisterUseCase } from '../../src/use-cases/auth/RegisterUseCase';
 const JWT_SECRET = 'customer-flow-secret';
 const INTERNAL_TOKEN = 'customer-flow-internal-token';
 const CPF = '52998224725';
-const CODE = '5299';
 
 let app: Application;
 let adminToken: string;
@@ -82,7 +81,8 @@ describe('Customer authentication flow', () => {
     `);
   });
 
-  // End-to-end: lookup, token format and both routes working together.
+  // End-to-end: lookup, token format and the customer route working together.
+  // Approving the budget is a Billing Service route, covered in its repository.
   it('should complete the whole flow GIVEN a registered customer WHEN authenticating by cpf', async () => {
     const customerId = await createCustomer();
     const osId = await osWaitingApproval(customerId);
@@ -103,13 +103,6 @@ describe('Customer authentication flow', () => {
 
     expect(status.status).toBe(200);
     expect(status.body.status).toBe('WAITING_APPROVAL');
-
-    // 4. And approves the budget.
-    const approve = await request(app).patch(`/service-orders/${osId}/budget`)
-      .set('Authorization', `Bearer ${token}`).send({ status: 'APPROVED', code: CODE });
-
-    expect(approve.status).toBe(200);
-    expect(approve.body.status).toBe('APPROVED');
   });
 
   it('should return 403 GIVEN another customer token WHEN reading the order', async () => {
@@ -123,23 +116,6 @@ describe('Customer authentication flow', () => {
     expect(res.status).toBe(403);
   });
 
-  // The pair that proves the protection: the 403 alongside the absence of effect.
-  it('should keep the status GIVEN another customer approves WHEN deciding the budget', async () => {
-    const owner = await createCustomer();
-    const intruder = await createCustomer('Mary', '11144477735', 'm@t.com');
-    const osId = await osWaitingApproval(owner);
-
-    const res = await request(app).patch(`/service-orders/${osId}/budget`)
-      .set('Authorization', `Bearer ${signCustomerToken(intruder, 'Mary')}`)
-      .send({ status: 'APPROVED', code: CODE });
-
-    expect(res.status).toBe(403);
-
-    const after = await request(app).get(`/service-orders/${osId}`)
-      .set('Authorization', `Bearer ${adminToken}`);
-    expect(after.body.status).toBe('WAITING_APPROVAL');
-  });
-
   // Risk R4: a secret diverging between application and function shows up as a
   // 401 with no useful message.
   it('should return 401 GIVEN a token signed with a different secret WHEN reading the order', async () => {
@@ -151,17 +127,6 @@ describe('Customer authentication flow', () => {
       .set('Authorization', `Bearer ${foreign}`);
 
     expect(res.status).toBe(401);
-  });
-
-  it('should return 400 GIVEN the wrong confirmation code WHEN the owner approves', async () => {
-    const customerId = await createCustomer();
-    const osId = await osWaitingApproval(customerId);
-
-    const res = await request(app).patch(`/service-orders/${osId}/budget`)
-      .set('Authorization', `Bearer ${signCustomerToken(customerId, 'John')}`)
-      .send({ status: 'APPROVED', code: '0000' });
-
-    expect(res.status).toBe(400);
   });
 
   it('should return 404 GIVEN an unregistered cpf WHEN the function looks the customer up', async () => {

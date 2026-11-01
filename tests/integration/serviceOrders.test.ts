@@ -134,7 +134,7 @@ describe('Full OS lifecycle', () => {
     expect(res.body.deliveredAt).toBeDefined();
   });
 
-  it('GIVEN an OS in WAITING_APPROVAL with reserved stock WHEN PATCH status=REJECTED is called THEN status becomes REJECTED AND item reservations are released', async () => {
+  it('GIVEN an OS in WAITING_APPROVAL with reserved stock WHEN the customer rejects the budget THEN status becomes REJECTED AND item reservations are released', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
     const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
 
@@ -148,12 +148,10 @@ describe('Full OS lifecycle', () => {
     const beforeReject = await request(app).get(`/items/${itemId}`).set(auth);
     expect(beforeReject.body.reservedQuantity).toBe(3);
 
-    // Customer PATCH /budget with REJECTED + correct code
-    const reject = await request(app).patch(`/service-orders/${osId}/budget`)
-      .set('Authorization', `Bearer ${customerToken(customerId)}`)
-      .send({ status: 'REJECTED', code: '5299' });
-    expect(reject.status).toBe(200);
-    expect(reject.body.status).toBe('REJECTED');
+    // The customer decides at the Billing Service, which replies BudgetRejected.
+    await driveOrderTo(osId, 'REJECTED');
+    const rejected = await request(app).get(`/service-orders/${osId}`).set(auth);
+    expect(rejected.body.status).toBe('REJECTED');
 
     // Reservations released
     const afterReject = await request(app).get(`/items/${itemId}`).set(auth);
@@ -161,7 +159,7 @@ describe('Full OS lifecycle', () => {
     expect(afterReject.body.availableQuantity).toBe(10);
   });
 
-  describe('Customer authentication on the two customer routes', () => {
+  describe('Customer authentication on the customer status route', () => {
     async function osWaitingApproval(): Promise<string> {
       const auth = { Authorization: `Bearer ${adminToken}` };
       const os = await request(app).post('/service-orders').set(auth)
@@ -201,41 +199,9 @@ describe('Full OS lifecycle', () => {
       expect(res.status).toBe(403);
     });
 
-    it('GIVEN no token WHEN PATCH /service-orders/:id/budget THEN returns 401', async () => {
-      const osId = await osWaitingApproval();
-      const res = await request(app).patch(`/service-orders/${osId}/budget`)
-        .send({ status: 'APPROVED', code: '5299' });
-      expect(res.status).toBe(401);
-    });
-
-    // A 403 is not enough: the status must not change.
-    it('GIVEN another customer token WHEN PATCH /budget THEN returns 403 AND keeps the status', async () => {
-      const osId = await osWaitingApproval();
-
-      const res = await request(app).patch(`/service-orders/${osId}/budget`)
-        .set('Authorization', `Bearer ${customerToken('00000000-0000-0000-0000-000000000000')}`)
-        .send({ status: 'APPROVED', code: '5299' });
-
-      expect(res.status).toBe(403);
-
-      const after = await request(app).get(`/service-orders/${osId}`)
-        .set('Authorization', `Bearer ${adminToken}`);
-      expect(after.body.status).toBe('WAITING_APPROVAL');
-    });
   });
 
-  it('GIVEN an OS in WAITING_APPROVAL WHEN PATCH /budget with status=APPROVED is called with a wrong code THEN returns 400', async () => {
-    const auth = { Authorization: `Bearer ${adminToken}` };
-    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
-    const osId = created.body.id;
-    await driveOrderTo(osId, 'DIAGNOSIS');
-    await driveOrderTo(osId, 'WAITING_APPROVAL');
-
-    const res = await request(app).patch(`/service-orders/${osId}/budget`).set('Authorization', `Bearer ${customerToken(customerId)}`).send({ status: 'APPROVED', code: '0000' });
-    expect(res.status).toBe(400);
-  });
-
-  it('GIVEN PATCH /:id with status=APPROVED THEN returns 400 (budget transitions live on /budget)', async () => {
+  it('GIVEN PATCH /:id with status=APPROVED THEN returns 400 (the customer decides the budget at the Billing Service)', async () => {
     const auth = { Authorization: `Bearer ${adminToken}` };
     const mechAuth = { Authorization: `Bearer ${mechanicToken}` };
     const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
@@ -244,25 +210,6 @@ describe('Full OS lifecycle', () => {
     await driveOrderTo(osId, 'WAITING_APPROVAL');
 
     const res = await request(app).patch(`/service-orders/${osId}`).set(mechAuth).send({ status: 'APPROVED', code: '5299' });
-    expect(res.status).toBe(400);
-  });
-
-  it('GIVEN PATCH /budget with unsupported status THEN returns 400', async () => {
-    const auth = { Authorization: `Bearer ${adminToken}` };
-    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
-    const osId = created.body.id;
-    await driveOrderTo(osId, 'DIAGNOSIS');
-    await driveOrderTo(osId, 'WAITING_APPROVAL');
-
-    const res = await request(app).patch(`/service-orders/${osId}/budget`).set('Authorization', `Bearer ${customerToken(customerId)}`).send({ status: 'EXECUTION', code: '5299' });
-    expect(res.status).toBe(400);
-  });
-
-  it('GIVEN PATCH /budget without status in body THEN returns 400', async () => {
-    const auth = { Authorization: `Bearer ${adminToken}` };
-    const created = await request(app).post('/service-orders').set(auth).send({ customerId, vehicleId });
-    const osId = created.body.id;
-    const res = await request(app).patch(`/service-orders/${osId}/budget`).set('Authorization', `Bearer ${customerToken(customerId)}`).send({ code: '5299' });
     expect(res.status).toBe(400);
   });
 

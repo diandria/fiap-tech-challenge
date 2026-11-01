@@ -17,8 +17,6 @@ function makeUseCases() {
     removeService: jest.fn().mockResolvedValue(os),
     addItem: jest.fn().mockResolvedValue(os),
     removeItem: jest.fn().mockResolvedValue(os),
-    approveBudget: jest.fn().mockResolvedValue(os),
-    rejectBudget: jest.fn().mockResolvedValue(os),
     deliverOS: jest.fn().mockResolvedValue(os),
     getOSHistory: jest.fn().mockResolvedValue({ serviceOrderId: os.id, history: [] }),
   };
@@ -29,7 +27,6 @@ function makeController(fns = makeUseCases()) {
     { execute: fns.createOS } as any, { execute: fns.getOS } as any, { execute: fns.listOS } as any,
     { execute: fns.addService } as any, { execute: fns.removeService } as any,
     { execute: fns.addItem } as any, { execute: fns.removeItem } as any,
-    { execute: fns.approveBudget } as any, { execute: fns.rejectBudget } as any,
     { execute: fns.deliverOS } as any,
     { execute: fns.getOSHistory } as any,
   );
@@ -96,22 +93,6 @@ describe('ServiceOrderController', () => {
       expect((next.mock.calls[0][0] as Error).message).toBe(`Unknown status transition: ${status}`);
     },
   );
-
-  it('budgetDecision APPROVED: calls approveBudget with code', async () => {
-    const fns = makeUseCases();
-    const controller = makeController(fns);
-    const req = { params: { id: os.id }, body: { status: 'APPROVED', code: '5299' } } as unknown as Request;
-    await controller.budgetDecision(req, makeRes(), jest.fn());
-    expect(fns.approveBudget).toHaveBeenCalledWith({ osId: os.id, code: '5299' });
-  });
-
-  it('budgetDecision REJECTED: calls rejectBudget with code', async () => {
-    const fns = makeUseCases();
-    const controller = makeController(fns);
-    const req = { params: { id: os.id }, body: { status: 'REJECTED', code: '5299' } } as unknown as Request;
-    await controller.budgetDecision(req, makeRes(), jest.fn());
-    expect(fns.rejectBudget).toHaveBeenCalledWith({ osId: os.id, code: '5299' });
-  });
 
   it('updateStatus with missing status: calls next with ValidationError', async () => {
     const controller = makeController();

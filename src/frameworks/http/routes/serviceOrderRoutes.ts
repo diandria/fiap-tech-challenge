@@ -1,15 +1,7 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
 import { ServiceOrderController } from '../../../adapters/controllers/ServiceOrderController';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { requireRole, requireCustomer, requireStaff } from '../middlewares/roleMiddleware';
-
-const budgetLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  keyGenerator: (req) => `${req.ip}-${req.params.id}`,
-  message: { error: 'Too many attempts, please try again later' },
-});
 
 export function serviceOrderRoutes(controller: ServiceOrderController): Router {
   const router = Router();
@@ -34,48 +26,6 @@ export function serviceOrderRoutes(controller: ServiceOrderController): Router {
    *         description: Not found
    */
   router.get('/:id/status', authMiddleware, requireCustomer, (req, res, next) => controller.getStatus(req, res, next));
-
-  /**
-   * @openapi
-   * /service-orders/{id}/budget:
-   *   patch:
-   *     summary: Customer budget decision — approve or reject (customer only — own OS)
-   *     description: |
-   *       Requires the customer token issued at `POST /auth/cpf`, and the order must belong to that customer.
-   *       The 4-digit `code` (first 4 digits of CPF/CNPJ) confirms the customer intended this decision.
-   *       Rate-limited to 5 req/h per IP+OS combination.
-   *     tags: [Service Orders]
-   *     security:
-   *       - customerBearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema: { type: string }
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required: [status, code]
-   *             properties:
-   *               status:
-   *                 type: string
-   *                 enum: [APPROVED, REJECTED]
-   *               code:
-   *                 type: string
-   *                 description: First 4 digits of customer CPF or CNPJ.
-   *                 example: "5299"
-   *     responses:
-   *       200:
-   *         description: Updated service order
-   *       400:
-   *         description: Invalid status, transition, or code
-   *       429:
-   *         description: Too many attempts
-   */
-  router.patch('/:id/budget', budgetLimiter, authMiddleware, requireCustomer, (req, res, next) => controller.budgetDecision(req, res, next));
 
   /**
    * @openapi
