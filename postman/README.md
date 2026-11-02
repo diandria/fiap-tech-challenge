@@ -79,7 +79,7 @@ seguintes precisam (tokens, ids).
 | 00 | Setup | Login do admin, cadastro de atendente e mecânico (aceita 201 ou 409), login dos dois papéis |
 | 01 | Catalog (admin) | Um serviço (Troca de Óleo, R$ 120) e uma peça (Óleo 5W30, R$ 40, estoque 10) |
 | 02 | Customer and Vehicle (attendant) | Cliente com CPF `96627075300` (código de aprovação `9662`) e veículo `ABC-1234` |
-| 03 | Fluxo da saga (até o pagamento) | O atendente abre a OS; o mecânico inicia o diagnóstico no Execution; a OS vai a `DIAGNOSIS`; o mecânico inclui serviço e peça e conclui o diagnóstico; o Billing gera o orçamento; o cliente consulta o status e aprova no Billing; o Billing cria a cobrança e o `checkoutUrl` aparece no console |
+| 03 | Fluxo da saga (até o pagamento) | O atendente abre a OS; ela aparece na fila do mecânico (`GET /executions`); o mecânico inicia o diagnóstico no Execution; a OS vai a `DIAGNOSIS`; o mecânico inclui serviço e peça e conclui o diagnóstico; o Billing gera o orçamento; o cliente consulta o status e aprova no Billing; o Billing cria a cobrança e o `checkoutUrl` aparece no console |
 | 04 | Pagamento simulado | Aprova o pagamento no provedor simulado do Billing, localmente ou na AWS. Com o Mercado Pago, este passo é o pagamento no navegador |
 | 05 | Fluxo da saga (depois do pagamento) | A OS vai a `PAID`; o mecânico inicia o reparo, marca o serviço e conclui; a OS vai a `FINISHED`; o mecânico registra a entrega; o histórico confirma todas as etapas; a média por serviço vem do Execution |
 | 06 | Orçamento rejeitado | Segunda OS até o orçamento, rejeitado pelo cliente no Billing; a saga leva a OS a `REJECTED` e devolve a peça ao estoque |
@@ -196,5 +196,3 @@ npx newman run postman/car-repair-shop.postman_collection.json \
 
 Com o Mercado Pago, rode só as pastas 00 a 03 (`--folder` para cada uma), pague no navegador e continue a
 partir da 05 (ver "Pagamento na AWS").
-
-> Alteração para demonstração

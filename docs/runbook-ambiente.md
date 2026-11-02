@@ -6,8 +6,8 @@ plataforma que eles dividem.
 
 **Escrito para ser seguido sob pressão**, com o ambiente derrubado e tempo contado.
 
-> **Não comece a provisionar meia hora antes de gravar.** A subida completa leva cerca de
-> **40 minutos**, e a maior parte é espera de recurso da AWS, que não acelera.
+> **Reserve tempo para a subida.** Ela leva cerca de **40 minutos**, e a maior parte é espera de
+> recurso da AWS, que não acelera.
 
 ## Tempos medidos
 
@@ -18,7 +18,7 @@ plataforma que eles dividem.
 | `infra-k8s` — primeira fase (EKS + addons + observabilidade + filas) | ~22 min |
 | Services dos três serviços (nascem os NLBs) | ~3 min medidos com um; a cronometrar com três |
 | `lambda` (duas functions + tópico) | ~2 min |
-| Credenciais do Mercado Pago no SSM | a cronometrar |
+| Credenciais do Mercado Pago no SSM (só com `mercado-pago`) | a cronometrar |
 | `infra-k8s` — segunda fase (integração e rotas do gateway) | ~1 min |
 | Deploy dos serviços (build, push, migration, rollout) | ~3 min medidos no OS; Billing e Execution a cronometrar |
 | Verificação de fumaça | a cronometrar |
@@ -38,7 +38,7 @@ Quando a faculdade troca a conta do lab, o bucket de estado do Terraform não ex
 o bucket como descreve o README do `infra-db` (seção "Bucket de estado"), e confira que o `backend.tf`
 dos cinco repositórios com Terraform (`infra-db`, `infra-k8s`, `lambda`, `terraform/` do Billing e
 `terraform/` do Execution) aponta para `fiap-tech-challenge-tfstate-<id da conta>`. Os parâmetros do
-SSM e as credenciais do Mercado Pago também são da conta: o passo 9 cadastra de novo.
+SSM e as credenciais do Mercado Pago também são da conta: com o Mercado Pago ligado, o passo 9 cadastra de novo.
 
 ### 1. Todos os repositórios na `main`
 
@@ -55,8 +55,7 @@ done
 
 > Isto já custou uma sessão: o repositório de lambda estava numa branch criada antes do merge da
 > propagação de trace. As notificações chegavam normalmente, e o log da function saía **sem
-> `trace_id`** — o rastro atravessando a fronteira assíncrona, que é o ponto da demonstração,
-> simplesmente não existia. Nada no ambiente indicava erro.
+> `trace_id`** — o rastro atravessando a fronteira assíncrona simplesmente não existia. Nada no ambiente indicava erro.
 
 ### 2. Credenciais
 
@@ -111,8 +110,8 @@ antes do rollout; o do Billing lê o endereço do banco direto do RDS.
 
 ### 6. `infra-k8s` — primeira fase, sem as rotas do gateway (~22 min)
 
-**O `infra-k8s` é aplicado em duas fases**, e entre elas entram os Services dos três serviços, o lambda e
-as credenciais do Mercado Pago.
+**O `infra-k8s` é aplicado em duas fases**, e entre elas entram os Services dos três serviços, o lambda e,
+com o Mercado Pago ligado, as credenciais dele.
 Não é preciosismo: há duas dependências que só se resolvem nessa ordem.
 
 - a integração do gateway precisa do ARN do listener do **NLB** de cada serviço, e cada NLB nasce do
@@ -187,9 +186,14 @@ cópias para divergir.
 
 ### 9. Credenciais do Mercado Pago no SSM
 
-O Billing lê `client_id`, `client_secret` e a assinatura secreta do webhook no SSM, cadastrados à mão
-para nunca passarem por `tfvars` nem pelo estado do Terraform. Sem os três, o CD do Billing para na
-leitura da configuração, com `required value missing or empty`.
+**Só quando o Billing usa o Mercado Pago.** O provedor vem de `PAYMENT_PROVIDER`, no
+`k8s/01-config/configmap.yaml` do Billing. Com `mock`, o CD do Billing não lê nem grava essas
+credenciais e este passo fica de fora; o pagamento passa pela rota simulada
+(`POST /payments/mock/{serviceOrderId}`, pasta 04 da coleção Postman).
+
+Com `mercado-pago`, o Billing lê `client_id`, `client_secret` e a assinatura secreta do webhook no SSM,
+cadastrados à mão para nunca passarem por `tfvars` nem pelo estado do Terraform. Sem os três, o CD do
+Billing para na leitura da configuração, com `required value missing or empty`.
 
 1. Pegue a URL do gateway, que existe desde a primeira fase:
 
