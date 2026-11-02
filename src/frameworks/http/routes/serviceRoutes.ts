@@ -12,6 +12,8 @@ export function serviceRoutes(controller: ServiceController): Router {
    *   get:
    *     summary: List all services
    *     tags: [Services]
+   *     security:
+   *       - bearerAuth: []
    *     responses:
    *       200:
    *         description: Array of services
