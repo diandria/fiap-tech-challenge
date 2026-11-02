@@ -41,13 +41,16 @@ function newPlate(): string {
 }
 
 async function openOrder(serviceName: string, quantity: number, itemName: string): Promise<void> {
-  const created = await os.post<{ id: string; status: string }>('/service-orders', {
+  const serviceId = shop.services.get(serviceName);
+  const created = await os.post<{ id: string; services: { serviceId: string }[] }>('/service-orders', {
     customerId: shop.customerId,
     vehicleId: shop.vehicleId,
-    serviceIds: [shop.services.get(serviceName)],
+    services: [serviceId],
     items: [{ itemId: shop.items.get(itemName), quantity }],
   });
-  orderId = expectStatus(created, 201, 'opening the order').id;
+  const order = expectStatus(created, 201, 'opening the order');
+  expect(order.services.map((service) => service.serviceId)).toEqual([serviceId]);
+  orderId = order.id;
 }
 
 /** The mechanic takes the order from the queue once Execution has it, then finishes the stage. */
