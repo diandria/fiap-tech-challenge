@@ -695,7 +695,7 @@ A pasta `postman/` contém a coleção e os environments para cada ambiente.
 
 Importar: **Import → Upload Files** → selecione a collection + o environment desejado.
 
-Para o ambiente na AWS, preencha `baseUrl` e `authBaseUrl` com a URL do API Gateway (`terraform output api_gateway_url` no `infra-k8s`).
+Para o ambiente na AWS, preencha `baseUrl`, `billingBaseUrl`, `executionBaseUrl` e `authBaseUrl` com a URL do API Gateway (`terraform output api_gateway_url` no `infra-k8s`): o gateway leva cada caminho ao serviço dono. `adminPassword` e `jwtSecret` vêm do SSM, como mostra o README da coleção.
 
 Via CLI com Newman:
 

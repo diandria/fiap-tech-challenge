@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "ed9f6acf-89f2-4aef-8a95-6993786781c4",
     "name": "Car Repair Shop API",
-    "description": "Fluxo de ponta a ponta da oficina pelos três serviços da Fase 4: OS, Billing e Execution.\n\nPastas, em ordem:\n\n1. **00 - Setup**: login do admin, cadastro e login de atendente e mecânico.\n2. **01 - Catalog (admin)**: um serviço e uma peça no estoque.\n3. **02 - Customer and Vehicle (attendant)**: cliente (CPF) e veículo.\n4. **03 - Fluxo da saga (ate o pagamento)**: o atendente abre a OS, o mecânico faz o diagnóstico no Execution, o Billing gera o orçamento, o cliente aprova no Billing e o Billing cria a cobrança.\n5. **04 - Pagamento simulado**: substitui o pagamento no navegador quando o Billing roda com o provedor simulado, localmente ou na AWS.\n6. **05 - Fluxo da saga (depois do pagamento)**: reparo no Execution, entrega no OS e histórico de status.\n7. **06 - Orcamento rejeitado**: o cliente rejeita o orçamento e a saga devolve a peça reservada.\n8. **07 - Stats and Listings**, **08 - Error Scenarios**, **09 - OS Item/Service Removal**, **10 - Maintenance**, **11 - Cliente (CPF)** e **12 - Health e Observabilidade**.\n\n## Como usar\n\n1. Importe um environment e selecione. Localmente, `car-repair-shop.postman_environment.json` aponta para o compose de `e2e/` (OS na 3000, Billing na 3001, Execution na 3002). Na AWS, preencha `baseUrl`, `billingBaseUrl`, `executionBaseUrl` e `authBaseUrl` com a URL do API Gateway em `car-repair-shop-k8s.postman_environment.json`: o gateway leva cada caminho ao serviço dono. Preencha também `adminPassword` e `jwtSecret` com os parâmetros `/car-repair-shop/app/admin-password` e `/car-repair-shop/auth/jwt-secret` do SSM.\n2. Rode no Collection Runner (ou no newman). A saga é assíncrona, e os passos que esperam outro serviço perguntam de novo a cada segundo; isso só funciona no Runner e no newman.\n3. Com o provedor simulado (`PAYMENT_PROVIDER=mock`), a pasta 04 paga sozinha, também na AWS. Com o Mercado Pago, o Runner para no pagamento: abra no navegador o `checkoutUrl` que a pasta 03 imprime, pague com a conta de teste de comprador e o cartão `APRO`, pule a pasta 04 e rode a 05.\n\nTokens e ids são guardados pelos scripts de teste em variáveis do environment.\n\n## Observações\n\n- Os status mudam pela saga. A única transição manual que sobrou é a entrega: `PATCH /service-orders/:id` com `{ \"status\": \"DELIVERED\" }`.\n- O cliente decide o orçamento no Billing: `PATCH /service-orders/:id/budget` com `{ status: \"APPROVED\" | \"REJECTED\", code }`, em que `code` são os 4 primeiros dígitos do CPF.\n- `POST /auth/login` tem limite de 10 requisições a cada 15 minutos por IP.",
+    "description": "Fluxo de ponta a ponta da oficina pelos três serviços da Fase 4: OS, Billing e Execution.\n\nPastas, em ordem:\n\n1. **00 - Setup**: login do admin, cadastro e login de atendente e mecânico.\n2. **01 - Catalog (admin)**: um serviço e uma peça no estoque.\n3. **02 - Customer and Vehicle (attendant)**: cliente (CPF) e veículo.\n4. **03 - Fluxo da saga (ate o pagamento)**: o atendente abre a OS, ela entra na fila do mecânico no Execution, o mecânico faz o diagnóstico, o Billing gera o orçamento, o cliente aprova no Billing e o Billing cria a cobrança.\n5. **04 - Pagamento simulado**: substitui o pagamento no navegador quando o Billing roda com o provedor simulado, localmente ou na AWS.\n6. **05 - Fluxo da saga (depois do pagamento)**: reparo no Execution, entrega no OS e histórico de status.\n7. **06 - Orcamento rejeitado**: o cliente rejeita o orçamento e a saga devolve a peça reservada.\n8. **07 - Stats and Listings**, **08 - Error Scenarios**, **09 - OS Item/Service Removal**, **10 - Maintenance**, **11 - Cliente (CPF)** e **12 - Health e Observabilidade**.\n\n## Como usar\n\n1. Importe um environment e selecione. Localmente, `car-repair-shop.postman_environment.json` aponta para o compose de `e2e/` (OS na 3000, Billing na 3001, Execution na 3002). Na AWS, preencha `baseUrl`, `billingBaseUrl`, `executionBaseUrl` e `authBaseUrl` com a URL do API Gateway em `car-repair-shop-k8s.postman_environment.json`: o gateway leva cada caminho ao serviço dono. Preencha também `adminPassword` e `jwtSecret` com os parâmetros `/car-repair-shop/app/admin-password` e `/car-repair-shop/auth/jwt-secret` do SSM.\n2. Rode no Collection Runner (ou no newman). A saga é assíncrona, e os passos que esperam outro serviço perguntam de novo a cada segundo; isso só funciona no Runner e no newman.\n3. Com o provedor simulado (`PAYMENT_PROVIDER=mock`), a pasta 04 paga sozinha, também na AWS. Com o Mercado Pago, o Runner para no pagamento: abra no navegador o `checkoutUrl` que a pasta 03 imprime, pague com a conta de teste de comprador e o cartão `APRO`, pule a pasta 04 e rode a 05.\n\nTokens e ids são guardados pelos scripts de teste em variáveis do environment.\n\n## Observações\n\n- Os status mudam pela saga. A única transição manual que sobrou é a entrega: `PATCH /service-orders/:id` com `{ \"status\": \"DELIVERED\" }`.\n- O cliente decide o orçamento no Billing: `PATCH /service-orders/:id/budget` com `{ status: \"APPROVED\" | \"REJECTED\", code }`, em que `code` são os 4 primeiros dígitos do CPF.\n- `POST /auth/login` tem limite de 10 requisições a cada 15 minutos por IP.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "53906914",
     "_collection_link": "https://go.postman.co/collection/53906914-ed9f6acf-89f2-4aef-8a95-6993786781c4?source=collection_link"
@@ -814,6 +814,50 @@
               "path": [
                 "executions",
                 "{{osId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "[Execution] Listar a fila do mecanico",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "",
+                  "// The queue lists the stage in progress first, then the waiting ones, oldest",
+                  "// first. The order just opened has to be in it, waiting for its diagnosis.",
+                  "const queue = pm.response.json();",
+                  "pm.test('a fila e uma lista', () => pm.expect(queue).to.be.an('array'));",
+                  "const entry = queue.find((e) => e.serviceOrderId === pm.environment.get('osId'));",
+                  "pm.test('a OS esta na fila, aguardando o diagnostico', () => {",
+                  "    pm.expect(entry, 'OS fora da fila').to.exist;",
+                  "    pm.expect(entry.stage).to.eql('DIAGNOSIS');",
+                  "    pm.expect(entry.status).to.eql('QUEUED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{mechanicToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{executionBaseUrl}}/executions",
+              "host": [
+                "{{executionBaseUrl}}"
+              ],
+              "path": [
+                "executions"
               ]
             }
           },
