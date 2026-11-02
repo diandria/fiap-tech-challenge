@@ -41,13 +41,16 @@ function newPlate(): string {
 }
 
 async function openOrder(serviceName: string, quantity: number, itemName: string): Promise<void> {
-  const created = await os.post<{ id: string; status: string }>('/service-orders', {
+  const serviceId = shop.services.get(serviceName);
+  const created = await os.post<{ id: string; services: { serviceId: string }[] }>('/service-orders', {
     customerId: shop.customerId,
     vehicleId: shop.vehicleId,
-    serviceIds: [shop.services.get(serviceName)],
+    services: [serviceId],
     items: [{ itemId: shop.items.get(itemName), quantity }],
   });
-  orderId = expectStatus(created, 201, 'opening the order').id;
+  const order = expectStatus(created, 201, 'opening the order');
+  expect(order.services.map((service) => service.serviceId)).toEqual([serviceId]);
+  orderId = order.id;
 }
 
 /** The mechanic takes the order from the queue once Execution has it, then finishes the stage. */
@@ -106,11 +109,12 @@ function theShop(given: DefineStepFunction): void {
 
 function theOrderEventuallyIs(then: DefineStepFunction): void {
   then(/^the OS service eventually shows the order as "(.*)"$/, async (status: string) => {
-    await waitFor(
+    const order = await waitFor(
       `the order to be ${status} at the OS`,
       async () => (await os.get<{ status: string }>(`/service-orders/${orderId}`)).body,
-      (order) => order.status === status,
+      (current) => current.status === status,
     );
+    expect(order.status).toBe(status);
   });
 }
 
@@ -132,19 +136,21 @@ defineFeature(feature, (test) => {
     theOrderEventuallyIs(then);
 
     and(/^billing shows the payment as "(.*)"$/, async (status: string) => {
-      await waitFor(
+      const budget = await waitFor(
         `the payment to be ${status} at Billing`,
         async () => (await billing.get<Budget>(`/service-orders/${orderId}/budget`)).body,
-        (budget) => budget.payment?.status === status,
+        (current) => current.payment?.status === status,
       );
+      expect(budget.payment?.status).toBe(status);
     });
 
     and(/^execution shows the repair as "(.*)"$/, async (status: string) => {
-      await waitFor(
+      const repair = await waitFor(
         `the repair to be ${status} at Execution`,
         async () => (await execution.get<Execution>(`/executions/${orderId}`)).body,
         (current) => current.stage === 'REPAIR' && current.status === status,
       );
+      expect(repair).toMatchObject({ stage: 'REPAIR', status });
     });
   });
 
@@ -164,27 +170,30 @@ defineFeature(feature, (test) => {
     theOrderEventuallyIs(then);
 
     and(/^"(.*)" has (\d+) reserved$/, async (itemName: string, reserved: string) => {
-      await waitFor(
+      const item = await waitFor(
         `${reserved} "${itemName}" reserved`,
         async () => (await os.get<{ reservedQuantity: number }>(`/items/${shop.items.get(itemName)}`)).body,
-        (item) => item.reservedQuantity === Number(reserved),
+        (current) => current.reservedQuantity === Number(reserved),
       );
+      expect(item.reservedQuantity).toBe(Number(reserved));
     });
 
     and(/^billing shows the budget as "(.*)"$/, async (status: string) => {
-      await waitFor(
+      const budget = await waitFor(
         `the budget to be ${status} at Billing`,
         async () => (await billing.get<Budget>(`/service-orders/${orderId}/budget`)).body,
-        (budget) => budget.status === status,
+        (current) => current.status === status,
       );
+      expect(budget.status).toBe(status);
     });
 
     and(/^execution shows the order as "(.*)"$/, async (status: string) => {
-      await waitFor(
+      const current = await waitFor(
         `the order to be ${status} at Execution`,
         async () => (await execution.get<Execution>(`/executions/${orderId}`)).body,
-        (current) => current.status === status,
+        (read) => read.status === status,
       );
+      expect(current.status).toBe(status);
     });
   });
 });
