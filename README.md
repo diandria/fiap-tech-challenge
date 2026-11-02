@@ -7,12 +7,9 @@
 serviço, cadastros e estoque, e o **orquestrador da saga** que leva cada ordem pelo Billing Service
 (orçamento e pagamento) e pelo Execution Service (diagnóstico e reparo).
 
-**Vídeo demonstrativo:** _a publicar_ — a preparação e o roteiro do que demonstrar estão no
-[checklist de gravação](docs/checklist-gravacao.md).
-
 > **Ambiente efêmero.** O sistema é provisionado do zero a cada sessão do Learner Lab e derrubado
-> depois, para não consumir orçamento. A URL do API Gateway **muda a cada recriação** — a que
-> aparece no vídeo não responde mais. Para subir tudo de novo, siga o
+> depois, para não consumir orçamento. A URL do API Gateway **muda a cada recriação** — a de uma
+> sessão anterior não responde mais. Para subir tudo de novo, siga o
 > [runbook do ambiente](docs/runbook-ambiente.md).
 
 ---
@@ -97,8 +94,7 @@ CI/CD no GitHub Actions e HPA por CPU.
 | [Índice de ADRs](docs/architecture/adr/README.md) | 16 decisões de arquitetura |
 | [Índice de RFCs](docs/architecture/rfc/README.md) | 6 propostas técnicas |
 
-Operacional: [runbook do ambiente](docs/runbook-ambiente.md),
-[checklist de gravação](docs/checklist-gravacao.md),
+Operacional: [runbook do ambiente](docs/runbook-ambiente.md) e
 [política de branches](docs/branching-policy.md).
 
 ---

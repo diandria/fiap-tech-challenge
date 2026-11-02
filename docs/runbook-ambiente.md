@@ -6,8 +6,8 @@ plataforma que eles dividem.
 
 **Escrito para ser seguido sob pressão**, com o ambiente derrubado e tempo contado.
 
-> **Não comece a provisionar meia hora antes de gravar.** A subida completa leva cerca de
-> **40 minutos**, e a maior parte é espera de recurso da AWS, que não acelera.
+> **Reserve tempo para a subida.** Ela leva cerca de **40 minutos**, e a maior parte é espera de
+> recurso da AWS, que não acelera.
 
 ## Tempos medidos
 
@@ -55,8 +55,7 @@ done
 
 > Isto já custou uma sessão: o repositório de lambda estava numa branch criada antes do merge da
 > propagação de trace. As notificações chegavam normalmente, e o log da function saía **sem
-> `trace_id`** — o rastro atravessando a fronteira assíncrona, que é o ponto da demonstração,
-> simplesmente não existia. Nada no ambiente indicava erro.
+> `trace_id`** — o rastro atravessando a fronteira assíncrona simplesmente não existia. Nada no ambiente indicava erro.
 
 ### 2. Credenciais
 

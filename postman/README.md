@@ -196,5 +196,3 @@ npx newman run postman/car-repair-shop.postman_collection.json \
 
 Com o Mercado Pago, rode só as pastas 00 a 03 (`--folder` para cada uma), pague no navegador e continue a
 partir da 05 (ver "Pagamento na AWS").
-
-> Alteração para demonstração
