@@ -38,7 +38,8 @@ docker compose -f e2e/docker-compose.yml up --build -d --wait
 ```
 
 O compose já usa as credenciais do environment local: admin `admin@master.com` com
-`change-me-in-production` e `JWT_SECRET` igual ao `jwtSecret`. O Billing roda com o pagamento simulado.
+`change-me-in-production` e `JWT_SECRET` igual ao `jwtSecret`. O Billing cobra no Payment Service, que o
+compose sobe na porta 3003.
 
 ### AWS (EKS + API Gateway)
 
@@ -80,7 +81,7 @@ seguintes precisam (tokens, ids).
 | 01 | Catalog (admin) | Um serviço (Troca de Óleo, R$ 120) e uma peça (Óleo 5W30, R$ 40, estoque 10) |
 | 02 | Customer and Vehicle (attendant) | Cliente com CPF `96627075300` (código de aprovação `9662`) e veículo `ABC-1234` |
 | 03 | Fluxo da saga (até o pagamento) | O atendente abre a OS; ela aparece na fila do mecânico (`GET /executions`); o mecânico inicia o diagnóstico no Execution; a OS vai a `DIAGNOSIS`; o mecânico inclui serviço e peça e conclui o diagnóstico; o Billing gera o orçamento; o cliente consulta o status e aprova no Billing; o Billing cria a cobrança e o `checkoutUrl` aparece no console |
-| 04 | Pagamento simulado | Aprova o pagamento no provedor simulado do Billing, localmente ou na AWS. Com o Mercado Pago, este passo é o pagamento no navegador |
+| 04 | Pagamento no checkout | O cliente abre o link de pagamento do Payment Service e paga; o Payment Service avisa o Billing por um webhook assinado |
 | 05 | Fluxo da saga (depois do pagamento) | A OS vai a `PAID`; o mecânico inicia o reparo, marca o serviço e conclui; a OS vai a `FINISHED`; o mecânico registra a entrega; o histórico confirma todas as etapas; a média por serviço vem do Execution |
 | 06 | Orçamento rejeitado | Segunda OS até o orçamento, rejeitado pelo cliente no Billing; a saga leva a OS a `REJECTED` e devolve a peça ao estoque |
 | 07 | Stats and Listings | Tempo médio do catálogo, filtros por `status` e `customerId`, detalhe por id |
@@ -98,24 +99,19 @@ até 30 tentativas, e só então registram o teste. A nova tentativa usa
 `pm.execution.setNextRequest(pm.info.requestId)`, que só funciona no Collection Runner e no newman. Enviado
 à mão, o passo mostra o estado do momento.
 
-### Pagamento na AWS
+### Pagamento
 
-Depende do provedor configurado no Billing:
+O provedor de pagamento é o [Payment Service](https://github.com/diandria/fiap-tech-challenge-payment), o
+simulador que a coordenação orientou criar no lugar do Mercado Pago. Quando o OS pede a cobrança, o
+Billing troca as credenciais dele por um token no Payment Service, cria a cobrança e guarda o link de
+pagamento. A última requisição da pasta 03 grava esse link no `checkoutUrl`, e a pasta 04 faz o papel do
+cliente: abre o link e paga com `{ "status": "approved" }`. O Payment Service avisa o Billing por um webhook
+assinado, e a pasta 05 espera a OS em `PAID`.
 
-```bash
-kubectl get cm billing-config -n car-repair-shop-billing -o jsonpath='{.data.PAYMENT_PROVIDER}'
-```
-
-**Provedor simulado (`mock`).** A pasta 04 paga pelo gateway (`POST /payments/mock/{id}`, com o token de
-admin), e a coleção roda de ponta a ponta sem intervenção, como no compose.
-
-**Mercado Pago.** O Runner não consegue pagar sozinho:
-
-1. Rode as pastas 00 a 03. A última requisição da 03 imprime o `checkoutUrl` no console e o guarda no
-   environment.
-2. Abra o link no navegador, entre com a conta de teste de comprador e pague com um cartão de teste do
-   Mercado Pago, com o titular `APRO`. O passo a passo das contas de teste está no README do Billing.
-3. Pule a pasta 04, que com o Mercado Pago responde 404, e rode a 05.
+O link é `http://localhost:3003/checkout/<id>` no compose e `<URL do API Gateway>/checkout/<id>` na AWS;
+nos dois casos a coleção roda de ponta a ponta sem intervenção. Para ver a compensação do pagamento
+recusado, envie `{ "status": "rejected" }` no passo de pagar: a OS vai a `CANCELLED` e a peça volta ao
+estoque.
 
 ## Variáveis guardadas pelos scripts
 
@@ -167,7 +163,7 @@ vazio, e o resto da coleção segue.
   `{ status: "APPROVED" | "REJECTED", code }`. O `code` são os 4 primeiros dígitos do CPF/CNPJ: o token
   diz *quem* está agindo, o código diz que a pessoa quis aprovar *aquele* orçamento.
 - Autorização por papel: atendente (clientes, veículos, abertura de OS), mecânico (diagnóstico, reparo,
-  entrega), admin (catálogo e pagamento simulado).
+  entrega), admin (catálogo).
 
 ## Execução via CLI (newman)
 
@@ -178,7 +174,7 @@ npx newman run postman/car-repair-shop.postman_collection.json \
   -e postman/car-repair-shop.postman_environment.json
 ```
 
-AWS, pelo API Gateway, com o provedor simulado no Billing:
+AWS, pelo API Gateway:
 
 ```bash
 API=$(cd ~/dev/fiap-tech-challenge-infra-k8s && terraform output -raw api_gateway_url)
@@ -194,5 +190,3 @@ npx newman run postman/car-repair-shop.postman_collection.json \
   --env-var "adminPassword=$ADMIN_PASSWORD" --env-var "jwtSecret=$JWT_SECRET"
 ```
 
-Com o Mercado Pago, rode só as pastas 00 a 03 (`--folder` para cada uma), pague no navegador e continue a
-partir da 05 (ver "Pagamento na AWS").
