@@ -1,6 +1,7 @@
 # RFC-006 (Integração de pagamento com o Mercado Pago)
 
-- **Status:** Aceita
+- **Status:** Aceita. O provedor do ambiente passou a ser o Payment Service, que implementa este contrato
+  ([ADR-017](../adr/ADR-017-provedor-de-pagamento-simulado.md)).
 - **Data:** 2026-10-31
 
 ## Contexto

@@ -18,7 +18,7 @@ sequenceDiagram
     participant OS as OS Service
     participant EX as Execution Service
     participant BI as Billing Service
-    participant MP as Mercado Pago
+    participant MP as Payment Service (provedor)
 
     A->>OS: POST /service-orders
     Note over OS: transação local: ordem RECEIVED,<br/>reserva de estoque, EnqueueDiagnosis no outbox
@@ -41,9 +41,10 @@ sequenceDiagram
     BI-)OS: BudgetApproved
     Note over OS: WAITING_APPROVAL → APPROVED,<br/>RequestPayment no outbox
     OS-)BI: RequestPayment
-    BI->>MP: cria a preferência
+    BI->>MP: token (client_credentials)
+    BI->>MP: cria a preferência, com o token
     MP-->>BI: link de pagamento
-    C->>MP: paga
+    C->>MP: paga no link
     MP->>BI: notificação assinada
     BI->>MP: consulta o pagamento
     MP-->>BI: approved
@@ -92,7 +93,7 @@ sequenceDiagram
     participant OS as OS Service
     participant EX as Execution Service
     participant BI as Billing Service
-    participant MP as Mercado Pago
+    participant MP as Payment Service (provedor)
 
     MP->>BI: notificação assinada
     BI->>MP: consulta o pagamento

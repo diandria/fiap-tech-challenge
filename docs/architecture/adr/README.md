@@ -29,6 +29,7 @@ antes da conclusão, e as consequências negativas escritas sem suavizar.
 | [ADR-014](ADR-014-saga-orquestrada.md) | Saga orquestrada da ordem de serviço | Aceito | 2026-10-31 |
 | [ADR-015](ADR-015-comunicacao-e-contrato-de-mensagens.md) | Comunicação entre serviços e contrato das mensagens | Aceito | 2026-10-31 |
 | [ADR-016](ADR-016-banco-por-servico.md) | Banco de dados por serviço | Aceito | 2026-10-31 |
+| [ADR-017](ADR-017-provedor-de-pagamento-simulado.md) | Provedor de pagamento simulado como serviço | Aceito | 2026-11-03 |
 
 O ADR-011 supersede uma restrição do plano do M7 — *"o endpoint interno de lookup não é exposto no
 API Gateway"* —, e não um ADR. A restrição era mais estrita que o ADR-002, que ela deveria
