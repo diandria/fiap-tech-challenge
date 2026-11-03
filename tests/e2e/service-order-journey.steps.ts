@@ -76,14 +76,23 @@ async function approveBudget(): Promise<void> {
   expectStatus(decision, 200, 'approving the budget');
 }
 
-/** Plays the customer at the simulated provider once the charge exists. */
+/**
+ * Plays the customer: opens the checkout link Billing got from the payment
+ * service and pays there. Billing learns the outcome from the provider's
+ * signed notification, as it would from Mercado Pago.
+ */
 async function pay(outcome: 'approved' | 'rejected'): Promise<void> {
-  await waitFor(
+  const budget = await waitFor(
     'the charge at Billing',
     async () => (await billing.get<Budget>(`/service-orders/${orderId}/budget`)).body,
-    (budget) => budget.payment?.status === 'PENDING',
+    (current) => current.payment?.status === 'PENDING',
   );
-  expectStatus(await billing.post(`/payments/mock/${orderId}`, { status: outcome }), 200, `paying (${outcome})`);
+  const paid = await fetch(`${budget.payment?.checkoutUrl}/pay`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: outcome }),
+  });
+  expect(paid.status).toBe(201);
 }
 
 function theShop(given: DefineStepFunction): void {

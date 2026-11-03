@@ -1,6 +1,7 @@
 Feature: Service order journey across the three services
   The OS, Billing and Execution services run for real, talking only through
-  the saga queues. Payment uses the simulated provider.
+  the saga queues. The customer pays at the payment service, which stands in
+  for Mercado Pago.
 
   Background:
     Given the shop has a customer with a vehicle, the service "Oil change" and 5 "Oil filter" in stock

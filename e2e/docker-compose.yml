@@ -4,15 +4,16 @@
 #   fiap-tech-challenge/            (this one)
 #   fiap-tech-challenge-billing/
 #   fiap-tech-challenge-execution/
+#   fiap-tech-challenge-payment/
 #
 # Run from this repository:
 #   docker compose -f e2e/docker-compose.yml up --build -d --wait
 #   npm run test:e2e
 #   docker compose -f e2e/docker-compose.yml down -v
 #
-# Same images as production, configured for a laptop: the simulated payment
-# provider instead of Mercado Pago, customer notices on the console instead of
-# SNS, and LocalStack for both SQS and DynamoDB. One LocalStack for both, not
+# Same images as production, configured for a laptop: the payment service in
+# place of Mercado Pago, customer notices on the console instead of SNS, and
+# LocalStack for both SQS and DynamoDB. One LocalStack for both, not
 # DynamoDB local beside it, because the services find AWS through a single
 # AWS_ENDPOINT_URL, which the SDK applies to every client.
 name: car-repair-shop-e2e
@@ -148,7 +149,15 @@ services:
       DATABASE_URL: postgresql://billing:billing@billing-db:5432/billing?schema=public
       QUEUE_URL_BILLING_COMMANDS: http://localstack:4566/000000000000/car-repair-shop-billing-commands.fifo
       QUEUE_URL_SAGA_REPLIES: http://localstack:4566/000000000000/car-repair-shop-saga-replies.fifo
-      PAYMENT_PROVIDER: mock
+      # Charges through the payment service, with the same adapter that would
+      # talk to Mercado Pago: only the address changes. The credentials and the
+      # webhook secret match the payment service's below.
+      PAYMENT_PROVIDER: mercado-pago
+      MERCADO_PAGO_API_URL: http://payment:3000
+      MERCADO_PAGO_CLIENT_ID: billing-e2e
+      MERCADO_PAGO_CLIENT_SECRET: e2e-client-secret
+      MERCADO_PAGO_WEBHOOK_SECRET: e2e-webhook-secret
+      MERCADO_PAGO_NOTIFICATION_URL: http://billing:3000/payments/notifications
       NOTIFICATION_CHANNEL: console
       OTEL_SERVICE_NAME: billing-service
     depends_on:
@@ -156,8 +165,29 @@ services:
         condition: service_completed_successfully
       localstack:
         condition: service_healthy
+      payment:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  # The payment provider simulator. The Billing Service is its only merchant.
+  payment:
+    build: ../../fiap-tech-challenge-payment
+    ports:
+      - "3003:3000"
+    environment:
+      PORT: "3000"
+      CLIENT_ID: billing-e2e
+      CLIENT_SECRET: e2e-client-secret
+      WEBHOOK_SECRET: e2e-webhook-secret
+      # The checkout links start here: the address the tests and the local
+      # Postman environment reach from the host.
+      CHECKOUT_BASE_URL: http://localhost:3003
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
       interval: 3s
       timeout: 3s
       retries: 40
