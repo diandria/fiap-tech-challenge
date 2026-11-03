@@ -65,10 +65,21 @@ o orçamento) antes de a pasta 11 buscar o token real em `/auth/cpf`, e até lá
 script de pré-requisição. O token do "outro cliente", usado nos 403 da pasta 11, também sai desse script.
 Assinados com outro segredo, os dois viram 401.
 
-## Importação
+## Importação e execução no Runner
 
-No Postman: **Import → Upload Files** e selecione a collection mais o arquivo de environment desejado.
-Depois escolha o environment no seletor do canto superior direito.
+1. No Postman: **Import → Upload Files**, com a collection e o environment desejado (local ou AWS).
+2. Escolha o environment no seletor do canto superior direito.
+3. **Na AWS**, preencha no environment os seis valores que mudam a cada subida: `baseUrl`,
+   `billingBaseUrl`, `executionBaseUrl` e `authBaseUrl` com a URL do API Gateway (a mesma nas quatro), e
+   `adminPassword` e `jwtSecret` com os valores do SSM (ver acima). Vazios, o login do admin da pasta 00
+   falha e o resto da coleção falha em cascata. **Localmente**, o environment já vem preenchido para o
+   compose de ponta a ponta.
+4. Abra a coleção, clique em **Run** e rode todas as pastas, na ordem em que aparecem. Os passos
+   `Aguardar ...` se repetem sozinhos até a saga chegar ao estado esperado, e os valores que um passo grava
+   no environment (tokens, ids, `checkoutUrl`) são os que os seguintes usam.
+
+Na AWS, a coleção inteira roda sem falha. Localmente, a única falha esperada é o `/auth/cpf` da pasta 11,
+porque a função de autenticação não roda no compose.
 
 ## Ordem de execução
 
