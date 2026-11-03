@@ -639,8 +639,10 @@ cobertura aparece junto com os demais indicadores de qualidade.
 `tests/e2e/service-order-journey.feature` descreve, em Gherkin, a jornada principal da OS e a recusa de
 pagamento contra o OS, o Billing e o Execution de verdade. Os três conversam só pelas filas da saga. O
 `e2e/docker-compose.yml` sobe as mesmas imagens de produção, com dois Postgres, LocalStack para SQS e
-DynamoDB, pagamento simulado e avisos ao cliente no console. Os três repositórios precisam estar lado a
-lado, como em `~/dev`:
+DynamoDB, avisos ao cliente no console e o
+[Payment Service](https://github.com/diandria/fiap-tech-challenge-payment) no lugar do Mercado Pago: o
+Billing obtém um token com as credenciais dele, cria a cobrança, o teste paga no link de checkout e o
+Billing recebe o aviso assinado. Os quatro repositórios precisam estar lado a lado, como em `~/dev`:
 
 ```bash
 docker compose -f e2e/docker-compose.yml up --build -d --wait

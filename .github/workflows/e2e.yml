@@ -1,7 +1,7 @@
 name: BDD end-to-end
 
-# Not a required check of main, on purpose: it builds Billing and Execution
-# from their own main branches, and a break there must not block a pull
+# Not a required check of main, on purpose: it builds Billing, Execution and
+# the payment service from their own main branches, and a break there must not block a pull
 # request here. The result still shows on every pull request.
 on:
   # No target-branch filter: a pull request stacked on another one runs too.
@@ -20,8 +20,8 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      # Side by side, as in ~/dev: the compose file builds the other two
-      # services from ../fiap-tech-challenge-billing and -execution.
+      # Side by side, as in ~/dev: the compose file builds the other services
+      # from ../fiap-tech-challenge-billing, -execution and -payment.
       - uses: actions/checkout@v4
         with:
           path: fiap-tech-challenge
@@ -36,13 +36,18 @@ jobs:
           repository: diandria/fiap-tech-challenge-execution
           path: fiap-tech-challenge-execution
 
+      - uses: actions/checkout@v4
+        with:
+          repository: diandria/fiap-tech-challenge-payment
+          path: fiap-tech-challenge-payment
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: fiap-tech-challenge/package-lock.json
 
-      - name: Start the three services
+      - name: Start the services
         working-directory: fiap-tech-challenge
         run: docker compose -f e2e/docker-compose.yml up --build -d --wait
 
