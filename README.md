@@ -19,7 +19,7 @@ serviço, cadastros e estoque, e o **orquestrador da saga** que leva cada ordem 
 1. [Sobre a Fase 4](#sobre-a-fase-4)
 2. [Sobre a Fase 3](#sobre-a-fase-3)
 3. [Documentação arquitetural](#documentação-arquitetural)
-4. [Os seis repositórios](#os-seis-repositórios)
+4. [Os sete repositórios](#os-sete-repositórios)
 5. [Arquitetura](#arquitetura)
 6. [Saga da ordem de serviço](#saga-da-ordem-de-serviço)
 7. [Stack](#stack)
@@ -42,7 +42,9 @@ namespace próprios, e trocou a sequência de chamadas manuais por uma saga:
 - **OS Service** (este repositório): ordens de serviço, clientes, veículos, catálogo e estoque, em
   PostgreSQL. Orquestra a saga.
 - **[Billing Service](https://github.com/diandria/fiap-tech-challenge-billing)**: orçamento, decisão do
-  cliente e pagamento pelo Mercado Pago, em PostgreSQL próprio.
+  cliente e cobrança, em PostgreSQL próprio. Cobra no
+  **[Payment Service](https://github.com/diandria/fiap-tech-challenge-payment)**, um simulador do contrato do
+  Mercado Pago ([ADR-017](docs/architecture/adr/ADR-017-provedor-de-pagamento-simulado.md)).
 - **[Execution Service](https://github.com/diandria/fiap-tech-challenge-execution)**: fila do mecânico,
   diagnóstico, reparo e andamento de cada serviço, em DynamoDB.
 
@@ -51,8 +53,10 @@ com outbox transacional de um lado e consumidor idempotente do outro. A
 [decisão](docs/architecture/adr/ADR-013-decomposicao-em-microsservicos.md), a
 [saga](docs/architecture/adr/ADR-014-saga-orquestrada.md), o
 [contrato das mensagens](docs/architecture/adr/ADR-015-comunicacao-e-contrato-de-mensagens.md) e o
-[banco por serviço](docs/architecture/adr/ADR-016-banco-por-servico.md) estão nos ADRs 013 a 016, e o
-pagamento na [RFC-006](docs/architecture/rfc/RFC-006-integracao-mercado-pago.md).
+[banco por serviço](docs/architecture/adr/ADR-016-banco-por-servico.md) estão nos ADRs 013 a 016. O
+pagamento está na [RFC-006](docs/architecture/rfc/RFC-006-integracao-mercado-pago.md) e no
+[ADR-017](docs/architecture/adr/ADR-017-provedor-de-pagamento-simulado.md), que troca o Mercado Pago pelo
+Payment Service, um simulador do mesmo contrato.
 
 Cada serviço tem CI com testes, cobertura mínima de 80% e validação dos manifestos, e CD próprio até o
 EKS. A jornada principal roda de ponta a ponta em Gherkin contra os três serviços, no compose e no CI
@@ -91,7 +95,7 @@ CI/CD no GitHub Actions e HPA por CPU.
 | [Sequência — ordem de serviço](docs/architecture/sequence-service-order.md) | Ciclo de vida da OS |
 | [Modelo ER](docs/architecture/data-model.md) | Esquema relacional e restrições |
 | [Matriz de autorização](docs/architecture/authorization-matrix.md) | As rotas do OS, quem acessa cada uma, e as que passaram para Billing e Execution |
-| [Índice de ADRs](docs/architecture/adr/README.md) | 16 decisões de arquitetura |
+| [Índice de ADRs](docs/architecture/adr/README.md) | 17 decisões de arquitetura |
 | [Índice de RFCs](docs/architecture/rfc/README.md) | 6 propostas técnicas |
 
 Operacional: [runbook do ambiente](docs/runbook-ambiente.md) e
@@ -99,15 +103,16 @@ Operacional: [runbook do ambiente](docs/runbook-ambiente.md) e
 
 ---
 
-## Os seis repositórios
+## Os sete repositórios
 
 | Repositório | Responsabilidade |
 |---|---|
 | [`fiap-tech-challenge`](https://github.com/diandria/fiap-tech-challenge) | OS Service e orquestrador da saga (este) |
 | [`fiap-tech-challenge-billing`](https://github.com/diandria/fiap-tech-challenge-billing) | Billing Service: orçamento e pagamento, com o próprio RDS em `terraform/` |
 | [`fiap-tech-challenge-execution`](https://github.com/diandria/fiap-tech-challenge-execution) | Execution Service: diagnóstico e reparo, com as tabelas do DynamoDB em `terraform/` |
+| [`fiap-tech-challenge-payment`](https://github.com/diandria/fiap-tech-challenge-payment) | Payment Service: o provedor de pagamento simulado, no lugar do Mercado Pago (ADR-017) |
 | [`fiap-tech-challenge-infra-db`](https://github.com/diandria/fiap-tech-challenge-infra-db) | VPC, RDS, segredos no SSM |
-| [`fiap-tech-challenge-infra-k8s`](https://github.com/diandria/fiap-tech-challenge-infra-k8s) | EKS, API Gateway, filas da saga, ECR e namespaces dos três serviços, observabilidade |
+| [`fiap-tech-challenge-infra-k8s`](https://github.com/diandria/fiap-tech-challenge-infra-k8s) | EKS, API Gateway, filas da saga, ECR e namespaces dos serviços, credenciais do Billing no Payment Service, observabilidade |
 | [`fiap-tech-challenge-lambda`](https://github.com/diandria/fiap-tech-challenge-lambda) | Functions de autenticação e notificação, tópico SNS |
 
 ---
@@ -119,7 +124,6 @@ Operacional: [runbook do ambiente](docs/runbook-ambiente.md) e
 ```mermaid
 flowchart TB
     user(["Cliente / Funcionário"])
-    mp(["Mercado Pago"])
 
     subgraph aws["AWS"]
         gw["API Gateway\nponto único de entrada\numa integração por serviço"]
@@ -133,6 +137,7 @@ flowchart TB
             os["OS Service\nordens, cadastros, estoque\norquestrador da saga"]
             billing["Billing Service\norçamento e pagamento"]
             execution["Execution Service\ndiagnóstico e reparo"]
+            payment["Payment Service\nprovedor de pagamento simulado"]
         end
 
         subgraph queues["SQS FIFO, cada uma com fila de descarte"]
@@ -149,6 +154,7 @@ flowchart TB
         gw -->|"ordens e cadastros"| os
         gw -->|"orçamento e notificação\nde pagamento"| billing
         gw -->|"/executions"| execution
+        gw -->|"checkout"| payment
         gw --> authfn
         authfn -->|"lookup interno"| gw
 
@@ -164,7 +170,8 @@ flowchart TB
         os -->|"mudança de status"| sns
         billing -->|"orçamento e link de pagamento"| sns
         sns --> notifyfn
-        billing -->|"cobrança"| mp
+        billing -->|"token, cobrança, consulta"| payment
+        payment -->|"notificação assinada"| gw
     end
 
     subgraph gha["GitHub Actions, em cada repositório de serviço"]
@@ -242,7 +249,7 @@ nenhuma se perca, porque as respostas esperam na fila.
 | 2 | Execution | O mecânico inicia e conclui o diagnóstico | `DiagnosisStarted`, `DiagnosisCompleted` | `CancelExecution` |
 | 3 | Billing | Gera o orçamento e avisa o cliente | `GenerateBudget` → `BudgetGenerated` | `CancelBudget` |
 | 4 | Billing | O cliente decide | `BudgetApproved` ou `BudgetRejected` | Rejeição: libera a reserva, `REJECTED`, `CancelExecution` |
-| 5 | Billing | Cobra pelo Mercado Pago | `RequestPayment` → `PaymentConfirmed` ou `PaymentFailed` | Recusa: libera a reserva, `CANCELLED`, `CancelExecution` e `CancelBudget` |
+| 5 | Billing | Cobra no Payment Service | `RequestPayment` → `PaymentConfirmed` ou `PaymentFailed` | Recusa: libera a reserva, `CANCELLED`, `CancelExecution` e `CancelBudget` |
 | 6 | OS | Baixa o estoque e marca `PAID` | emite `EnqueueRepair` | — |
 | 7 | Execution | O mecânico faz o reparo e marca cada serviço | `RepairStarted`, `RepairCompleted` | — |
 | 8 | OS | Marca `FINISHED`; a entrega continua sendo registrada pelo mecânico | — | — |
