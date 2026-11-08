@@ -511,6 +511,26 @@ O que substitui a rede de proteção que a homologação daria:
 O ponto fraco que permanece: **não há ensaio antes de produção**. Uma falha só descoberta em runtime
 chega ao ambiente real, e a mitigação é o rollback, não a prevenção.
 
+### Limitação do AWS Academy
+
+O ambiente roda numa conta do AWS Academy (Learner Lab), e três restrições dela mudam a operação:
+
+- **Sessão de cerca de 4 horas.** A credencial vence com a sessão, e o lab para as instâncias quando ela
+  acaba. Por isso o ambiente é subido do zero pelo [runbook](docs/runbook-ambiente.md) a cada sessão e
+  derrubado no fim, para não gastar os créditos.
+- **Credencial copiada para o GitHub.** O CD de cada serviço usa os segredos `AWS_*` do repositório, que
+  precisam ser renovados a cada sessão com `scripts/refresh-aws-secrets.sh --all`, no repositório das
+  functions.
+- **Nenhum ambiente permanente.** Com o lab desligado, não existe cluster para receber o deploy.
+
+O efeito no pipeline:
+
+| Etapa | Com o lab desligado |
+|---|---|
+| Checagens do PR: build, lint, testes, cobertura, SonarQube, manifestos e o BDD de ponta a ponta | Rodam sempre; nenhuma depende da AWS |
+| CD disparado pelo merge na `main` | Termina vermelho na primeira chamada à AWS, sem criar nada. Esse vermelho indica ambiente desligado, não código quebrado |
+| Implantação | Com o ambiente de pé, roda-se de novo o último CI da `main` de cada serviço (passo 10 do runbook). O CD dispara pelo evento do CI e implanta o commit atual, reaproveitando a imagem se ela já estiver no ECR |
+
 ### Manifests Kubernetes (`/k8s/`)
 
 | Arquivo | Conteúdo |
