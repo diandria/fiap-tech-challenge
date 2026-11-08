@@ -31,7 +31,7 @@ describe('Liveness', () => {
     const res = await request(appWith(reachable)).get('/health');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'ok' });
+    expect(res.body).toMatchObject({ status: 'ok' });
   });
 
   // Liveness must not check the database: restarting the pod does not fix a
@@ -40,6 +40,37 @@ describe('Liveness', () => {
     const res = await request(appWith(unreachable)).get('/health');
 
     expect(res.status).toBe(200);
+  });
+});
+
+describe('Version', () => {
+  const original = process.env.SERVICE_VERSION;
+
+  afterEach(() => {
+    if (original === undefined) delete process.env.SERVICE_VERSION;
+    else process.env.SERVICE_VERSION = original;
+  });
+
+  it('should report the deployed version GIVEN the deploy set SERVICE_VERSION WHEN liveness is probed', async () => {
+    // GIVEN
+    process.env.SERVICE_VERSION = 'a1b2c3d';
+
+    // WHEN
+    const res = await request(appWith(reachable)).get('/health');
+
+    // THEN
+    expect(res.body).toEqual({ status: 'ok', version: 'a1b2c3d' });
+  });
+
+  it('should report the same default as the logs and traces GIVEN no SERVICE_VERSION WHEN liveness is probed', async () => {
+    // GIVEN
+    delete process.env.SERVICE_VERSION;
+
+    // WHEN
+    const res = await request(appWith(reachable)).get('/health');
+
+    // THEN
+    expect(res.body).toEqual({ status: 'ok', version: '0.0.0' });
   });
 });
 

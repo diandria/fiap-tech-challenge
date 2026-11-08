@@ -205,6 +205,7 @@ jobs:
             --from-literal=DLQ_URL_BILLING_COMMANDS="$DLQ_URL_BILLING_COMMANDS" \
             --from-literal=DLQ_URL_EXECUTION_COMMANDS="$DLQ_URL_EXECUTION_COMMANDS" \
             --from-literal=OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo.observability.svc.cluster.local:4318 \
+            --from-literal=SERVICE_VERSION="${{ steps.meta.outputs.sha }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
           kubectl create secret generic car-repair-shop-secret -n car-repair-shop \
