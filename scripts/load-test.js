@@ -110,14 +110,14 @@ export function setup() {
       name: 'Load Test Customer', taxId: TAX_ID, taxType: 'CPF',
       email: 'load@test.com', phone: '11999999999',
     }), auth);
-    // 409 means it already exists from an earlier run: look the id up.
+    // 409 means it already exists from an earlier run: look it up by tax id.
+    // The list route has no tax id filter, and its first entry would be
+    // another customer, whose orders this customer's token cannot read.
     if (r.status === 201) {
       customerId = r.json('id');
     } else {
-      const lookup = http.get(`${BASE_URL}/customers?taxId=${TAX_ID}`, auth);
-      const body = lookup.json();
-      customerId = Array.isArray(body) && body.length ? body[0].id
-        : (body && body.data && body.data.length ? body.data[0].id : null);
+      const lookup = http.get(`${BASE_URL}/customers/tax/${TAX_ID}`, auth);
+      customerId = lookup.status === 200 ? lookup.json('id') : null;
     }
   }
   if (!customerId) throw new Error('could not obtain the load test customer');
