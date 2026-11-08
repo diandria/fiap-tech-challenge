@@ -26,12 +26,13 @@ const ADMIN_PASSWORD = __ENV.ADMIN_PASSWORD || '';
 // `verifyCustomerCode` compares against `customer.taxId.slice(0, 4)`.
 const TAX_ID = __ENV.CPF || '52998224725';
 const BUDGET_CODE = TAX_ID.slice(0, 4);
+const LOAD_SERVICE = 'Load Test Service';
 
 const JSON_HEADERS = { 'content-type': 'application/json' };
 
 export const options = {
   scenarios: {
-    // Low, steady volume: each iteration walks an order through the saga up to the charge.
+    // Low, steady volume: each iteration walks an order through the whole saga.
     serviceOrderCycle: {
       executor: 'constant-arrival-rate',
       rate: 6, timeUnit: '1m', duration: '5m',
@@ -132,13 +133,30 @@ export function setup() {
   }
   if (!vehicleId) throw new Error('could not obtain the load test vehicle');
 
+  // The service the mechanic adds during the diagnosis. Without one the budget
+  // is zero, and a payment provider refuses to charge zero: the charge fails
+  // until the saga gives up and cancels the order.
+  let serviceId = __ENV.SERVICE_ID;
+  if (!serviceId) {
+    const catalogue = http.get(`${BASE_URL}/services`, auth);
+    const existing = catalogue.status === 200 ? catalogue.json().find((s) => s.name === LOAD_SERVICE) : null;
+    if (existing) {
+      serviceId = existing.id;
+    } else {
+      const r = http.post(`${BASE_URL}/services`,
+        JSON.stringify({ name: LOAD_SERVICE, price: 120, estimatedMinutes: 30 }), auth);
+      serviceId = r.status === 201 ? r.json('id') : null;
+    }
+  }
+  if (!serviceId) throw new Error('could not obtain the load test service');
+
   // An order of the load test customer: the customer routes only answer for
   // the customer's own orders, so the customerAuth scenario reads this one.
   const order = http.post(`${BASE_URL}/service-orders`, JSON.stringify({ customerId, vehicleId }), auth);
   const orderId = order.status === 201 ? order.json('id') : null;
   if (!orderId) throw new Error('could not open the load test customer order');
 
-  return { token, customerId, vehicleId, orderId };
+  return { token, customerId, vehicleId, serviceId, orderId };
 }
 
 // A 404 while waiting means "not there yet", not a failure: without this the
@@ -158,9 +176,10 @@ function waitFor(read, until, attempts = 40) {
 /**
  * Walks an order through the saga as the services would: the OS opens it, the
  * mechanic diagnoses it at Execution, Billing generates the budget and the
- * customer approves it at Billing. It stops at the charge: on AWS the payment
- * is made in the browser, so the statuses after APPROVED come from the orders
- * paid by hand during the recording.
+ * customer approves it at Billing, pays it at the payment service's checkout,
+ * the mechanic repairs it and the OS delivers it. Every status gets a point on
+ * the dashboards, and the order is a real one: it has a service, so the charge
+ * is never zero.
  */
 export function serviceOrderCycle(data) {
   const params = { ...WAITING, headers: { ...JSON_HEADERS, authorization: `Bearer ${data.token}` } };
@@ -177,6 +196,14 @@ export function serviceOrderCycle(data) {
   if (!check(queued, { 'order reached the mechanic queue': (r) => r !== null })) return;
 
   check(http.post(`${BASE_URL}/executions/${osId}/start`, null, auth), { 'diagnosis started': (r) => r.status === 200 });
+
+  // The OS takes services only in DIAGNOSIS, and it gets there when the saga's
+  // DiagnosisStarted reply arrives, a moment after the start at Execution.
+  const diagnosing = waitFor(() => http.get(`${BASE_URL}/service-orders/${osId}`, params),
+    (r) => r.json('status') === 'DIAGNOSIS');
+  if (!check(diagnosing, { 'order in diagnosis at the OS': (r) => r !== null })) return;
+  check(http.post(`${BASE_URL}/service-orders/${osId}/services`, JSON.stringify({ serviceId: data.serviceId }), auth),
+    { 'service added to the order': (r) => r.status === 200 || r.status === 201 });
   check(http.post(`${BASE_URL}/executions/${osId}/finish`, null, auth), { 'diagnosis finished': (r) => r.status === 200 });
 
   const budget = waitFor(() => http.get(`${BASE_URL}/service-orders/${osId}/budget`, params),
@@ -185,12 +212,32 @@ export function serviceOrderCycle(data) {
 
   // Approval belongs to the customer: separate token and the confirmation code.
   const customerToken = authenticate(`${BASE_URL}/auth/cpf`, { cpf: TAX_ID });
-  if (customerToken) {
-    const r = http.patch(`${BASE_URL}/service-orders/${osId}/budget`,
-      JSON.stringify({ status: 'APPROVED', code: BUDGET_CODE }),
-      { headers: { ...JSON_HEADERS, authorization: `Bearer ${customerToken}` } });
-    check(r, { 'budget approved': (x) => x.status === 200 });
-  }
+  if (!customerToken) return;
+  const approved = http.patch(`${BASE_URL}/service-orders/${osId}/budget`,
+    JSON.stringify({ status: 'APPROVED', code: BUDGET_CODE }),
+    { headers: { ...JSON_HEADERS, authorization: `Bearer ${customerToken}` } });
+  if (!check(approved, { 'budget approved': (x) => x.status === 200 })) return;
+
+  // The customer pays at the payment service's checkout, through the gateway.
+  const charge = waitFor(() => http.get(`${BASE_URL}/service-orders/${osId}/budget`, params),
+    (r) => r.json('payment.status') === 'PENDING');
+  if (!check(charge, { 'billing created the charge': (r) => r !== null })) return;
+  const paid = http.post(`${charge.json('payment.checkoutUrl')}/pay`, JSON.stringify({ status: 'approved' }),
+    { headers: JSON_HEADERS });
+  if (!check(paid, { 'customer paid at the checkout': (r) => r.status === 201 })) return;
+
+  // Once the saga confirms the payment, the repair goes to the mechanic's queue.
+  const repair = waitFor(() => http.get(`${BASE_URL}/executions/${osId}`, params),
+    (r) => r.json('stage') === 'REPAIR' && r.json('status') === 'QUEUED');
+  if (!check(repair, { 'order reached the repair queue': (r) => r !== null })) return;
+  check(http.post(`${BASE_URL}/executions/${osId}/start`, null, auth), { 'repair started': (r) => r.status === 200 });
+  check(http.post(`${BASE_URL}/executions/${osId}/finish`, null, auth), { 'repair finished': (r) => r.status === 200 });
+
+  const finished = waitFor(() => http.get(`${BASE_URL}/service-orders/${osId}`, params),
+    (r) => r.json('status') === 'FINISHED');
+  if (!check(finished, { 'order finished': (r) => r !== null })) return;
+  check(http.patch(`${BASE_URL}/service-orders/${osId}`, JSON.stringify({ status: 'DELIVERED' }), auth),
+    { 'order delivered': (r) => r.status === 200 });
 }
 
 export function customerAuth(data) {
