@@ -110,14 +110,14 @@ export function setup() {
       name: 'Load Test Customer', taxId: TAX_ID, taxType: 'CPF',
       email: 'load@test.com', phone: '11999999999',
     }), auth);
-    // 409 means it already exists from an earlier run: look the id up.
+    // 409 means it already exists from an earlier run: look it up by tax id.
+    // The list route has no tax id filter, and its first entry would be
+    // another customer, whose orders this customer's token cannot read.
     if (r.status === 201) {
       customerId = r.json('id');
     } else {
-      const lookup = http.get(`${BASE_URL}/customers?taxId=${TAX_ID}`, auth);
-      const body = lookup.json();
-      customerId = Array.isArray(body) && body.length ? body[0].id
-        : (body && body.data && body.data.length ? body.data[0].id : null);
+      const lookup = http.get(`${BASE_URL}/customers/tax/${TAX_ID}`, auth);
+      customerId = lookup.status === 200 ? lookup.json('id') : null;
     }
   }
   if (!customerId) throw new Error('could not obtain the load test customer');
@@ -132,7 +132,13 @@ export function setup() {
   }
   if (!vehicleId) throw new Error('could not obtain the load test vehicle');
 
-  return { token, customerId, vehicleId };
+  // An order of the load test customer: the customer routes only answer for
+  // the customer's own orders, so the customerAuth scenario reads this one.
+  const order = http.post(`${BASE_URL}/service-orders`, JSON.stringify({ customerId, vehicleId }), auth);
+  const orderId = order.status === 201 ? order.json('id') : null;
+  if (!orderId) throw new Error('could not open the load test customer order');
+
+  return { token, customerId, vehicleId, orderId };
 }
 
 // A 404 while waiting means "not there yet", not a failure: without this the
@@ -187,14 +193,15 @@ export function serviceOrderCycle(data) {
   }
 }
 
-export function customerAuth() {
+export function customerAuth(data) {
   const token = authenticate(`${BASE_URL}/auth/cpf`, { cpf: TAX_ID });
   check(token, { 'customer token issued': (t) => !!t });
   if (!token) return;
 
-  const r = http.get(`${BASE_URL}/service-orders`,
+  // The order list is staff only; a customer reads the status of their own order.
+  const r = http.get(`${BASE_URL}/service-orders/${data.orderId}/status`,
     { headers: { authorization: `Bearer ${token}` } });
-  check(r, { 'customer reads their own service orders': (x) => x.status === 200 });
+  check(r, { 'customer reads the status of their own order': (x) => x.status === 200 });
 }
 
 // One request per iteration: at 60/s, two calls would exceed the gateway limit.
