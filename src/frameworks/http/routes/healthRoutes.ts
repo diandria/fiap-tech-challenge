@@ -20,13 +20,20 @@ function withTimeout(check: ReadinessCheck): Promise<unknown> {
 
 export function healthRoutes(checkDatabase: ReadinessCheck): Router {
   const router = Router();
+  const startedAt = new Date().toISOString();
 
   // Liveness skips the database check: restarting the pod would not fix a
   // database outage and would cause a restart loop. It also reports the
   // version the deploy wrote, the commit SHA, which the logs and traces carry
-  // too: what is running can be checked through the gateway.
+  // too: what is running can be checked through the gateway. The start time
+  // tells a fresh rollout, or a pod the kubelet restarted, from one that has
+  // been up all along.
   router.get('/health', (_req, res) => {
-    res.status(200).json({ status: 'ok', version: process.env.SERVICE_VERSION ?? '0.0.0' });
+    res.status(200).json({
+      status: 'ok',
+      version: process.env.SERVICE_VERSION ?? '0.0.0',
+      startedAt,
+    });
   });
 
   // Readiness does query: the 503 pulls the pod out of the Service.

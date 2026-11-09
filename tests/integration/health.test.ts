@@ -59,7 +59,7 @@ describe('Version', () => {
     const res = await request(appWith(reachable)).get('/health');
 
     // THEN
-    expect(res.body).toEqual({ status: 'ok', version: 'a1b2c3d' });
+    expect(res.body.version).toBe('a1b2c3d');
   });
 
   it('should report the same default as the logs and traces GIVEN no SERVICE_VERSION WHEN liveness is probed', async () => {
@@ -70,7 +70,25 @@ describe('Version', () => {
     const res = await request(appWith(reachable)).get('/health');
 
     // THEN
-    expect(res.body).toEqual({ status: 'ok', version: '0.0.0' });
+    expect(res.body.version).toBe('0.0.0');
+  });
+});
+
+describe('Start time', () => {
+  it('should report when the instance started GIVEN the app has been up for a while WHEN liveness is probed', async () => {
+    // GIVEN
+    const before = Date.now();
+    const app = appWith(reachable);
+    const after = Date.now();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // WHEN
+    const res = await request(app).get('/health');
+
+    // THEN
+    const startedAt = Date.parse(res.body.startedAt);
+    expect(startedAt).toBeGreaterThanOrEqual(before);
+    expect(startedAt).toBeLessThanOrEqual(after);
   });
 });
 

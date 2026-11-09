@@ -245,7 +245,7 @@ Rode **todos** os passos. Cada um cobre uma fronteira diferente.
 GW=$(cd ~/dev/fiap-tech-challenge-infra-k8s && terraform output -raw api_gateway_url)
 
 # 1. A aplicação responde pelo gateway
-curl -s "$GW/health"    # {"status":"ok"}
+curl -s "$GW/health"    # {"status":"ok","version":"<sha do commit>","startedAt":"<subida do pod>"}
 curl -s "$GW/ready"     # {"status":"ready","checks":{"database":"up"}}
 ```
 
