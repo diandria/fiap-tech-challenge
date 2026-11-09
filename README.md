@@ -124,6 +124,7 @@ Operacional: [runbook do ambiente](docs/runbook-ambiente.md) e
 ```mermaid
 flowchart TB
     user(["Cliente / Funcionário"])
+    mp["Mercado Pago (simulado)\nprovedor de pagamento externo"]
 
     subgraph aws["AWS"]
         gw["API Gateway\nponto único de entrada\numa integração por serviço"]
@@ -137,7 +138,6 @@ flowchart TB
             os["OS Service\nordens, cadastros, estoque\norquestrador da saga"]
             billing["Billing Service\norçamento e pagamento"]
             execution["Execution Service\ndiagnóstico e reparo"]
-            payment["Payment Service\nprovedor de pagamento simulado"]
         end
 
         subgraph queues["SQS FIFO, cada uma com fila de descarte"]
@@ -154,7 +154,6 @@ flowchart TB
         gw -->|"ordens e cadastros"| os
         gw -->|"orçamento e notificação\nde pagamento"| billing
         gw -->|"/executions"| execution
-        gw -->|"checkout"| payment
         gw --> authfn
         authfn -->|"lookup interno"| gw
 
@@ -170,8 +169,6 @@ flowchart TB
         os -->|"mudança de status"| sns
         billing -->|"orçamento e link de pagamento"| sns
         sns --> notifyfn
-        billing -->|"token, cobrança, consulta"| payment
-        payment -->|"notificação assinada"| gw
     end
 
     subgraph gha["GitHub Actions, em cada repositório de serviço"]
@@ -181,7 +178,9 @@ flowchart TB
     end
 
     user --> gw
-    mp -->|"POST /payments/notifications"| gw
+    user -->|"paga no checkout"| mp
+    billing -->|"token, cobrança, consulta"| mp
+    mp -->|"POST /payments/notifications\nnotificação assinada"| gw
     cd --> k8s
 ```
 
